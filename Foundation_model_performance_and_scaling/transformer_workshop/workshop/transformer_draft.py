@@ -33,6 +33,7 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self):
         super().__init__()
+        
         pass
 
     def forward(self, x):
