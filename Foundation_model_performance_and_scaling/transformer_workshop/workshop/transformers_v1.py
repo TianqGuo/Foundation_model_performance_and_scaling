@@ -44,6 +44,9 @@ class CausalSelfAttention(nn.Module):
             persistent=False  # not be saved in state_dict in checkpoint
         )  # pre-make mask
 
+        self.embeddingL = nn.Embedding(B, E)
+        self.posembeddingL = nn.Embedding(L, E)
+
     def forward(self, x):
         B, T, E = x.size()  # T could be less than L the max seq length, overting B and E just in case they are changed
         # x: [B, T, E]
