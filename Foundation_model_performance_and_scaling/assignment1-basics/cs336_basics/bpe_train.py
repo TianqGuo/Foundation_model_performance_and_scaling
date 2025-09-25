@@ -57,18 +57,17 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: list[str]) -> tu
     max_merges = vocab_size - len(vocab)  # Account for initial vocab + special tokens
     merges: list[tuple[bytes, bytes]] = []
 
+    # Initialize pair counts for efficiency
+    pair_counts = defaultdict(int)
+    for pre_token in pre_tokens:
+        if len(pre_token) < 2:
+            continue
+        for i in range(len(pre_token) - 1):
+            pair = (pre_token[i], pre_token[i + 1])
+            pair_counts[pair] += 1
+
     # BPE training loop
     for _ in range(max_merges):
-        # Count adjacent byte pairs within each pre-token
-        pair_counts = defaultdict(int)
-
-        for pre_token in pre_tokens:
-            if len(pre_token) < 2:
-                continue
-            for i in range(len(pre_token) - 1):
-                pair = (pre_token[i], pre_token[i + 1])
-                pair_counts[pair] += 1
-
         if not pair_counts:
             break
 
@@ -96,11 +95,18 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: list[str]) -> tu
         # Record the merge (as bytes, not int IDs)
         merges.append((token1_bytes, token2_bytes))
 
-        # Replace all occurrences of the pair in pre-tokens
+        # Replace all occurrences of the pair in pre-tokens and update counts efficiently
         new_pre_tokens = []
         for pre_token in pre_tokens:
-            new_token = merge_pair_in_token(pre_token, best_pair, next_id)
-            new_pre_tokens.append(new_token)
+            # Only update pair counts if this token actually contains the pair
+            if contains_pair(pre_token, best_pair):
+                old_token = pre_token.copy()
+                new_token = merge_pair_in_token(pre_token, best_pair, next_id)
+                new_pre_tokens.append(new_token)
+                # Update pair counts for just this token
+                update_pair_counts_for_token(pair_counts, old_token, new_token)
+            else:
+                new_pre_tokens.append(pre_token)
         pre_tokens = new_pre_tokens
 
         next_id += 1
@@ -121,6 +127,29 @@ def merge_pair_in_token(token: list[int], pair: tuple[int, int], new_id: int) ->
             result.append(token[i])
             i += 1
     return result
+
+
+def contains_pair(token: list[int], pair: tuple[int, int]) -> bool:
+    """Check if token contains the specified pair."""
+    for i in range(len(token) - 1):
+        if token[i] == pair[0] and token[i + 1] == pair[1]:
+            return True
+    return False
+
+
+def update_pair_counts_for_token(pair_counts: dict, old_token: list[int], new_token: list[int]):
+    """Update pair counts after merging by removing old pairs and adding new ones for a single token."""
+    # Remove old pairs
+    for i in range(len(old_token) - 1):
+        pair = (old_token[i], old_token[i + 1])
+        pair_counts[pair] -= 1
+        if pair_counts[pair] == 0:
+            del pair_counts[pair]
+
+    # Add new pairs
+    for i in range(len(new_token) - 1):
+        pair = (new_token[i], new_token[i + 1])
+        pair_counts[pair] += 1
 
 
 # Example usage
