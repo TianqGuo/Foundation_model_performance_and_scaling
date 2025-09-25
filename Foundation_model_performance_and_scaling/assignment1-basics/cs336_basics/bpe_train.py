@@ -80,8 +80,15 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: list[str]) -> tu
         best_pair = max(most_frequent_pairs, key=lambda x: x[0])[0]
 
         # Create new token for the merged pair
-        token1_bytes = vocab[best_pair[0]] if best_pair[0] in vocab else bytes([best_pair[0]])
-        token2_bytes = vocab[best_pair[1]] if best_pair[1] in vocab else bytes([best_pair[1]])
+        # Note: All token IDs in pre_tokens should always exist in vocab
+        if best_pair[0] not in vocab:
+            raise ValueError(f"Token ID {best_pair[0]} not found in vocabulary")
+        if best_pair[1] not in vocab:
+            raise ValueError(f"Token ID {best_pair[1]} not found in vocabulary")
+
+        # Create new token for the merged pair
+        token1_bytes = vocab[best_pair[0]]
+        token2_bytes = vocab[best_pair[1]]
 
         merged_bytes = token1_bytes + token2_bytes
         vocab[next_id] = merged_bytes
