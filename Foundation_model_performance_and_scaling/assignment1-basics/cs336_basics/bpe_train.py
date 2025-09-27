@@ -57,21 +57,25 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: list[str]) -> tu
 
     # Split text on special tokens to avoid merging across boundaries
     if special_tokens:
-        # Create regex pattern to split on special tokens
         special_pattern = '|'.join(re.escape(token) for token in special_tokens)
-        text_chunks = re.split(f'({special_pattern})', text)
-        # Keep only non-special-token chunks for pre-tokenization
-        text_chunks = [chunk for chunk in text_chunks if chunk not in special_tokens]
-        text = ''.join(text_chunks)
+        text_chunks = [
+            chunk
+            for chunk in re.split(f'({special_pattern})', text)
+            if chunk and chunk not in special_tokens
+        ]
+    else:
+        text_chunks = [text]
 
     # Pre-tokenize using regex pattern - store as dict of frequencies
     freqs: dict[tuple[bytes], int] = {}
-    for match in re.finditer(PAT, text):
-        token_str = match.group()
-        token_bytes = token_str.encode('utf-8')
-        # Convert to tuple of single-byte objects for compatibility with reference
-        token_tuple = tuple(bytes([b]) for b in token_bytes)
-        freqs[token_tuple] = freqs.get(token_tuple, 0) + 1
+    pat_compiled = re.compile(PAT)
+    for chunk in text_chunks:
+        for match in pat_compiled.finditer(chunk):
+            token_str = match.group()
+            token_bytes = token_str.encode('utf-8')
+            # Convert to tuple of single-byte objects for compatibility with reference
+            token_tuple = tuple(bytes([b]) for b in token_bytes)
+            freqs[token_tuple] = freqs.get(token_tuple, 0) + 1
 
     # Calculate number of merges needed
     max_merges = vocab_size - len(vocab)  # Account for initial vocab + special tokens
