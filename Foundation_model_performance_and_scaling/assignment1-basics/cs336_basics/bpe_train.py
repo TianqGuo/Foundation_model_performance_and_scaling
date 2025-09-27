@@ -1,9 +1,27 @@
 import regex as re
 from collections import defaultdict
+import heapq
 from typing import Dict, List, Tuple
 
 # Regex pattern from GPT-2 tokenizer
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+
+
+class ReverseLexOrderPair:
+    """
+    Encapsulates (bytes, bytes) so that in a min-heap, the "largest in normal lex order"
+    is treated as the smallest. Ensures that tie frequencies pop in reverse lex order.
+    """
+
+    def __init__(self, pair: tuple[bytes, bytes]):
+        self.pair = pair
+
+    def __lt__(self, other: "ReverseLexOrderPair") -> bool:
+        # Invert normal order: self < other if self is > other (so larger lex sorts first).
+        return self.pair > other.pair
+
+    def __eq__(self, other: "ReverseLexOrderPair") -> bool:
+        return self.pair == other.pair
 
 
 def train_bpe(input_path: str, vocab_size: int, special_tokens: list[str]) -> tuple[
@@ -46,110 +64,135 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: list[str]) -> tu
         text_chunks = [chunk for chunk in text_chunks if chunk not in special_tokens]
         text = ''.join(text_chunks)
 
-    # Pre-tokenize using regex pattern
-    pre_tokens = []
+    # Pre-tokenize using regex pattern - store as dict of frequencies
+    freqs: dict[tuple[bytes], int] = {}
     for match in re.finditer(PAT, text):
         token_str = match.group()
         token_bytes = token_str.encode('utf-8')
-        pre_tokens.append(list(token_bytes))  # Convert to list of byte values
+        # Convert to tuple of single-byte objects for compatibility with reference
+        token_tuple = tuple(bytes([b]) for b in token_bytes)
+        freqs[token_tuple] = freqs.get(token_tuple, 0) + 1
 
     # Calculate number of merges needed
     max_merges = vocab_size - len(vocab)  # Account for initial vocab + special tokens
     merges: list[tuple[bytes, bytes]] = []
 
-    # Initialize pair counts for efficiency
-    pair_counts = defaultdict(int)
-    for pre_token in pre_tokens:
-        if len(pre_token) < 2:
-            continue
-        for i in range(len(pre_token) - 1):
-            pair = (pre_token[i], pre_token[i + 1])
-            pair_counts[pair] += 1
+    # Build initial pair frequencies using reference approach
+    pair_freqs, pairs_to_keys = get_pair_freqs(freqs)
+
+    # Build a max-heap by pushing negative frequencies (for min-heap behavior)
+    pair_heap = []
+    for p, f in pair_freqs.items():
+        if f > 0:
+            heapq.heappush(pair_heap, (-f, ReverseLexOrderPair(p), p))
 
     # BPE training loop
-    for _ in range(max_merges):
-        if not pair_counts:
+    for i in range(max_merges):
+        if not pair_heap:
             break
 
-        # Find most frequent pair (with lexicographic tie-breaking)
-        max_count = max(pair_counts.values())
-        most_frequent_pairs = [(pair, count) for pair, count in pair_counts.items() if count == max_count]
+        # Note that only the pairs_to_keys and pair_freqs were updated in the merge_tokens function process.
+        # And only new pair were added to pair_heap. The old/modified ones in the pair_heap were not touched.
+        # That's why we need the following loop to check the stale pairs in the pair_heep.
 
-        # Break ties lexicographically by choosing the maximum pair
-        best_pair = max(most_frequent_pairs, key=lambda x: x[0])[0]
+        # Pop until we find the top pair that still matches pair_freqs
+        while pair_heap:
+            neg_freq, _, top_pair = heapq.heappop(pair_heap)
+            freq = -neg_freq
+            if pair_freqs.get(top_pair, 0) == freq:
+                pair = top_pair
+                break
+            if top_pair in pair_freqs and pair_freqs[top_pair] > 0:
+                heapq.heappush(pair_heap, (-pair_freqs[top_pair], ReverseLexOrderPair(top_pair), top_pair))
+        else:
+            # If pair_heap is empty after the loop, we are done
+            break
 
-        # Create new token for the merged pair
-        # Note: All token IDs in pre_tokens should always exist in vocab
-        if best_pair[0] not in vocab:
-            raise ValueError(f"Token ID {best_pair[0]} not found in vocabulary")
-        if best_pair[1] not in vocab:
-            raise ValueError(f"Token ID {best_pair[1]} not found in vocabulary")
+        if pair_freqs.get(pair, 0) <= 0:
+            break
 
-        # Create new token for the merged pair
-        token1_bytes = vocab[best_pair[0]]
-        token2_bytes = vocab[best_pair[1]]
+        # Add this new merge token to vocab and record the merge
+        vocab[next_id] = pair[0] + pair[1]
+        merges.append(pair)
 
-        merged_bytes = token1_bytes + token2_bytes
-        vocab[next_id] = merged_bytes
-
-        # Record the merge (as bytes, not int IDs)
-        merges.append((token1_bytes, token2_bytes))
-
-        # Replace all occurrences of the pair in pre-tokens and update counts efficiently
-        new_pre_tokens = []
-        for pre_token in pre_tokens:
-            # Only update pair counts if this token actually contains the pair
-            if contains_pair(pre_token, best_pair):
-                old_token = pre_token.copy()
-                new_token = merge_pair_in_token(pre_token, best_pair, next_id)
-                new_pre_tokens.append(new_token)
-                # Update pair counts for just this token
-                update_pair_counts_for_token(pair_counts, old_token, new_token)
-            else:
-                new_pre_tokens.append(pre_token)
-        pre_tokens = new_pre_tokens
+        # Merge in freqs, then update the heap for pairs changed by this merge
+        changed_pairs = merge_tokens(freqs, pair_freqs, pairs_to_keys, pair)
+        for cp in changed_pairs:
+            if cp in pair_freqs and pair_freqs[cp] > 0:
+                heapq.heappush(pair_heap, (-pair_freqs[cp], ReverseLexOrderPair(cp), cp))
 
         next_id += 1
 
     return vocab, merges
 
 
-def merge_pair_in_token(token: list[int], pair: tuple[int, int], new_id: int) -> list[int]:
-    """Merge a specific pair in a token with a new ID."""
-    result = []
+def get_pair_freqs(
+    freqs: dict[tuple[bytes], int],
+) -> tuple[dict[tuple[bytes, bytes], int], dict[tuple[bytes, bytes], set[tuple[bytes]]]]:
+    """
+    Builds a pair-frequency table and reverse mapping (pair -> set of keys).
+    """
+    pair_freqs: dict[tuple[bytes, bytes], int] = defaultdict(int)
+    pairs_to_keys: dict[tuple[bytes, bytes], set[tuple[bytes]]] = defaultdict(set)
+
+    for symbols, freq in freqs.items():
+        for i in range(len(symbols) - 1):
+            pair = (symbols[i], symbols[i + 1])
+            pair_freqs[pair] += freq
+            pairs_to_keys[pair].add(symbols)
+
+    return pair_freqs, pairs_to_keys
+
+
+def build_new_repr(old_repr: tuple[bytes], pair: tuple[bytes, bytes]) -> tuple[bytes]:
+    """Replaces every occurrence of pair=(x,y) in old_repr with the merged symbol x+y."""
+    new_symbols = []
     i = 0
-    while i < len(token):
-        if i < len(token) - 1 and token[i] == pair[0] and token[i + 1] == pair[1]:
-            # Found the pair to merge
-            result.append(new_id)
-            i += 2  # Skip both elements of the pair
+    while i < len(old_repr):
+        if i < len(old_repr) - 1 and old_repr[i] == pair[0] and old_repr[i + 1] == pair[1]:
+            new_symbols.append(old_repr[i] + old_repr[i + 1])  # merges, e.g. b'A' + b'B' => b'AB'
+            i += 2
         else:
-            result.append(token[i])
+            new_symbols.append(old_repr[i])
             i += 1
-    return result
+    return tuple(new_symbols)
 
 
-def contains_pair(token: list[int], pair: tuple[int, int]) -> bool:
-    """Check if token contains the specified pair."""
-    for i in range(len(token) - 1):
-        if token[i] == pair[0] and token[i + 1] == pair[1]:
-            return True
-    return False
+def merge_tokens(
+    freqs: dict[tuple[bytes], int],
+    pair_freqs: dict[tuple[bytes, bytes], int],
+    pairs_to_keys: dict[tuple[bytes, bytes], set[tuple[bytes]]],
+    pair: tuple[bytes, bytes],
+) -> set[tuple[bytes, bytes]]:
+    """Merges 'pair' into freqs and updates pair_freqs & pairs_to_keys for all affected old/new keys."""
+    changed_pairs = set()
+    keys_to_modify = pairs_to_keys[pair].copy()
 
+    for old_key in keys_to_modify:
+        old_freq = freqs.pop(old_key)
+        new_key = build_new_repr(old_key, pair)
 
-def update_pair_counts_for_token(pair_counts: dict, old_token: list[int], new_token: list[int]):
-    """Update pair counts after merging by removing old pairs and adding new ones for a single token."""
-    # Remove old pairs
-    for i in range(len(old_token) - 1):
-        pair = (old_token[i], old_token[i + 1])
-        pair_counts[pair] -= 1
-        if pair_counts[pair] == 0:
-            del pair_counts[pair]
+        # Decrement frequencies in pair_freqs for old_key's adjacencies
+        for i in range(len(old_key) - 1):
+            left, right = old_key[i], old_key[i + 1]
+            pair_freqs[left, right] -= old_freq
+            changed_pairs.add((left, right))
+            if pair_freqs[left, right] <= 0:
+                del pair_freqs[left, right]
+            pairs_to_keys[left, right].discard(old_key)
 
-    # Add new pairs
-    for i in range(len(new_token) - 1):
-        pair = (new_token[i], new_token[i + 1])
-        pair_counts[pair] += 1
+        # Increment frequencies for new_key's adjacencies
+        for i in range(len(new_key) - 1):
+            left, right = new_key[i], new_key[i + 1]
+            pair_freqs[left, right] += old_freq
+            changed_pairs.add((left, right))
+            pairs_to_keys[left, right].add(new_key)
+
+        # Put new_key back with updated freq
+        freqs[new_key] = freqs.get(new_key, 0) + old_freq
+
+    pairs_to_keys[pair] = set()
+    return changed_pairs
 
 
 # Example usage
