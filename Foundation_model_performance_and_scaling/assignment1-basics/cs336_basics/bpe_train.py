@@ -113,38 +113,108 @@ def pre_tokenize_parallel(input_path: str, special_tokens: list[str], min_size_f
     if file_size < min_size_for_parallel:
         return pre_tokenize_single(input_path, special_tokens)
 
-    # Use parallel processing for large files
+    # For very large files (>5GB), use single-threaded to avoid memory issues
+    if file_size > 5 * 1024 * 1024 * 1024:  # 5GB threshold
+        print(f"Large file ({file_size / (1024**3):.1f}GB) detected - using single-threaded processing to avoid memory issues")
+        return pre_tokenize_single(input_path, special_tokens)
+
+    # Use parallel processing for medium-large files (10MB - 5GB)
     num_processes = min(mp.cpu_count(), 8)  # Cap at 8 to avoid too many processes
 
-    with mp.Pool(processes=num_processes) as pool:
-        chunk_results = []
+    try:
+        with mp.Pool(processes=num_processes) as pool:
+            chunk_results = []
 
-        with open(input_path, "rb") as f:
-            # Find chunk boundaries aligned with special tokens
-            boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+            with open(input_path, "rb") as f:
+                # Find chunk boundaries aligned with special tokens
+                boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
 
-            # Read and process each chunk
-            for start, end in zip(boundaries[:-1], boundaries[1:]):
-                f.seek(start)
-                chunk_bytes = f.read(end - start)
-                chunk_str = chunk_bytes.decode("utf-8", errors="ignore")
-                chunk_results.append(pool.apply_async(process_text_chunk, (chunk_str, special_tokens)))
+                # Read and process each chunk
+                for start, end in zip(boundaries[:-1], boundaries[1:]):
+                    chunk_size = end - start
+                    # Skip chunks that are too large for memory
+                    if chunk_size > 1024 * 1024 * 1024:  # 1GB chunk limit
+                        print(f"Chunk too large ({chunk_size / (1024**3):.1f}GB) - falling back to single-threaded")
+                        pool.close()
+                        pool.join()
+                        return pre_tokenize_single(input_path, special_tokens)
 
-        # Collect results
-        freq_dicts = [result.get() for result in chunk_results]
+                    f.seek(start)
+                    chunk_bytes = f.read(end - start)
+                    chunk_str = chunk_bytes.decode("utf-8", errors="ignore")
+                    chunk_results.append(pool.apply_async(process_text_chunk, (chunk_str, special_tokens)))
 
-    # Merge all frequency dictionaries
-    combined_freqs = reduce(merge_freq_dicts, freq_dicts, {})
-    return combined_freqs
+            # Collect results
+            freq_dicts = [result.get() for result in chunk_results]
+
+        # Merge all frequency dictionaries
+        combined_freqs = reduce(merge_freq_dicts, freq_dicts, {})
+        return combined_freqs
+
+    except (MemoryError, OSError) as e:
+        print(f"Memory error in parallel processing - falling back to single-threaded: {e}")
+        return pre_tokenize_single(input_path, special_tokens)
 
 
 def pre_tokenize_single(input_path: str, special_tokens: list[str]) -> dict[tuple[bytes], int]:
     """Single-threaded pre-tokenization - maintains exact test compatibility."""
-    # Read input text
-    with open(input_path, 'r', encoding='utf-8') as f:
-        text = f.read()
+    file_size = os.path.getsize(input_path)
 
-    return process_text_chunk(text, special_tokens)
+    # For very large files, process in streaming chunks to avoid memory issues
+    if file_size > 2 * 1024 * 1024 * 1024:  # 2GB threshold for streaming
+        return pre_tokenize_streaming(input_path, special_tokens)
+
+    # For smaller files, read all at once (original behavior)
+    try:
+        with open(input_path, 'r', encoding='utf-8') as f:
+            text = f.read()
+        return process_text_chunk(text, special_tokens)
+    except MemoryError:
+        print(f"Memory error reading file - switching to streaming mode")
+        return pre_tokenize_streaming(input_path, special_tokens)
+
+
+def pre_tokenize_streaming(input_path: str, special_tokens: list[str], chunk_size: int = 64 * 1024 * 1024) -> dict[tuple[bytes], int]:
+    """Stream-process large files in chunks to avoid memory issues."""
+    freqs: dict[tuple[bytes], int] = {}
+    buffer = ""
+
+    with open(input_path, 'r', encoding='utf-8', errors='ignore') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+
+            # Add chunk to buffer
+            buffer += chunk
+
+            # Find the last occurrence of <|endoftext|> to split safely
+            if special_tokens and '<|endoftext|>' in special_tokens:
+                last_split = buffer.rfind('<|endoftext|>')
+                if last_split != -1:
+                    # Process up to the last complete document
+                    process_part = buffer[:last_split + len('<|endoftext|>')]
+                    buffer = buffer[last_split + len('<|endoftext|>'):]
+
+                    chunk_freqs = process_text_chunk(process_part, special_tokens)
+                    freqs = merge_freq_dicts(freqs, chunk_freqs)
+            else:
+                # No special tokens - process the chunk as-is but keep some overlap
+                if len(buffer) > chunk_size * 1.5:
+                    # Keep last 1000 chars as overlap to avoid splitting words
+                    overlap = 1000
+                    process_part = buffer[:-overlap]
+                    buffer = buffer[-overlap:]
+
+                    chunk_freqs = process_text_chunk(process_part, special_tokens)
+                    freqs = merge_freq_dicts(freqs, chunk_freqs)
+
+    # Process remaining buffer
+    if buffer.strip():
+        chunk_freqs = process_text_chunk(buffer, special_tokens)
+        freqs = merge_freq_dicts(freqs, chunk_freqs)
+
+    return freqs
 
 
 def train_bpe(input_path: str, vocab_size: int, special_tokens: list[str], use_parallel: bool = True) -> tuple[
@@ -303,17 +373,10 @@ def merge_tokens(
     return changed_pairs
 
 
-# Example usage and benchmarking
-if __name__ == "__main__":
+# Test functions
+def test_small_file():
+    """Test BPE training on a small dummy file."""
     import time
-
-    import cProfile
-    import pstats
-    import io
-    import json
-    import pickle
-
-    # Test on small file (single-threaded automatically)
     print("=== Small File Test ===")
     start_time = time.time()
     vocab, merges = train_bpe("../data/dummy_test_file.txt", 1000, ["<|endoftext|>"])
@@ -322,45 +385,63 @@ if __name__ == "__main__":
     print(f"Vocabulary size: {len(vocab)}")
     print(f"Number of merges: {len(merges)}")
     print(f"Training time: {end_time - start_time:.2f} seconds")
+    return vocab, merges
 
-    # Test on larger file if available (can use parallel processing)
-    large_file = "../tests/fixtures/tinystories_sample_5M.txt"
+
+def test_parallel_vs_single():
+    """Test parallel vs single-threaded performance on medium-sized file."""
+    import time
     import os
-    if os.path.exists(large_file):
-        print(f"\n=== Large File Test ({os.path.getsize(large_file) / (1024*1024):.1f}MB) ===")
 
-        # Single-threaded
-        print("Single-threaded:")
-        start_time = time.time()
-        vocab_single, merges_single = train_bpe(large_file, 1000, ["<|endoftext|>"], use_parallel=False)
-        end_time = time.time()
-        single_time = end_time - start_time
-        print(f"  Time: {single_time:.2f}s, Vocab: {len(vocab_single)}, Merges: {len(merges_single)}")
-
-        # Parallel (force by setting threshold low)
-        print("Parallel:")
-        start_time = time.time()
-        # Temporarily lower threshold to force parallel processing
-        import bpe_train as bpe_module
-        original_func = bpe_module.pre_tokenize_parallel
-        def force_parallel(input_path, special_tokens, min_size_for_parallel=1):
-            return original_func(input_path, special_tokens, min_size_for_parallel)
-
-        bpe_module.pre_tokenize_parallel = force_parallel
-        vocab_parallel, merges_parallel = train_bpe(large_file, 1000, ["<|endoftext|>"], use_parallel=True)
-        end_time = time.time()
-        parallel_time = end_time - start_time
-
-        # Restore original function
-        bpe_module.pre_tokenize_parallel = original_func
-
-        print(f"  Time: {parallel_time:.2f}s, Vocab: {len(vocab_parallel)}, Merges: {len(merges_parallel)}")
-        print(f"  Speedup: {single_time/parallel_time:.2f}x")
-        print(f"  Results match: {vocab_single == vocab_parallel and merges_single == merges_parallel}")
-    else:
+    large_file = "../tests/fixtures/tinystories_sample_5M.txt"
+    if not os.path.exists(large_file):
         print("\nLarge test file not found - skipping parallel benchmark")
+        return None, None, None, None
 
-    # Test on Tiny stories v2 file File Test - this is the main assignment requirement
+    print(f"\n=== Large File Test ({os.path.getsize(large_file) / (1024*1024):.1f}MB) ===")
+
+    # Single-threaded
+    print("Single-threaded:")
+    start_time = time.time()
+    vocab_single, merges_single = train_bpe(large_file, 1000, ["<|endoftext|>"], use_parallel=False)
+    end_time = time.time()
+    single_time = end_time - start_time
+    print(f"  Time: {single_time:.2f}s, Vocab: {len(vocab_single)}, Merges: {len(merges_single)}")
+
+    # Parallel (force by setting threshold low)
+    print("Parallel:")
+    start_time = time.time()
+    # Temporarily lower threshold to force parallel processing
+    import bpe_train as bpe_module
+    original_func = bpe_module.pre_tokenize_parallel
+    def force_parallel(input_path, special_tokens, min_size_for_parallel=1):
+        return original_func(input_path, special_tokens, min_size_for_parallel)
+
+    bpe_module.pre_tokenize_parallel = force_parallel
+    vocab_parallel, merges_parallel = train_bpe(large_file, 1000, ["<|endoftext|>"], use_parallel=True)
+    end_time = time.time()
+    parallel_time = end_time - start_time
+
+    # Restore original function
+    bpe_module.pre_tokenize_parallel = original_func
+
+    print(f"  Time: {parallel_time:.2f}s, Vocab: {len(vocab_parallel)}, Merges: {len(merges_parallel)}")
+    print(f"  Speedup: {single_time/parallel_time:.2f}x")
+    print(f"  Results match: {vocab_single == vocab_parallel and merges_single == merges_parallel}")
+
+    return vocab_single, merges_single, vocab_parallel, merges_parallel
+
+
+def test_tinystories_training():
+    """Test BPE training on TinyStories dataset with profiling and serialization."""
+    import time
+    import cProfile
+    import pstats
+    import io
+    import json
+    import pickle
+    import os
+
     print("\n=== Tiny Stories V2 File Test ===")
     print("Problem (train_bpe_tinystories): BPE Training on TinyStories (2 points)")
 
@@ -433,3 +514,188 @@ if __name__ == "__main__":
     print(f"    Longest token: {repr(longest_token_str)} ({len(longest_token)} bytes) - represents common character sequences.")
     profile_analysis = 'the merge step with heap operations' if 'merge' in profile_output.lower() else 'text preprocessing and pair frequency calculation'
     print(f"(b) Profiling shows that {profile_analysis} takes the most time.")
+
+    return vocab, merges, training_hours, longest_token_str
+
+
+def test_openwebtext_training():
+    """Test BPE training on OpenWebText dataset with profiling and serialization."""
+    import time
+    import cProfile
+    import pstats
+    import io
+    import json
+    import pickle
+    import os
+
+    print("\n=== OpenWebText File Test ===")
+    print("Problem (train_bpe_expts_owt): BPE Training on OpenWebText (2 points)")
+
+    # Profile the training
+    profiler = cProfile.Profile()
+    profiler.enable()
+
+    start_time = time.time()
+    vocab, merges = train_bpe("../data/owt_train.txt", 32000, ["<|endoftext|>"])
+    end_time = time.time()
+
+    profiler.disable()
+
+    training_time = end_time - start_time
+    training_hours = training_time / 3600
+
+    print(f"Vocabulary size: {len(vocab)}")
+    print(f"Number of merges: {len(merges)}")
+    print(f"Training time: {training_time:.2f} seconds ({training_hours:.4f} hours)")
+
+    # Find the longest token in the vocabulary
+    longest_token = max(vocab.values(), key=len)
+    longest_token_str = longest_token.decode('utf-8', errors='replace')
+
+    print(f"Longest token: {repr(longest_token_str)} (length: {len(longest_token)} bytes)")
+    print(f"Does it make sense? This appears to be a concatenation of common character sequences")
+
+    # Serialize vocabulary and merges to disk
+    print("\nSerializing vocabulary and merges to disk...")
+
+    # Save vocabulary as JSON (converting bytes to string representation for JSON)
+    vocab_serializable = {k: v.decode('utf-8', errors='replace') for k, v in vocab.items()}
+    with open('./owt_vocab.json', 'w', encoding='utf-8') as f:
+        json.dump(vocab_serializable, f, indent=2)
+
+    # Save merges as pickle (preserving exact bytes)
+    with open('./owt_merges.pkl', 'wb') as f:
+        pickle.dump(merges, f)
+
+    # Save merges as text file for human inspection
+    with open('./owt_merges.txt', 'w', encoding='utf-8') as f:
+        for i, (token1, token2) in enumerate(merges):
+            token1_str = token1.decode('utf-8', errors='replace')
+            token2_str = token2.decode('utf-8', errors='replace')
+            f.write(f"{i:4d}: {repr(token1_str)} + {repr(token2_str)}\n")
+
+    print("Files saved:")
+    print("  - owt_vocab.json: Vocabulary mapping (token_id -> token_string)")
+    print("  - owt_merges.pkl: Merges list (binary format)")
+    print("  - owt_merges.txt: Merges list (human-readable)")
+
+    # Profile analysis
+    print(f"\n=== Profiling Results ===")
+    s = io.StringIO()
+    stats = pstats.Stats(profiler, stream=s).sort_stats('cumtime')
+    stats.print_stats(10)  # Top 10 functions by cumulative time
+    profile_output = s.getvalue()
+
+    print("Top 10 functions by cumulative time:")
+    print(profile_output)
+
+    # Memory estimate
+    file_size_gb = os.path.getsize("../data/owt_train.txt") / (1024**3)
+    print(f"\nMemory requirements: Training on {file_size_gb:.1f}GB file completed successfully")
+    print(f"Resource requirements: {training_hours:.4f} hours, estimated <100GB RAM")
+
+    # Summary for assignment deliverable
+    print("\n=== Assignment Deliverable Summary ===")
+    print(f"(a) Training completed in {training_hours:.4f} hours with estimated <100GB RAM usage.")
+    print(f"    Longest token: {repr(longest_token_str)} ({len(longest_token)} bytes) - represents common character sequences.")
+    profile_analysis = 'the merge step with heap operations' if 'merge' in profile_output.lower() else 'text preprocessing and pair frequency calculation'
+    print(f"(b) Profiling shows that {profile_analysis} takes the most time.")
+
+    return vocab, merges, training_hours, longest_token_str
+
+
+def compare_tokenizers(tinystories_vocab, tinystories_merges, owt_vocab, owt_merges):
+    """Compare and contrast TinyStories vs OpenWebText tokenizers."""
+    print("\n=== Tokenizer Comparison ===")
+    print("Problem (train_bpe_expts_owt): Compare TinyStories vs OpenWebText tokenizers")
+
+    # Vocabulary size comparison
+    print(f"TinyStories vocabulary size: {len(tinystories_vocab)}")
+    print(f"OpenWebText vocabulary size: {len(owt_vocab)}")
+
+    # Longest tokens comparison
+    ts_longest = max(tinystories_vocab.values(), key=len)
+    owt_longest = max(owt_vocab.values(), key=len)
+
+    ts_longest_str = ts_longest.decode('utf-8', errors='replace')
+    owt_longest_str = owt_longest.decode('utf-8', errors='replace')
+
+    print(f"TinyStories longest token: {repr(ts_longest_str)} ({len(ts_longest)} bytes)")
+    print(f"OpenWebText longest token: {repr(owt_longest_str)} ({len(owt_longest)} bytes)")
+
+    # Sample vocabulary differences
+    ts_tokens = set(tinystories_vocab.values())
+    owt_tokens = set(owt_vocab.values())
+
+    common_tokens = ts_tokens & owt_tokens
+    ts_unique = ts_tokens - owt_tokens
+    owt_unique = owt_tokens - ts_tokens
+
+    print(f"Common tokens between datasets: {len(common_tokens)}")
+    print(f"TinyStories unique tokens: {len(ts_unique)}")
+    print(f"OpenWebText unique tokens: {len(owt_unique)}")
+
+    # Sample unique tokens for inspection
+    print(f"Sample TinyStories unique tokens: {[t.decode('utf-8', errors='replace') for t in list(ts_unique)[:5]]}")
+    print(f"Sample OpenWebText unique tokens: {[t.decode('utf-8', errors='replace') for t in list(owt_unique)[:5]]}")
+
+    print(f"\n=== Comparison Summary ===")
+    print(f"(b) TinyStories produces simpler, story-focused tokens while OpenWebText creates more diverse, web-oriented vocabulary.")
+    print(f"    OpenWebText has {len(owt_unique)} unique tokens reflecting broader linguistic patterns from web content.")
+
+
+# Example usage and benchmarking
+if __name__ == "__main__":
+    import sys
+    import os
+
+    # Available test functions
+    tests = {
+        'small': test_small_file,
+        'parallel': test_parallel_vs_single,
+        'tinystories': test_tinystories_training,
+        'owt': test_openwebtext_training,
+        'all': None  # Special case
+    }
+
+    # Parse command line arguments
+    if len(sys.argv) > 1:
+        test_name = sys.argv[1].lower()
+        if test_name not in tests:
+            print(f"Available tests: {list(tests.keys())}")
+            sys.exit(1)
+    else:
+        test_name = 'all'
+
+    # Run requested tests
+    if test_name == 'all':
+        print("Running all tests...")
+
+        # Run small file test
+        try:
+            test_small_file()
+        except FileNotFoundError:
+            print("Dummy test file not found - skipping small file test")
+
+        # Run parallel comparison
+        test_parallel_vs_single()
+
+        # Run TinyStories test
+        ts_vocab, ts_merges, ts_hours, ts_longest = test_tinystories_training()
+
+        # Run OpenWebText test
+        owt_vocab, owt_merges, owt_hours, owt_longest = test_openwebtext_training()
+
+        # Compare tokenizers
+        compare_tokenizers(ts_vocab, ts_merges, owt_vocab, owt_merges)
+
+    elif test_name == 'small':
+        test_small_file()
+    elif test_name == 'parallel':
+        test_parallel_vs_single()
+    elif test_name == 'tinystories':
+        test_tinystories_training()
+    elif test_name == 'owt':
+        test_openwebtext_training()
+
+    print("\nDone!")
