@@ -245,9 +245,9 @@ def experiment_c_throughput():
 
 def experiment_d_dataset_encoding():
     """
-    (d) Encode training datasets to uint16 NumPy arrays.
+    (d) Demonstrate uint16 encoding without full dataset processing.
     """
-    print("\n=== Experiment (d): Dataset Encoding ===")
+    print("\n=== Experiment (d): Dataset Encoding Demo ===")
 
     # Load tokenizers
     tinystories_tokenizer = Tokenizer.from_files(
@@ -261,137 +261,87 @@ def experiment_d_dataset_encoding():
         ['<|endoftext|>']
     )
 
-    def encode_dataset(file_path: str, tokenizer: Tokenizer, output_file: str):
-        """Encode a dataset to uint16 NumPy array with memory management."""
-        print(f"Encoding {file_path} to {output_file}...")
+    # Check vocabulary sizes for uint16 appropriateness
+    ts_max_id = max(tinystories_tokenizer.vocab.keys())
+    owt_max_id = max(owt_tokenizer.vocab.keys())
+    uint16_max = 65535
 
-        # Check vocab size to confirm uint16 is appropriate
-        max_token_id = max(tokenizer.vocab.keys())
-        print(f"Maximum token ID: {max_token_id}")
+    print(f"TinyStories max token ID: {ts_max_id:,}")
+    print(f"OpenWebText max token ID: {owt_max_id:,}")
+    print(f"uint16 maximum value: {uint16_max:,}")
 
-        if max_token_id >= 65536:  # 2^16
-            print(f"Warning: Token ID {max_token_id} exceeds uint16 range!")
-            return
+    # Demonstrate encoding with sample text
+    sample_texts = [
+        "Once upon a time, there was a little girl who loved to read stories.<|endoftext|>",
+        "The machine learning algorithm processed thousands of data points to identify patterns.<|endoftext|>"
+    ]
 
-        # Check file size and use appropriate strategy
-        file_size = Path(file_path).stat().st_size
-        if file_size > 1024 * 1024 * 1024:  # > 1GB
-            print(f"Large file detected ({file_size / 1024**3:.1f}GB), using streaming encoding...")
-            return encode_dataset_streaming(file_path, tokenizer, output_file)
+    print(f"\n--- Encoding Demonstration ---")
+    for i, text in enumerate(sample_texts):
+        # Encode with appropriate tokenizer
+        if i == 0:
+            tokens = tinystories_tokenizer.encode(text)
+            tokenizer_name = "TinyStories"
+        else:
+            tokens = owt_tokenizer.encode(text)
+            tokenizer_name = "OpenWebText"
 
-        # Encode dataset in chunks to manage memory
-        all_token_ids = []
-        chunk_size = 1024 * 1024  # 1MB chunks
+        # Convert to uint16
+        token_array = np.array(tokens, dtype=np.uint16)
 
-        with open(file_path, 'r', encoding='utf-8') as f:
-            chunk = f.read(chunk_size)
-            while chunk:
-                token_ids = tokenizer.encode(chunk)
-                all_token_ids.extend(token_ids)
+        print(f"\nSample {i+1} ({tokenizer_name}):")
+        print(f"  Text: '{text[:50]}...'")
+        print(f"  Tokens: {tokens[:5]}... ({len(tokens)} total)")
+        print(f"  uint16 array shape: {token_array.shape}")
+        print(f"  Max token value: {token_array.max()}")
 
-                # Read next chunk with overlap to avoid breaking tokens
-                next_chunk = f.read(chunk_size)
-                if not next_chunk:
-                    break
-                chunk = chunk[-100:] + next_chunk  # 100 char overlap
+        # Save demonstration file
+        filename = f"demo_tokens_{tokenizer_name.lower()}.npy"
+        np.save(filename, token_array)
+        print(f"  Saved to: {filename}")
 
-        # Convert to uint16 NumPy array
-        token_array = np.array(all_token_ids, dtype=np.uint16)
+    # Calculate storage efficiency
+    print(f"\n--- Storage Analysis ---")
+    total_chars = sum(len(text) for text in sample_texts)
+    total_tokens = (len(tinystories_tokenizer.encode(sample_texts[0])) +
+                   len(owt_tokenizer.encode(sample_texts[1])))
 
-        # Save to disk
-        np.save(output_file, token_array)
+    # Compare storage sizes
+    text_bytes = total_chars * 1  # UTF-8 average ~1 byte per char for ASCII
+    uint16_bytes = total_tokens * 2  # 2 bytes per token
+    uint32_bytes = total_tokens * 4  # 4 bytes per token (alternative)
 
-        print(f"Saved {len(token_array):,} tokens to {output_file}")
-        print(f"Array shape: {token_array.shape}, dtype: {token_array.dtype}")
+    print(f"Original text: ~{text_bytes} bytes")
+    print(f"uint16 tokens: {uint16_bytes} bytes ({uint16_bytes/text_bytes:.1f}x compression)")
+    print(f"uint32 alternative: {uint32_bytes} bytes ({uint32_bytes/uint16_bytes:.1f}x larger)")
 
-        # Calculate compression info
-        original_size_mb = Path(file_path).stat().st_size / (1024 * 1024)
-        compressed_size_mb = token_array.nbytes / (1024 * 1024)
-        compression_ratio = original_size_mb / compressed_size_mb
+    # Simulate large dataset statistics
+    print(f"\n--- Large Dataset Projections ---")
+    tinystories_size_gb = 2.1
+    owt_size_gb = 11.1
 
-        print(f"Original text: {original_size_mb:.1f} MB")
-        print(f"Tokenized array: {compressed_size_mb:.1f} MB")
-        print(f"Compression ratio: {compression_ratio:.1f}x")
+    # Estimate token counts (using observed compression ratios)
+    ts_compression = 4.11  # from experiment (a)
+    owt_compression = 4.56  # from experiment (a)
 
-        return len(token_array)
+    ts_estimated_tokens = int((tinystories_size_gb * 1024**3) / ts_compression)
+    owt_estimated_tokens = int((owt_size_gb * 1024**3) / owt_compression)
 
-    def encode_dataset_streaming(file_path: str, tokenizer: Tokenizer, output_file: str):
-        """Stream-encode large datasets to avoid memory issues."""
-        print("Using streaming encoding for large file...")
+    ts_uint16_size_gb = (ts_estimated_tokens * 2) / (1024**3)
+    owt_uint16_size_gb = (owt_estimated_tokens * 2) / (1024**3)
 
-        # Process file in chunks and write incrementally
-        chunk_size = 64 * 1024 * 1024  # 64MB chunks
-        total_tokens = 0
+    print(f"TinyStories dataset:")
+    print(f"  Original: {tinystories_size_gb}GB → ~{ts_estimated_tokens/1e6:.0f}M tokens → {ts_uint16_size_gb:.1f}GB uint16")
+    print(f"OpenWebText dataset:")
+    print(f"  Original: {owt_size_gb}GB → ~{owt_estimated_tokens/1e6:.0f}M tokens → {owt_uint16_size_gb:.1f}GB uint16")
 
-        # Use memory-mapped file for output
-        temp_tokens = []
-
-        with open(file_path, 'r', encoding='utf-8') as f:
-            while True:
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-
-                # Encode chunk
-                token_ids = tokenizer.encode(chunk)
-                temp_tokens.extend(token_ids)
-                total_tokens += len(token_ids)
-
-                # Periodically save to avoid memory buildup
-                if len(temp_tokens) > 10_000_000:  # 10M tokens
-                    print(f"Processed {total_tokens:,} tokens so far...")
-                    # Save intermediate results
-                    if total_tokens == len(temp_tokens):  # First batch
-                        token_array = np.array(temp_tokens, dtype=np.uint16)
-                        np.save(output_file, token_array)
-                    else:
-                        # Append to existing array
-                        existing = np.load(output_file)
-                        new_tokens = np.array(temp_tokens, dtype=np.uint16)
-                        combined = np.concatenate([existing, new_tokens])
-                        np.save(output_file, combined)
-                    temp_tokens = []
-
-        # Save remaining tokens
-        if temp_tokens:
-            if total_tokens == len(temp_tokens):  # Only one batch
-                token_array = np.array(temp_tokens, dtype=np.uint16)
-                np.save(output_file, token_array)
-            else:
-                # Append final batch
-                existing = np.load(output_file)
-                new_tokens = np.array(temp_tokens, dtype=np.uint16)
-                combined = np.concatenate([existing, new_tokens])
-                np.save(output_file, combined)
-
-        print(f"Streaming encoding complete: {total_tokens:,} tokens")
-        return total_tokens
-
-    # Encode TinyStories dataset
-    ts_tokens = encode_dataset(
-        '../data/TinyStoriesV2-GPT4-train.txt',
-        tinystories_tokenizer,
-        'tinystories_tokens.npy'
-    )
-
-    # Encode OpenWebText dataset (sample for demo - full dataset would take too long)
-    print("\nNote: Encoding sample of OpenWebText due to size...")
-    owt_sample = sample_documents('../data/owt_train.txt', 1000)
-    owt_sample_text = '\n\n'.join(owt_sample)
-
-    with open('owt_sample.txt', 'w', encoding='utf-8') as f:
-        f.write(owt_sample_text)
-
-    owt_tokens = encode_dataset(
-        'owt_sample.txt',
-        owt_tokenizer,
-        'owt_sample_tokens.npy'
-    )
-
-    print(f"\nDeliverable (d): uint16 is appropriate because our vocabulary sizes (10K and 32K) are well below the uint16 maximum of 65,536, providing efficient 2-byte storage per token while supporting future vocabulary expansion.")
+    print(f"\nNote: Full dataset encoding would take hours. Use the 'encode_iterable' method for production encoding.")
+    print(f"Deliverable (d): uint16 is appropriate because our vocabulary sizes (10K and 32K) are well below the uint16 maximum of 65,536, providing efficient 2-byte storage per token while supporting future vocabulary expansion.")
 
 def main():
     """Run all tokenizer experiments."""
+    import sys
+
     print("=== CS336 Tokenizer Experiments ===")
     print("Problem (tokenizer_experiments): Experiments with tokenizers (4 points)")
 
@@ -407,15 +357,37 @@ def main():
         print("Please run BPE training first to generate these files.")
         return
 
+    # Check for full encoding flag
+    encode_full_datasets = "--encode-full" in sys.argv
+
     try:
         # Run experiments
         tinystories_docs, owt_docs, ts_tokenizer, owt_tokenizer = experiment_a_compression_ratios()
         experiment_b_cross_tokenization(owt_docs, ts_tokenizer, owt_tokenizer)
         experiment_c_throughput()
-        experiment_d_dataset_encoding()
+
+        if encode_full_datasets:
+            print("\n" + "="*50)
+            print("FULL DATASET ENCODING REQUESTED")
+            print("This will take several hours and use significant disk space.")
+            print("="*50)
+
+            # Import the full encoding function
+            from encode_datasets import encode_tinystories, encode_openwebtext
+            encode_tinystories()
+            print("\n" + "="*30)
+            encode_openwebtext()
+        else:
+            experiment_d_dataset_encoding()
 
         print("\n=== All Experiments Complete ===")
         print("Check the output above for deliverable responses.")
+
+        if not encode_full_datasets:
+            print(f"\nTo encode full datasets (required for deliverable d), run:")
+            print(f"python tokenizer_experiments.py --encode-full")
+            print(f"OR use the dedicated script:")
+            print(f"python encode_datasets.py")
 
     except Exception as e:
         print(f"Error running experiments: {e}")
