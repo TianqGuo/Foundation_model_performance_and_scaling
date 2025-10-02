@@ -450,7 +450,7 @@ def test_tinystories_training():
     profiler.enable()
 
     start_time = time.time()
-    vocab, merges = train_bpe("../data/TinyStoriesV2-GPT4-train.txt", 10000, ["<|endoftext|>"])
+    vocab, merges = train_bpe("../../data/TinyStoriesV2-GPT4-train.txt", 10000, ["<|endoftext|>"])
     end_time = time.time()
 
     profiler.disable()
@@ -474,24 +474,24 @@ def test_tinystories_training():
 
     # Save vocabulary as JSON (converting bytes to string representation for JSON)
     vocab_serializable = {k: v.decode('utf-8', errors='replace') for k, v in vocab.items()}
-    with open('./tinystories_vocab.json', 'w', encoding='utf-8') as f:
+    with open('../artifacts/vocabularies/tinystories_vocab.json', 'w', encoding='utf-8') as f:
         json.dump(vocab_serializable, f, indent=2)
 
     # Save merges as pickle (preserving exact bytes)
-    with open('./tinystories_merges.pkl', 'wb') as f:
+    with open('../artifacts/vocabularies/tinystories_merges.pkl', 'wb') as f:
         pickle.dump(merges, f)
 
     # Save merges as text file for human inspection
-    with open('./tinystories_merges.txt', 'w', encoding='utf-8') as f:
+    with open('../artifacts/vocabularies/tinystories_merges.txt', 'w', encoding='utf-8') as f:
         for i, (token1, token2) in enumerate(merges):
             token1_str = token1.decode('utf-8', errors='replace')
             token2_str = token2.decode('utf-8', errors='replace')
             f.write(f"{i:4d}: {repr(token1_str)} + {repr(token2_str)}\n")
 
     print("Files saved:")
-    print("  - tinystories_vocab.json: Vocabulary mapping (token_id -> token_string)")
-    print("  - tinystories_merges.pkl: Merges list (binary format)")
-    print("  - tinystories_merges.txt: Merges list (human-readable)")
+    print("  - ../artifacts/vocabularies/tinystories_vocab.json: Vocabulary mapping (token_id -> token_string)")
+    print("  - ../artifacts/vocabularies/tinystories_merges.pkl: Merges list (binary format)")
+    print("  - ../artifacts/vocabularies/tinystories_merges.txt: Merges list (human-readable)")
 
     # Profile analysis
     print(f"\n=== Profiling Results ===")
@@ -536,7 +536,7 @@ def test_openwebtext_training():
     profiler.enable()
 
     start_time = time.time()
-    vocab, merges = train_bpe("../data/owt_train.txt", 32000, ["<|endoftext|>"])
+    vocab, merges = train_bpe("../../data/owt_train.txt", 32000, ["<|endoftext|>"])
     end_time = time.time()
 
     profiler.disable()
@@ -560,24 +560,24 @@ def test_openwebtext_training():
 
     # Save vocabulary as JSON (converting bytes to string representation for JSON)
     vocab_serializable = {k: v.decode('utf-8', errors='replace') for k, v in vocab.items()}
-    with open('./owt_vocab.json', 'w', encoding='utf-8') as f:
+    with open('../artifacts/vocabularies/owt_vocab.json', 'w', encoding='utf-8') as f:
         json.dump(vocab_serializable, f, indent=2)
 
     # Save merges as pickle (preserving exact bytes)
-    with open('./owt_merges.pkl', 'wb') as f:
+    with open('../artifacts/vocabularies/owt_merges.pkl', 'wb') as f:
         pickle.dump(merges, f)
 
     # Save merges as text file for human inspection
-    with open('./owt_merges.txt', 'w', encoding='utf-8') as f:
+    with open('../artifacts/vocabularies/owt_merges.txt', 'w', encoding='utf-8') as f:
         for i, (token1, token2) in enumerate(merges):
             token1_str = token1.decode('utf-8', errors='replace')
             token2_str = token2.decode('utf-8', errors='replace')
             f.write(f"{i:4d}: {repr(token1_str)} + {repr(token2_str)}\n")
 
     print("Files saved:")
-    print("  - owt_vocab.json: Vocabulary mapping (token_id -> token_string)")
-    print("  - owt_merges.pkl: Merges list (binary format)")
-    print("  - owt_merges.txt: Merges list (human-readable)")
+    print("  - ../artifacts/vocabularies/owt_vocab.json: Vocabulary mapping (token_id -> token_string)")
+    print("  - ../artifacts/vocabularies/owt_merges.pkl: Merges list (binary format)")
+    print("  - ../artifacts/vocabularies/owt_merges.txt: Merges list (human-readable)")
 
     # Profile analysis
     print(f"\n=== Profiling Results ===")
@@ -590,7 +590,7 @@ def test_openwebtext_training():
     print(profile_output)
 
     # Memory estimate
-    file_size_gb = os.path.getsize("../data/owt_train.txt") / (1024**3)
+    file_size_gb = os.path.getsize("../../data/owt_train.txt") / (1024**3)
     print(f"\nMemory requirements: Training on {file_size_gb:.1f}GB file completed successfully")
     print(f"Resource requirements: {training_hours:.4f} hours, estimated <100GB RAM")
 

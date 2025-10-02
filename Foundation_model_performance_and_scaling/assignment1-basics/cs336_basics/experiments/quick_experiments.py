@@ -7,8 +7,12 @@ For systems with limited RAM
 import time
 import random
 import numpy as np
+import sys
 from pathlib import Path
-from bpe_tokenizer import Tokenizer
+
+# Add parent directory to sys.path to import tokenizer
+sys.path.append(str(Path(__file__).parent.parent))
+from tokenizer.bpe_tokenizer import Tokenizer
 
 def quick_experiments():
     """Run quick experiments with sample data to avoid memory issues."""
@@ -17,8 +21,8 @@ def quick_experiments():
 
     # Check if tokenizer files exist
     required_files = [
-        'tinystories_vocab.json', 'tinystories_merges.pkl',
-        'owt_vocab.json', 'owt_merges.pkl'
+        '../artifacts/vocabularies/tinystories_vocab.json', '../artifacts/vocabularies/tinystories_merges.pkl',
+        '../artifacts/vocabularies/owt_vocab.json', '../artifacts/vocabularies/owt_merges.pkl'
     ]
 
     missing_files = [f for f in required_files if not Path(f).exists()]
@@ -30,13 +34,13 @@ def quick_experiments():
     # Load tokenizers
     print("Loading tokenizers...")
     ts_tokenizer = Tokenizer.from_files(
-        'tinystories_vocab.json',
-        'tinystories_merges.pkl',
+        '../artifacts/vocabularies/tinystories_vocab.json',
+        '../artifacts/vocabularies/tinystories_merges.pkl',
         ['<|endoftext|>']
     )
     owt_tokenizer = Tokenizer.from_files(
-        'owt_vocab.json',
-        'owt_merges.pkl',
+        '../artifacts/vocabularies/owt_vocab.json',
+        '../artifacts/vocabularies/owt_merges.pkl',
         ['<|endoftext|>']
     )
 

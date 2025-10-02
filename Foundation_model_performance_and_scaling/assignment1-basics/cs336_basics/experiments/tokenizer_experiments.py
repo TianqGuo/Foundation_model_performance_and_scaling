@@ -7,9 +7,13 @@ Problem (tokenizer_experiments): Experiments with tokenizers (4 points)
 import time
 import random
 import numpy as np
+import sys
 from pathlib import Path
 from typing import List, Tuple, Dict
-from bpe_tokenizer import Tokenizer
+
+# Add parent directory to sys.path to import tokenizer
+sys.path.append(str(Path(__file__).parent.parent))
+from tokenizer.bpe_tokenizer import Tokenizer
 
 def sample_documents(file_path: str, num_docs: int = 10, seed: int = 42) -> List[str]:
     """
@@ -128,20 +132,20 @@ def experiment_a_compression_ratios():
     # Load tokenizers
     print("Loading tokenizers...")
     tinystories_tokenizer = Tokenizer.from_files(
-        'tinystories_vocab.json',
-        'tinystories_merges.pkl',
+        '../artifacts/vocabularies/tinystories_vocab.json',
+        '../artifacts/vocabularies/tinystories_merges.pkl',
         ['<|endoftext|>']
     )
     owt_tokenizer = Tokenizer.from_files(
-        'owt_vocab.json',
-        'owt_merges.pkl',
+        '../artifacts/vocabularies/owt_vocab.json',
+        '../artifacts/vocabularies/owt_merges.pkl',
         ['<|endoftext|>']
     )
 
     # Sample documents
     print("Sampling documents...")
-    tinystories_docs = sample_documents('../data/TinyStoriesV2-GPT4-train.txt', 10)
-    owt_docs = sample_documents('../data/owt_train.txt', 10)
+    tinystories_docs = sample_documents('../../data/TinyStoriesV2-GPT4-train.txt', 10)
+    owt_docs = sample_documents('../../data/owt_train.txt', 10)
 
     # Calculate compression ratios for TinyStories
     ts_ratios = []
@@ -206,13 +210,13 @@ def experiment_c_throughput():
 
     # Load a tokenizer for testing
     tokenizer = Tokenizer.from_files(
-        'owt_vocab.json',
-        'owt_merges.pkl',
+        '../artifacts/vocabularies/owt_vocab.json',
+        '../artifacts/vocabularies/owt_merges.pkl',
         ['<|endoftext|>']
     )
 
     # Create test text - sample from OpenWebText
-    test_docs = sample_documents('../data/owt_train.txt', 100)  # More documents for better estimate
+    test_docs = sample_documents('../../data/owt_train.txt', 100)  # More documents for better estimate
     test_text = '\n\n'.join(test_docs)
     test_bytes = len(test_text.encode('utf-8'))
 
@@ -251,13 +255,13 @@ def experiment_d_dataset_encoding():
 
     # Load tokenizers
     tinystories_tokenizer = Tokenizer.from_files(
-        'tinystories_vocab.json',
-        'tinystories_merges.pkl',
+        '../artifacts/vocabularies/tinystories_vocab.json',
+        '../artifacts/vocabularies/tinystories_merges.pkl',
         ['<|endoftext|>']
     )
     owt_tokenizer = Tokenizer.from_files(
-        'owt_vocab.json',
-        'owt_merges.pkl',
+        '../artifacts/vocabularies/owt_vocab.json',
+        '../artifacts/vocabularies/owt_merges.pkl',
         ['<|endoftext|>']
     )
 
@@ -347,8 +351,8 @@ def main():
 
     # Check if tokenizer files exist
     required_files = [
-        'tinystories_vocab.json', 'tinystories_merges.pkl',
-        'owt_vocab.json', 'owt_merges.pkl'
+        '../artifacts/vocabularies/tinystories_vocab.json', '../artifacts/vocabularies/tinystories_merges.pkl',
+        '../artifacts/vocabularies/owt_vocab.json', '../artifacts/vocabularies/owt_merges.pkl'
     ]
 
     missing_files = [f for f in required_files if not Path(f).exists()]

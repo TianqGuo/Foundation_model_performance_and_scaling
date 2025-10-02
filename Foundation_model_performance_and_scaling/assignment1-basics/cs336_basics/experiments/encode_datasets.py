@@ -6,8 +6,12 @@ Encode TinyStories and OpenWebText datasets to uint16 NumPy arrays
 
 import time
 import numpy as np
+import sys
 from pathlib import Path
-from bpe_tokenizer import Tokenizer
+
+# Add parent directory to sys.path to import tokenizer
+sys.path.append(str(Path(__file__).parent.parent))
+from tokenizer.bpe_tokenizer import Tokenizer
 
 def encode_dataset_streaming(file_path: str, tokenizer: Tokenizer, output_file: str):
     """
@@ -120,14 +124,14 @@ def encode_tinystories():
 
     # Load tokenizer
     tokenizer = Tokenizer.from_files(
-        'tinystories_vocab.json',
-        'tinystories_merges.pkl',
+        '../artifacts/vocabularies/tinystories_vocab.json',
+        '../artifacts/vocabularies/tinystories_merges.pkl',
         ['<|endoftext|>']
     )
 
     # Encode training dataset
     tokens = encode_dataset_streaming(
-        '../data/TinyStoriesV2-GPT4-train.txt',
+        '../../data/TinyStoriesV2-GPT4-train.txt',
         tokenizer,
         'tinystories_train_tokens.npy'
     )
@@ -140,14 +144,14 @@ def encode_openwebtext():
 
     # Load tokenizer
     tokenizer = Tokenizer.from_files(
-        'owt_vocab.json',
-        'owt_merges.pkl',
+        '../artifacts/vocabularies/owt_vocab.json',
+        '../artifacts/vocabularies/owt_merges.pkl',
         ['<|endoftext|>']
     )
 
     # Encode training dataset
     tokens = encode_dataset_streaming(
-        '../data/owt_train.txt',
+        '../../data/owt_train.txt',
         tokenizer,
         'owt_train_tokens.npy'
     )
@@ -161,8 +165,8 @@ def main():
 
     # Check if tokenizer files exist
     required_files = [
-        'tinystories_vocab.json', 'tinystories_merges.pkl',
-        'owt_vocab.json', 'owt_merges.pkl'
+        '../artifacts/vocabularies/tinystories_vocab.json', '../artifacts/vocabularies/tinystories_merges.pkl',
+        '../artifacts/vocabularies/owt_vocab.json', '../artifacts/vocabularies/owt_merges.pkl'
     ]
 
     missing_files = [f for f in required_files if not Path(f).exists()]
