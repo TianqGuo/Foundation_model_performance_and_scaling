@@ -7,7 +7,8 @@ without using PyTorch's built-in nn.Embedding.
 
 import torch
 import torch.nn as nn
-
+from einops import einsum
+import torch.nn.functional as F
 
 class Embedding(nn.Module):
     """
@@ -68,7 +69,14 @@ class Embedding(nn.Module):
         # Perform embedding lookup by indexing into the weight matrix
         # This is equivalent to one-hot encoding followed by matrix multiplication
         # but much more efficient
+        print(token_ids.shape)
+        print(self.weight.shape)
         return self.weight[token_ids]
+
+        # this is much less efficient—don’t use in real code.
+        # one_hot = F.one_hot(token_ids, num_classes=self.num_embeddings).to(self.weight.dtype)
+        # print(one_hot.shape)
+        # return einsum(one_hot, self.weight, "... v, v d -> ... d")
 
     def extra_repr(self) -> str:
         """Return extra representation string for debugging."""
