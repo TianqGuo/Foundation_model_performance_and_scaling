@@ -71,8 +71,6 @@ class Linear(nn.Module):
         """
         # Use einsum for self-documenting matrix multiplication
         # This handles arbitrary leading batch dimensions
-        print(x.shape)
-        print(self.weight.shape)
         return einsum(x, self.weight, "... d_in, d_out d_in -> ... d_out")
 
     def extra_repr(self) -> str:

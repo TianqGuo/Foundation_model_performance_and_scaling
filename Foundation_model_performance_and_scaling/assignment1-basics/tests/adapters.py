@@ -95,14 +95,23 @@ def run_swiglu(
     Returns:
         Float[Tensor, "... d_model"]: Output embeddings of the same shape as the input embeddings.
     """
-    # Example:
-    # If your state dict keys match, you can use `load_state_dict()`
-    # swiglu.load_state_dict(weights)
-    # You can also manually assign the weights
-    # swiglu.w1.weight.data = w1_weight
-    # swiglu.w2.weight.data = w2_weight
-    # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    from cs336_basics.model.swiglu import SwiGLU
+
+    # Create SwiGLU module with the specified dimensions
+    swiglu = SwiGLU(
+        d_model=d_model,
+        d_ff=d_ff,
+        device=w1_weight.device,
+        dtype=w1_weight.dtype
+    )
+
+    # Load the provided weights into the module
+    swiglu.w1.weight.data = w1_weight
+    swiglu.w2.weight.data = w2_weight
+    swiglu.w3.weight.data = w3_weight
+
+    # Apply the SwiGLU transformation
+    return swiglu(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -421,7 +430,10 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
+    from cs336_basics.model.activations import SiLU
+
+    silu = SiLU()
+    return silu(in_features)
 
 
 def run_get_batch(
