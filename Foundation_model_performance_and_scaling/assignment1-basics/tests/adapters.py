@@ -168,7 +168,74 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.model.multihead_attention import MultiHeadSelfAttention
+
+    # Get sequence length for RoPE (though this test doesn't use RoPE)
+    seq_len = in_features.shape[-2]
+
+    # Create MultiHeadSelfAttention module
+    mha = MultiHeadSelfAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+        max_seq_len=seq_len,
+        device=in_features.device,
+        dtype=in_features.dtype,
+    )
+
+    # Load the provided weights into the module
+    mha.q_proj.weight.data = q_proj_weight
+    mha.k_proj.weight.data = k_proj_weight
+    mha.v_proj.weight.data = v_proj_weight
+    mha.output_proj.weight.data = o_proj_weight
+
+    # For this test, we need to disable RoPE since the comment says "This function should not use RoPE"
+    # We can create a simple version without RoPE by setting a custom forward method
+    import types
+
+    def forward_without_rope(self, x, token_positions=None):
+        # Get batch dimensions and sequence length
+        *batch_dims, seq_len, d_model = x.shape
+        batch_shape = batch_dims
+
+        # Linear projections: Q, K, V
+        Q = self.q_proj(x)
+        K = self.k_proj(x)
+        V = self.v_proj(x)
+
+        # Reshape for multi-head attention
+        Q = Q.view(*batch_shape, seq_len, self.num_heads, self.d_head)
+        K = K.view(*batch_shape, seq_len, self.num_heads, self.d_head)
+        V = V.view(*batch_shape, seq_len, self.num_heads, self.d_head)
+
+        # Transpose to (..., num_heads, seq_len, d_head)
+        Q = Q.transpose(-3, -2)
+        K = K.transpose(-3, -2)
+        V = V.transpose(-3, -2)
+
+        # Create causal mask
+        causal_mask = self._create_causal_mask(seq_len, x.device, x.dtype)
+        expanded_mask = causal_mask
+        for _ in range(len(batch_shape) + 1):
+            expanded_mask = expanded_mask.unsqueeze(0)
+        expanded_mask = expanded_mask.expand(*batch_shape, self.num_heads, seq_len, seq_len)
+
+        # Apply scaled dot-product attention (without RoPE)
+        from cs336_basics.model.attention import scaled_dot_product_attention
+        attn_output = scaled_dot_product_attention(Q, K, V, mask=expanded_mask)
+
+        # Transpose back and concatenate heads
+        attn_output = attn_output.transpose(-3, -2)
+        attn_output = attn_output.contiguous().view(*batch_shape, seq_len, d_model)
+
+        # Apply output projection
+        output = self.output_proj(attn_output)
+        return output
+
+    # Replace the forward method to skip RoPE
+    mha.forward = types.MethodType(forward_without_rope, mha)
+
+    # Apply the multi-head attention
+    return mha(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -208,7 +275,26 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.model.multihead_attention import MultiHeadSelfAttention
+
+    # Create MultiHeadSelfAttention module with RoPE
+    mha = MultiHeadSelfAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+        max_seq_len=max_seq_len,
+        rope_theta=theta,
+        device=in_features.device,
+        dtype=in_features.dtype,
+    )
+
+    # Load the provided weights into the module
+    mha.q_proj.weight.data = q_proj_weight
+    mha.k_proj.weight.data = k_proj_weight
+    mha.v_proj.weight.data = v_proj_weight
+    mha.output_proj.weight.data = o_proj_weight
+
+    # Apply the multi-head attention with RoPE
+    return mha(in_features, token_positions=token_positions)
 
 
 def run_rope(
@@ -314,7 +400,37 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    from cs336_basics.model.transformer_block import TransformerBlock
+
+    # Create TransformerBlock module
+    transformer_block = TransformerBlock(
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        max_seq_len=max_seq_len,
+        rope_theta=theta,
+        device=in_features.device,
+        dtype=in_features.dtype,
+    )
+
+    # Load the provided weights into the module
+    # Attention weights
+    transformer_block.attn.q_proj.weight.data = weights["attn.q_proj.weight"]
+    transformer_block.attn.k_proj.weight.data = weights["attn.k_proj.weight"]
+    transformer_block.attn.v_proj.weight.data = weights["attn.v_proj.weight"]
+    transformer_block.attn.output_proj.weight.data = weights["attn.output_proj.weight"]
+
+    # Layer norm weights
+    transformer_block.ln1.weight.data = weights["ln1.weight"]
+    transformer_block.ln2.weight.data = weights["ln2.weight"]
+
+    # Feed-forward network weights
+    transformer_block.ffn.w1.weight.data = weights["ffn.w1.weight"]
+    transformer_block.ffn.w2.weight.data = weights["ffn.w2.weight"]
+    transformer_block.ffn.w3.weight.data = weights["ffn.w3.weight"]
+
+    # Apply the transformer block
+    return transformer_block(in_features)
 
 
 def run_transformer_lm(
@@ -396,7 +512,50 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    from cs336_basics.model.transformer_lm import TransformerLM
+
+    # Create TransformerLM module
+    transformer_lm = TransformerLM(
+        vocab_size=vocab_size,
+        context_length=context_length,
+        d_model=d_model,
+        num_layers=num_layers,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        rope_theta=rope_theta,
+        device=in_indices.device,
+        dtype=torch.float32,  # Use float32 as default
+    )
+
+    # Load the provided weights into the module
+    # Token embeddings
+    transformer_lm.token_embeddings.weight.data = weights["token_embeddings.weight"]
+
+    # Load weights for each transformer layer
+    for layer_idx in range(num_layers):
+        layer = transformer_lm.layers[layer_idx]
+
+        # Attention weights
+        layer.attn.q_proj.weight.data = weights[f"layers.{layer_idx}.attn.q_proj.weight"]
+        layer.attn.k_proj.weight.data = weights[f"layers.{layer_idx}.attn.k_proj.weight"]
+        layer.attn.v_proj.weight.data = weights[f"layers.{layer_idx}.attn.v_proj.weight"]
+        layer.attn.output_proj.weight.data = weights[f"layers.{layer_idx}.attn.output_proj.weight"]
+
+        # Layer norm weights
+        layer.ln1.weight.data = weights[f"layers.{layer_idx}.ln1.weight"]
+        layer.ln2.weight.data = weights[f"layers.{layer_idx}.ln2.weight"]
+
+        # Feed-forward network weights
+        layer.ffn.w1.weight.data = weights[f"layers.{layer_idx}.ffn.w1.weight"]
+        layer.ffn.w2.weight.data = weights[f"layers.{layer_idx}.ffn.w2.weight"]
+        layer.ffn.w3.weight.data = weights[f"layers.{layer_idx}.ffn.w3.weight"]
+
+    # Final layer norm and LM head
+    transformer_lm.ln_final.weight.data = weights["ln_final.weight"]
+    transformer_lm.lm_head.weight.data = weights["lm_head.weight"]
+
+    # Apply the transformer language model
+    return transformer_lm(in_indices)
 
 
 def run_rmsnorm(
