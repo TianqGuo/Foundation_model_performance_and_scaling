@@ -13,6 +13,7 @@ from .softmax import softmax
 from .multihead_attention import MultiHeadSelfAttention
 from .transformer_block import TransformerBlock
 from .transformer_lm import TransformerLM
+from .cross_entropy import cross_entropy, perplexity
 
 __all__ = [
     "Linear",
@@ -27,4 +28,6 @@ __all__ = [
     "MultiHeadSelfAttention",
     "TransformerBlock",
     "TransformerLM",
+    "cross_entropy",
+    "perplexity",
 ]
