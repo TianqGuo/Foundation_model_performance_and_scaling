@@ -1,0 +1,27 @@
+# Experiment outputs (keep configs and logs in version control)
+runs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter notebooks (if you create any)
+.ipynb_checkpoints/
+*.ipynb
+
+# Plots and visualizations (except those you want to commit)
+*.png
+*.pdf
+*.svg
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
