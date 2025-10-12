@@ -142,50 +142,21 @@ class TransformerLM(nn.Module):
         max_new_tokens: int,
         temperature: float = 1.0,
         top_k: int | None = None,
+        top_p: float | None = None,
+        eos_token_id: int | None = None,
+        generator: torch.Generator | None = None,
     ) -> Int[Tensor, "batch_size new_seq_len"]:
-        """
-        Generate new tokens autoregressively.
+        """Generate new tokens with optional temperature, top-k, and top-p sampling."""
+        from cs336_basics.transformer_decode import decode as decode_tokens
 
-        Args:
-            input_ids: Input token IDs of shape (batch_size, seq_len)
-            max_new_tokens: Maximum number of new tokens to generate
-            temperature: Sampling temperature (higher = more random)
-            top_k: If set, only sample from top-k most likely tokens
+        return decode_tokens(
+            self,
+            input_ids,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            eos_token_id=eos_token_id,
+            generator=generator,
+        )
 
-        Returns:
-            Generated sequence including input, shape (batch_size, seq_len + max_new_tokens)
-        """
-        batch_size, seq_len = input_ids.shape
-        generated = input_ids.clone()
-
-        for _ in range(max_new_tokens):
-            # Get current sequence length
-            current_seq_len = generated.shape[1]
-
-            # Truncate to context length if needed
-            if current_seq_len > self.context_length:
-                input_for_forward = generated[:, -self.context_length:]
-            else:
-                input_for_forward = generated
-
-            # Forward pass
-            with torch.no_grad():
-                logits = self.forward(input_for_forward)
-                # Get logits for the last position
-                next_token_logits = logits[:, -1, :] / temperature
-
-                # Apply top-k filtering if specified
-                if top_k is not None:
-                    top_k_logits, top_k_indices = torch.topk(next_token_logits, top_k, dim=-1)
-                    # Set non-top-k logits to -inf
-                    next_token_logits.fill_(-float('inf'))
-                    next_token_logits.scatter_(-1, top_k_indices, top_k_logits)
-
-                # Sample next token
-                probs = torch.softmax(next_token_logits, dim=-1)
-                next_token = torch.multinomial(probs, num_samples=1)
-
-            # Append to generated sequence
-            generated = torch.cat([generated, next_token], dim=1)
-
-        return generated
