@@ -1,48 +1,71 @@
 # Test Execution Guide
 
 ## Environment Setup
-1. Activate the venv, please refer to assignment1-basics/README.md for installation
-   ```bash
-   source .venv/bin/activate
-    ```
+1. This project uses `uv` for environment management. Install `uv` following the instructions in `assignment1-basics/README.md`.
 2. All tests assume the repo root is the working directory (`assignment1-basics/`).
+3. Run tests using `uv run pytest` to automatically manage the environment.
 
 ## Running the Full Suite
 Execute the complete set of assignment tests:
 ```bash
-pytest
+uv run pytest
 ```
-Pytest automatically discovers modules under `tests/`. The suite covers tokeniser, model, optimiser, serialization, and integration behaviour.
+Pytest automatically discovers test modules under `tests/`. The test suite covers:
+- `test_tokenizer.py` — BPE tokenizer encoding/decoding
+- `test_train_bpe.py` — BPE training pipeline
+- `test_model.py` — transformer model components
+- `test_optimizer.py` — AdamW optimizer and learning rate schedules
+- `test_serialization.py` — checkpoint saving/loading
+- `test_data.py` — data loading and batching
+- `test_nn_utils.py` — neural network utilities
+- `test_training.py` — end-to-end training integration
 
 ## Targeted Test Runs
 Common patterns when iterating on features:
 - Run a specific file:
   ```bash
-  pytest tests/test_tokenizer.py
+  uv run pytest tests/test_tokenizer.py
   ```
 - Filter by keyword (matches test names and class names):
   ```bash
-  pytest -k "generate and not slow"
+  uv run pytest -k "encode"
   ```
-- Re-run failures quickly:
+- Re-run only failed tests from last run:
   ```bash
-  pytest --lf
+  uv run pytest --lf
+  ```
+- Run with verbose output:
+  ```bash
+  uv run pytest -vv
   ```
 
 ## Performance Notes
-- Some tests (e.g., `test_training.py`) can take longer because they exercise training loops. Use `-k` or run files individually while you iterate.
-- When working inside WSL/containers, consider `PYTEST_ADDOPTS="-n auto"` with `pytest-xdist` if installed to parallelise the suite.
+- Some tests (e.g., `test_training.py`) can take longer because they exercise full training loops. Use `-k` to filter specific tests while iterating.
+- To parallelize tests, install `pytest-xdist` and run: `uv run pytest -n auto`
 
 ## Debugging Tips
-- Use `-vv` for verbose output, including individual test names.
-- `pytest --maxfail=1` stops after the first failure.
-- Combine `-x` and `--pdb` to drop into the debugger on failure.
+- Use `-vv` for verbose output with detailed test information
+- Stop after first failure: `uv run pytest -x`
+- Stop after N failures: `uv run pytest --maxfail=2`
+- Drop into debugger on failure: `uv run pytest --pdb`
+- Show local variables on failure: `uv run pytest -l`
 
 ## Regenerating Artifacts
-Tests expect tokenizer vocabularies and tokenised datasets under `cs336_basics/artifacts/`. If they are missing, re-run the scripts described in `BPE_TOKENIZER.md` before running the suite.
+Tests expect tokenizer vocabularies and tokenised datasets under `cs336_basics/artifacts/`. To regenerate:
 
-## Keeping Imports Green
-When refactoring package structure, ensure shim modules (e.g., `cs336_basics/training/`) continue to re-export moved utilities. Run at least the following smoke tests after layout changes:
-```bash
-pytest tests/test_tokenizer.py tests/test_model.py tests/test_optimizer.py tests/test_serialization.py
-```
+1. **Train tokenizers** (creates vocabulary files):
+   ```bash
+   uv run python -m cs336_basics.tokenizer_training.bpe_train \
+       --input-path data/TinyStoriesV2-GPT4-train.txt \
+       --output-dir cs336_basics/artifacts/vocabularies \
+       --vocab-size 10000 \
+       --special-token "<|endoftext|>"
+   ```
+
+2. **Encode datasets** (creates `.npy` token files):
+   ```bash
+   uv run python -m cs336_basics.experiments.encode_datasets
+   ```
+
+## Test Adapter Configuration
+The tests use adapter functions defined in `tests/adapters.py` to connect your implementation to the test suite. Ensure these adapters correctly import and expose your module functions.

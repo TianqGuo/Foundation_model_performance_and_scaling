@@ -8,7 +8,6 @@ The Byte Pair Encoding (BPE) tokenizer implementation in `cs336_basics` is used 
   - `bpe_tokenizer.py` — runtime encoder/decoder (`Tokenizer`) used by experiments and model evaluation.
 - `tokenizer_training/`
   - `bpe_train.py` — training pipeline for learning merges and vocab from text corpora; includes streaming, parallel pre-tokenisation, and compatibility helpers.
-- `training/` — legacy import shims that re-export the new tokenizer training utilities so older scripts/tests continue to work.
 - `transformer_decode/` — decoding utilities share vocabulary handling with the tokenizer (for generating text later).
 
 ## Training a Tokenizer
@@ -41,9 +40,12 @@ recovered = tokenizer.decode(token_ids)
 ```
 
 ## Experiments & Utilities
-- `experiments/tokenizer_experiments.py` — runs the assignment deliverables (compression, cross-domain, throughput, dtype analysis).
+- `experiments/tokenizer_experiments.py` — runs compression ratio analysis, cross-domain tokenization tests, throughput estimation, and dataset encoding demonstrations.
+- `experiments/encode_datasets.py` — full dataset encoding script for producing tokenized `.npy` files.
 - `experiments/quick_experiments.py` — lightweight tokenizer sanity checks.
-- `artifacts/datasets/*.npy` — memmapped token arrays generated from prepared corpora (handy for transformer training).
+- `experiments/pretokenization_example.py` — demonstrates pre-tokenization patterns.
+- `artifacts/datasets/*.npy` — memmapped token arrays (uint16) generated from prepared corpora, used for transformer training.
+- `artifacts/vocabularies/` — trained vocabulary files (`*_vocab.json`, `*_merges.pkl`) for TinyStories and OpenWebText.
 
 ## Tips
 - Special tokens must be supplied consistently during training and inference.

@@ -5,23 +5,24 @@ The transformer language model implementation in `cs336_basics` provides modular
 
 ## Code Architecture
 - `transformer_training/model/`
-  - Core building blocks (`embedding.py`, `attention.py`, `transformer_block.py`, etc.).
-  - `transformer_lm.py` stitches blocks into the full `TransformerLM` class and exposes a `generate` helper.
+  - Core building blocks: `embedding.py`, `attention.py`, `multihead_attention.py`, `transformer_block.py`, `linear.py`, `rmsnorm.py`, `rope.py`, `softmax.py`, `activations.py`, `swiglu.py`, `cross_entropy.py`.
+  - `transformer_lm.py` — stitches blocks into the full `TransformerLM` class and exposes a `generate` helper.
 - `transformer_training/optimizer/`
-  - Custom optimizer (`adamw.py`), learning-rate scheduler (`lr_schedule.py`), and gradient clipping.
+  - Custom optimizer (`adamw.py`), learning-rate scheduler (`lr_schedule.py`), and gradient clipping (`gradient_clipping.py`).
 - `transformer_training/checkpointing.py`
-  - Save/load utilities for model + optimizer state.
+  - Save/load utilities for model + optimizer state with metadata support.
 - `transformer_decode/`
-  - Shared decoding helpers (`SamplingConfig`, `decode`, `generate_text`) supporting temperature and nucleus sampling.
-- `training/`
-  - Backward-compatible shims exporting the new training/decoding helpers for legacy imports/tests.
+  - Shared decoding helpers (`SamplingConfig`, `decode`, `generate_text`) supporting temperature, top-k, and nucleus (top-p) sampling.
+- `data/`
+  - Data loading utilities (`data_loader.py`) for memory-mapped `.npy` datasets.
 - `train.py`
-  - End-to-end training script (argument-parsed configuration, logging, evaluation, checkpointing).
+  - End-to-end training script with argument parsing, JSON config support, logging, evaluation, and checkpointing.
 
 ## Data & Artifacts
-- Tokenised datasets live in `artifacts/datasets/*.npy` (uint16 arrays produced by tokenizer scripts).
-- Checkpoints are stored in `checkpoints/` and contain model/optimizer state plus metadata.
-- Additional configs or prompts can be added to `sample_config.json` or passed via CLI.
+- Tokenised datasets live in `artifacts/datasets/*.npy` (uint16 arrays produced by tokenizer scripts like `experiments/encode_datasets.py`).
+- Example datasets: `tinystories_train_tokens.npy`, `tinystories_tokens.npy`, `owt_train_tokens.npy`, `sample_tokens.npy`.
+- Checkpoints are stored in `checkpoints/` and contain model/optimizer state plus metadata (iteration, loss, perplexity).
+- `sample_config.json` provides a template configuration with all hyperparameters; can be customized or overridden via CLI.
 
 ## Training Workflow
 1. **Prepare data**: Generate tokenised `.npy` files using the BPE tokenizer guide.
@@ -69,14 +70,17 @@ The transformer language model implementation in `cs336_basics` provides modular
 - `SamplingConfig` captures the same parameters and can be reused across sampling runs.
 
 ## Experiments & Analysis
-- `experiments/training_demo.py` — minimal training loop demonstration and logging.
-- `experiments/learning_rate_tuning.py` — sweeps scheduling hyperparameters.
-- `experiments/adamw_accounting.py` & `adamw_verification.py` — validate optimizer behaviour.
-- `experiments/realistic_training_time.py` — back-of-the-envelope throughput estimates.
-- `transformer_decode` helpers are also accessible in experiments for qualitative sampling.
+- `experiments/training_demo.py` — minimal training loop demonstration with logging examples.
+- `experiments/learning_rate_tuning.py` — learning rate scheduling experiments and hyperparameter sweeps.
+- `experiments/lr_schedule_demo.py` — visualizes learning rate schedules.
+- `experiments/adamw_accounting.py` & `adamw_verification.py` — validate optimizer correctness and accounting.
+- `experiments/realistic_training_time.py` & `experiments/simple_training_calc.py` — throughput estimates and training time calculations.
+- `experiments/quick_experiments.py` — rapid prototyping and sanity checks.
+- Decoding helpers from `transformer_decode` are used in experiments for qualitative text generation.
 
 ## Tips & Conventions
-- Context length enforcement happens inside `TransformerLM.forward`; sequences longer than `context_length` are truncated automatically during decoding.
-- Optimizer parameters (`weight_decay`, scheduler warmup) are central to stable training—use the provided helpers to reproduce reference behaviour.
-- Always align tokenizer vocab/special tokens with the model checkpoints; mismatches typically manifest as nonsense outputs or index errors.
-- Checkpoint metadata (iteration, model class) can be inspected with `verify_checkpoint` for quick sanity checks.
+- Context length enforcement happens inside `TransformerLM.forward`; sequences longer than `context_length` raise a `ValueError`. During generation, the decode function automatically windows the input to the last `context_length` tokens.
+- Optimizer parameters (`weight_decay`, scheduler warmup) are central to stable training—configure them carefully in the config file or via CLI.
+- Always align tokenizer vocab/special tokens with the model checkpoints; mismatches typically manifest as nonsense outputs or index errors. The `vocab_size` parameter must match your trained tokenizer.
+- Checkpoint files contain `model_state_dict`, `optimizer_state_dict`, `iteration`, and optional metadata like `val_loss` and `val_perplexity`.
+- The training script uses `np.memmap` for memory-efficient data loading, allowing training on datasets larger than RAM.
