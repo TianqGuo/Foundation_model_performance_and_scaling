@@ -25,7 +25,7 @@ Reasons to use PyTorch's built-in:
 
 Example comparison:
     # Our implementation
-    from cs336_basics.model.softmax import softmax
+    from cs336_basics.transformer_training.model.softmax import softmax
     result1 = softmax(x, dim=-1)
 
     # PyTorch built-in (equivalent)

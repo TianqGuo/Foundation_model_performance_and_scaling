@@ -23,13 +23,13 @@ import torch
 import torch.nn as nn
 
 # Import custom modules
-from cs336_basics.model.transformer_lm import TransformerLM
-from cs336_basics.model.cross_entropy import cross_entropy, perplexity
-from cs336_basics.optimizer.adamw import AdamW
-from cs336_basics.optimizer.lr_schedule import get_lr_cosine_schedule
-from cs336_basics.optimizer.gradient_clipping import clip_gradients
+from cs336_basics.transformer_training.model.transformer_lm import TransformerLM
+from cs336_basics.transformer_training.model.cross_entropy import cross_entropy, perplexity
+from cs336_basics.transformer_training.optimizer.adamw import AdamW
+from cs336_basics.transformer_training.optimizer.lr_schedule import get_lr_cosine_schedule
+from cs336_basics.transformer_training.optimizer.gradient_clipping import clip_gradients
 from cs336_basics.data.data_loader import get_batch, load_data_memmap, validate_data
-from cs336_basics.training.checkpointing import (
+from cs336_basics.transformer_training import (
     save_checkpoint,
     load_checkpoint,
     save_checkpoint_with_metadata,

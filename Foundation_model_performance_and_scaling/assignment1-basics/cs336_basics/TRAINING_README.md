@@ -256,7 +256,7 @@ Checkpoints contain:
 Load checkpoints programmatically:
 
 ```python
-from cs336_basics.training.checkpointing import load_checkpoint
+from cs336_basics.transformer_training import load_checkpoint
 
 model = TransformerLM(...)
 optimizer = AdamW(...)
