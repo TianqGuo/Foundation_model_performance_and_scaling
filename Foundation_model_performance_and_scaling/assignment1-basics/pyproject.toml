@@ -19,6 +19,9 @@ dependencies = [
     "tqdm>=4.67.1",
     "wandb>=0.19.7",
     "ty>=0.0.1a16",
+    "triton>=3.0",
+    "setuptools>=68",
+    "matplotlib>=3.10",
 ]
 
 
@@ -35,6 +38,10 @@ module-root = ""
 package = true
 python-preference = "managed"
 
+
+# This is the corrected syntax for defining a custom package source
+[tool.uv.sources.pytorch]
+url = "https://download.pytorch.org/whl/cu124"
 
 
 [tool.pytest.ini_options]

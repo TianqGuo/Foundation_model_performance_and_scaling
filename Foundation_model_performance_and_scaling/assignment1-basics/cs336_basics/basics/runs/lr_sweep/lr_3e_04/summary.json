@@ -1,0 +1,54 @@
+{
+  "experiment_name": "lr_3e_04",
+  "config": {
+    "experiment_name": "lr_3e_04",
+    "experiment_id": "1d74b28e",
+    "description": "Learning rate sweep: lr=0.0003",
+    "tags": [],
+    "vocab_size": 10000,
+    "context_length": 256,
+    "d_model": 512,
+    "num_layers": 4,
+    "num_heads": 16,
+    "d_ff": 1344,
+    "rope_theta": 10000.0,
+    "batch_size": 128,
+    "max_iterations": 10000,
+    "learning_rate": 0.0003,
+    "min_learning_rate": 2.9999999999999997e-05,
+    "warmup_iters": 100,
+    "weight_decay": 0.1,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "grad_clip": 1.0,
+    "dataset": "TinyStories",
+    "train_data_path": "cs336_basics/artifacts/datasets/tinystories_train_tokens.npy",
+    "val_data_path": "cs336_basics/artifacts/datasets/tinystories_tokens.npy",
+    "device": null,
+    "dtype": "float32",
+    "seed": 42,
+    "log_interval": 50,
+    "eval_interval": 200,
+    "checkpoint_interval": 1000
+  },
+  "statistics": {
+    "total_steps": 251,
+    "total_wallclock_time": 5273.4963722229,
+    "total_wallclock_hours": 1.4648601033952502,
+    "train_loss": {
+      "min": 1.457169532775879,
+      "max": 9.256617546081543,
+      "mean": 1.7709235435724258,
+      "final": 1.4801286458969116,
+      "initial": 9.256617546081543
+    },
+    "val_loss": {
+      "min": 1.4867503464221954,
+      "max": 9.25914568901062,
+      "mean": 1.8499852943654151,
+      "final": 1.5007432520389556,
+      "best": 1.4867503464221954
+    }
+  },
+  "metrics_count": 251
+}

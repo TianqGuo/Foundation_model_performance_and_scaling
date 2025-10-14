@@ -1,0 +1,37 @@
+[
+  {
+    "learning_rate": 0.0001,
+    "experiment_name": "lr_1e_04",
+    "status": "completed"
+  },
+  {
+    "learning_rate": 0.0003,
+    "experiment_name": "lr_3e_04",
+    "status": "completed"
+  },
+  {
+    "learning_rate": 0.0006,
+    "experiment_name": "lr_6e_04",
+    "status": "completed"
+  },
+  {
+    "learning_rate": 0.001,
+    "experiment_name": "lr_1e_03",
+    "status": "completed"
+  },
+  {
+    "learning_rate": 0.003,
+    "experiment_name": "lr_3e_03",
+    "status": "completed"
+  },
+  {
+    "learning_rate": 0.006,
+    "experiment_name": "lr_6e_03",
+    "status": "completed"
+  },
+  {
+    "learning_rate": 0.01,
+    "experiment_name": "lr_1e_02",
+    "status": "completed"
+  }
+]

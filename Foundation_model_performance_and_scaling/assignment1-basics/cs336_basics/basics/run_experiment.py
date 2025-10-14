@@ -163,6 +163,58 @@ def run_experiment(
     num_params = count_parameters(model)
     print(f"Model initialized with {num_params:,} trainable parameters")
 
+    # Enable performance optimizations
+    if device.type == "cuda":
+        print("\n" + "="*80)
+        print("ENABLING PERFORMANCE OPTIMIZATIONS")
+        print("="*80)
+
+        # Enable TF32 for Ampere+ GPUs (RTX 30/40 series, A100, H100)
+        # This gives 2-3x speedup with minimal accuracy impact
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        print("✓ TF32 enabled for matmul and cuDNN operations")
+
+        # Compile model for additional speedup
+        # Note: Requires Triton to be installed
+        print("\nAttempting to compile model with torch.compile()...")
+        try:
+            # Try to compile - will fail if Triton is not installed
+            model = torch.compile(model, mode="default")
+            print("✓ Model compiled successfully!")
+            print("  Note: First few iterations will be slower during compilation")
+        except RuntimeError as e:
+            if "triton" in str(e).lower():
+                print("⚠️  Triton not installed - skipping compilation")
+                print("  To install: pip install triton")
+                print("  Training will be slower without compilation (2-3× slower)")
+            else:
+                print(f"⚠️  Compilation failed: {e}")
+                print("  Continuing without compilation")
+        except Exception as e:
+            print(f"⚠️  Compilation failed: {e}")
+            print("  Continuing without compilation")
+
+        print("="*80 + "\n")
+    elif device.type == "mps":
+        print("\nUsing MPS device (Apple Silicon)")
+        print("Attempting to compile model with aot_eager backend...")
+        try:
+            model = torch.compile(model, backend="aot_eager")
+            print("✓ Model compiled for MPS")
+        except Exception as e:
+            print(f"⚠️  Compilation failed: {e}")
+            print("  Continuing without compilation")
+    elif device.type == "cpu":
+        print("\nUsing CPU device")
+        print("Attempting to compile model...")
+        try:
+            model = torch.compile(model)
+            print("✓ Model compiled for CPU")
+        except Exception as e:
+            print(f"⚠️  Compilation failed: {e}")
+            print("  Continuing without compilation")
+
     # Initialize optimizer
     optimizer = AdamW(
         model.parameters(),

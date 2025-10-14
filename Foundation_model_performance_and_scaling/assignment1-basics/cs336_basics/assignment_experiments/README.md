@@ -2,219 +2,139 @@
 
 This directory contains experiment scripts for CS336 Assignment 1, Section 7.
 
+## Directory Structure
+
+Each experiment is organized in its own subdirectory:
+
+```
+cs336_basics/assignment_experiments/
+├── README.md                      # This file
+├── __init__.py
+│
+└── lr_sweep/                      # Learning rate tuning experiment
+    ├── __init__.py
+    ├── README.md                  # Experiment-specific guide
+    ├── learning_rate_sweep.py     # Main sweep runner
+    ├── analyze_lr_sweep.py        # Analysis and visualization
+    ├── diagnose_lr_sweep.py       # Diagnostic tool
+    └── LEARNING_RATE_GUIDE.md     # Detailed reference guide
+```
+
 ## Experiments
 
-### Learning Rate Tuning (`learning_rate_sweep.py`)
+### 1. Learning Rate Tuning (`lr_sweep/`)
 
 **Problem (learning_rate): Tune the learning rate (3 points)**
 
 Performs hyperparameter sweep over learning rates to find optimal value.
 
-**Target**: Validation loss ≤ 1.45 on TinyStories (or ≤ 2.00 for low-resource mode)
-
-**Model Configuration (17M parameters)**:
-- vocab_size: 10000
-- context_length: 256
-- d_model: 512
-- d_ff: 1344
-- num_layers: 4
-- num_heads: 16
-- Total tokens: ~327,680,000 (or ~40,000,000 for low-resource)
-
-#### Running the Sweep
-
+**Quick Start**:
 ```bash
-# Full sweep on GPU (recommended)
-uv run python -m cs336_basics.assignment_experiments.learning_rate_sweep
+# Run sweep
+uv run python -m cs336_basics.assignment_experiments.lr_sweep.learning_rate_sweep
 
-# Low-resource mode (CPU/MPS)
-uv run python -m cs336_basics.assignment_experiments.learning_rate_sweep --low-resource
+# Monitor progress
+uv run python -m cs336_basics.assignment_experiments.lr_sweep.diagnose_lr_sweep
 
-# Custom learning rates
-uv run python -m cs336_basics.assignment_experiments.learning_rate_sweep \
-    --learning-rates 1e-4 3e-4 6e-4 1e-3 3e-3
-
-# Specify device
-uv run python -m cs336_basics.assignment_experiments.learning_rate_sweep --device cuda
+# Analyze results
+uv run python -m cs336_basics.assignment_experiments.lr_sweep.analyze_lr_sweep
 ```
 
-#### Analyzing Results
+**Target**: Validation loss ≤ 1.45 on TinyStories
 
-```bash
-# Analyze sweep results
-uv run python -m cs336_basics.assignment_experiments.analyze_lr_sweep \
-    --sweep-dir cs336_basics/basics/runs/lr_sweep
+**Documentation**: See `lr_sweep/README.md` and `lr_sweep/LEARNING_RATE_GUIDE.md`
 
-# This generates:
-# - lr_sweep_comparison.png (loss curves for all learning rates)
-# - lr_vs_final_loss.png (final loss vs learning rate)
-# - lr_sweep_analysis.md (detailed analysis report)
+---
+
+### 2. Future Experiments
+
+More experiments will be added here following the same pattern:
+
+- `experiment_name/` - Dedicated directory for each experiment
+  - `README.md` - Experiment overview and quick start
+  - `*.py` - Experiment scripts
+  - Supporting documentation
+
+## Integration with Infrastructure
+
+All experiments use the tracking infrastructure from `cs336_basics.basics`:
+
+```python
+from cs336_basics.basics import create_experiment_config
+from cs336_basics.basics.run_experiment import run_experiment
+from cs336_basics.basics import ExperimentTracker, ExperimentLogger
 ```
 
-#### Expected Runtime
-
-- **GPU (H100)**: ~30-40 minutes per learning rate × 7 rates = ~4 hours
-- **CPU**: ~1.5 hours per learning rate (low-resource mode)
-- **MPS (Apple Silicon)**: ~36 minutes per learning rate (low-resource mode)
-
-#### Deliverables
-
-**(a) Hyperparameter sweep over learning rates**
-- Learning curves for multiple learning rates: `lr_sweep_comparison.png`
-- Final loss vs learning rate: `lr_vs_final_loss.png`
-- Analysis report: `lr_sweep_analysis.md`
-- Model achieving ≤ 1.45 validation loss: Best checkpoint from sweep
-
-**(b) Edge of stability analysis**
-- Learning curves including divergent runs
-- Analysis of how divergence point relates to best learning rate
-- See analysis report for detailed findings
-
-### Default Learning Rates Tested
-
-The sweep tests 7 learning rates by default:
-1. **1e-4**: Conservative baseline
-2. **3e-4**: Common starting point (GPT-2 style)
-3. **6e-4**: Aggressive (GPT-3 style)
-4. **1e-3**: Very aggressive
-5. **3e-3**: Near stability edge
-6. **6e-3**: Likely near/at divergence
-7. **1e-2**: Expected to diverge
-
-## Structure
-
-- **`cs336_basics/basics/`**: Experiment tracking infrastructure
-  - Core tracking, logging, visualization
-  - Analysis tools
-  - Configuration templates
-
-- **`cs336_basics/assignment_experiments/`**: Actual experiments (this directory)
-  - `learning_rate_sweep.py` - LR tuning experiments
-  - `analyze_lr_sweep.py` - LR sweep analysis
-  - More experiments to be added...
+This provides:
+- Automatic metric tracking (gradient steps + wallclock time)
+- Loss curve visualization (by steps and time)
+- Learning rate schedule plots
+- Checkpoint management (best, periodic, final)
+- Experiment comparison tools
 
 ## Experiment Outputs
 
-Results are saved to `cs336_basics/basics/runs/<experiment_name>/`:
+All experiment results are saved to `cs336_basics/basics/runs/`:
 
 ```
 cs336_basics/basics/runs/
-└── lr_sweep/
-    ├── lr_1e_04/              # Each learning rate
-    │   ├── config.json
-    │   ├── metrics.csv
-    │   ├── summary.json
-    │   ├── loss_curves.png
-    │   └── checkpoints/
-    ├── lr_3e_04/
-    ├── ...
-    ├── lr_sweep_comparison.png    # Combined plots
-    ├── lr_vs_final_loss.png
-    └── lr_sweep_analysis.md       # Analysis report
+├── lr_sweep/                      # Learning rate sweep results
+│   ├── lr_1e_04/
+│   ├── lr_3e_04/
+│   ├── ...
+│   ├── lr_sweep_comparison.png
+│   ├── lr_vs_final_loss.png
+│   └── lr_sweep_analysis.md
+│
+└── [future_experiment]/           # Future experiment results
 ```
 
-## Tips for Running Experiments
-
-### 1. GPU Availability
-
-Check GPU before running:
-```bash
-uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-```
-
-### 2. Low-Resource Mode
-
-If running on CPU or Apple Silicon:
-```bash
-# Use low-resource flag (40M tokens instead of 327M)
-uv run python -m cs336_basics.assignment_experiments.learning_rate_sweep --low-resource
-```
-
-Settings:
-- Total tokens: 40,000,000 (vs 327,680,000)
-- Batch size: 32 (vs 128)
-- Target loss: 2.00 (vs 1.45)
-- Expected time: ~1.5 hours per LR on CPU
-
-### 3. Quick Testing
-
-Test the pipeline with minimal iterations:
-```bash
-uv run python -m cs336_basics.assignment_experiments.learning_rate_sweep \
-    --quick-test \
-    --learning-rates 3e-4 1e-3
-```
-
-### 4. Monitoring Progress
-
-During training, you'll see:
-```
-Iter    100/10000 | Loss: 4.2156 | LR: 1.20e-04 | Tok/s: 8543
-Iter    200/10000 | Loss: 3.9821 | LR: 2.40e-04 | Tok/s: 8621
-
-Validation | Loss: 3.8234 | Perplexity: 45.78
-```
-
-Check intermediate results:
-```bash
-# View progress of specific experiment
-uv run python -m cs336_basics.basics.analyze_experiments summary \
-    --experiments lr_3e_04
-
-# List all completed experiments
-uv run python -m cs336_basics.basics.analyze_experiments list
-```
-
-## Optimization Tips
-
-### Compilation (Speed Up Training)
-
-The sweep automatically handles compilation based on device:
-- **CPU**: `torch.compile(model)`
-- **MPS**: `torch.compile(model, backend="aot_eager")`
-- **CUDA**: Default (optionally enable TF32)
-
-### Memory Issues
-
-If you encounter OOM errors:
-1. Reduce batch size in the config
-2. Use mixed precision (set `dtype: "float16"`)
-3. Reduce context length
-
-### Slow Training
-
-If training is slower than expected:
-1. Check dataloader isn't bottlenecking (should use memmap)
-2. Verify GPU utilization: `nvidia-smi`
-3. Ensure batch operations are used (no Python loops over batch)
-4. Check validation isn't running too frequently
-
-## Documentation
-
-See `cs336_basics/basics/` for infrastructure documentation:
-- **`README.md`**: Complete infrastructure guide
-- **`QUICK_START.md`**: Get started in 5 minutes
-- **`EXPERIMENT_LOG.md`**: Template for documenting results
+Each experiment directory contains:
+- `config.json` - Full configuration
+- `metrics.csv` - All metrics with timestamps
+- `summary.json` - Final statistics
+- `loss_curves.png` - Training curves
+- `lr_schedule.png` - Learning rate schedule
+- `checkpoints/` - Model checkpoints
 
 ## Adding New Experiments
 
-Create new experiment scripts in this directory following this pattern:
+To add a new experiment:
+
+### 1. Create Experiment Directory
+
+```bash
+mkdir cs336_basics/assignment_experiments/new_experiment
+cd cs336_basics/assignment_experiments/new_experiment
+touch __init__.py README.md experiment_script.py
+```
+
+### 2. Create Experiment Script
 
 ```python
-# cs336_basics/assignment_experiments/new_experiment.py
+# cs336_basics/assignment_experiments/new_experiment/experiment_script.py
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from cs336_basics.basics import create_experiment_config
 from cs336_basics.basics.run_experiment import run_experiment
 
-def run_new_experiment():
+def run_experiment_fn():
+    """Run the experiment."""
     config = create_experiment_config(
         experiment_name="new_experiment",
         description="What you're testing",
-        # ... model and training params
+        # Model architecture
+        vocab_size=10000,
+        d_model=768,
+        num_layers=12,
+        # Training params
+        batch_size=128,
+        max_iterations=10000,
+        learning_rate=3e-4,
+        # ... other params
     )
 
     run_experiment(
@@ -224,33 +144,139 @@ def run_new_experiment():
     )
 
 if __name__ == "__main__":
-    run_new_experiment()
+    run_experiment_fn()
+```
+
+### 3. Document the Experiment
+
+Create a README.md in the experiment directory with:
+- Experiment description and goals
+- Quick start commands
+- Configuration details
+- Expected outcomes
+- Troubleshooting tips
+
+### 4. Update Main README
+
+Add a section to this README describing the new experiment.
+
+## Common Commands
+
+### GPU Check
+```bash
+uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+```
+
+### Monitor Training
+```bash
+# Check specific experiment progress
+uv run python -m cs336_basics.basics.analyze_experiments summary \
+    --experiments experiment_name
+
+# List all experiments
+uv run python -m cs336_basics.basics.analyze_experiments list
+```
+
+### Compare Experiments
+```bash
+uv run python -m cs336_basics.basics.analyze_experiments compare \
+    --experiments exp1 exp2 exp3
+```
+
+## Tips for Running Experiments
+
+### GPU vs CPU
+
+**GPU Mode** (recommended):
+- Expected throughput: 5,000-10,000 tokens/sec
+- Expected time per experiment: 30-40 minutes (full training)
+
+**CPU/MPS Mode** (low-resource):
+- Expected throughput: 100-500 tokens/sec
+- Expected time per experiment: 1-2 hours (reduced training budget)
+- Use `--low-resource` flag when available
+
+### Optimization Tips
+
+1. **Use compilation**: Already enabled in infrastructure
+   - CUDA: Default compilation
+   - MPS: `aot_eager` backend
+   - CPU: Standard compilation
+
+2. **Memory optimization**:
+   - Reduce batch size if OOM
+   - Use mixed precision (float16/bfloat16) carefully
+   - Reduce context length if needed
+
+3. **Data loading**:
+   - Infrastructure uses memory-mapped files (np.memmap)
+   - No bottleneck from data loading
+
+### Monitoring During Training
+
+Look for these indicators in logs:
+```
+Iter    100/10000 | Loss: 4.21 | LR: 1.2e-04 | Tok/s: 8543
+                                                        ^^^^
+                    Should be 5000-10000 on GPU
 ```
 
 ## Troubleshooting
 
+### Slow Training
+
+If training is much slower than expected:
+
+1. **Check device being used**:
+   ```bash
+   # Look for "Using device: cuda" in logs
+   grep "device" cs336_basics/basics/runs/experiment_name/config.json
+   ```
+
+2. **Check GPU utilization** (if using GPU):
+   ```bash
+   nvidia-smi -l 1
+   ```
+
+3. **Use diagnostic tools** (experiment-specific):
+   - Learning rate sweep: `diagnose_lr_sweep.py`
+
 ### Import Errors
+
+Always use `uv run`:
 ```bash
-# Make sure you use uv run
-uv run python -m cs336_basics.assignment_experiments.learning_rate_sweep
+uv run python -m cs336_basics.assignment_experiments.lr_sweep.learning_rate_sweep
 ```
 
 ### Data Not Found
-```bash
-# Check tokenized datasets exist
-ls cs336_basics/artifacts/datasets/*.npy
 
-# If missing, tokenize datasets
+Ensure tokenized datasets exist:
+```bash
+ls cs336_basics/artifacts/datasets/*.npy
+```
+
+If missing:
+```bash
 uv run python -m cs336_basics.experiments.encode_datasets
 ```
 
-### Slow First Run
-First run compiles the model (torch.compile), which takes extra time.
-Subsequent iterations will be faster.
+## Documentation
+
+### Infrastructure Documentation
+See `cs336_basics/basics/` for core infrastructure:
+- **`README.md`**: Complete infrastructure guide
+- **`QUICK_START.md`**: Get started in 5 minutes
+- **`EXPERIMENT_LOG.md`**: Template for documenting results
+
+### Experiment-Specific Documentation
+Each experiment directory has its own:
+- **`README.md`**: Quick start and overview
+- Additional guides as needed (e.g., `LEARNING_RATE_GUIDE.md`)
 
 ## Next Steps
 
-1. Run learning rate sweep
-2. Analyze results with analysis script
-3. Document findings in `cs336_basics/basics/EXPERIMENT_LOG.md`
-4. Use best learning rate for subsequent experiments
+1. Review experiment-specific documentation in subdirectories
+2. Run experiments with appropriate settings (GPU/CPU)
+3. Monitor progress with diagnostic tools
+4. Analyze results with provided analysis scripts
+5. Document findings in `cs336_basics/basics/EXPERIMENT_LOG.md`
