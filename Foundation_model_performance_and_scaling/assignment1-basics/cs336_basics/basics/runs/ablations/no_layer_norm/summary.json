@@ -1,0 +1,62 @@
+{
+  "experiment_name": "no_layer_norm",
+  "config": {
+    "experiment_name": "no_layer_norm",
+    "experiment_id": "bdd0f74f",
+    "description": "Ablation: Remove all RMSNorm layers",
+    "tags": [],
+    "vocab_size": 10000,
+    "context_length": 256,
+    "d_model": 512,
+    "num_layers": 4,
+    "num_heads": 16,
+    "d_ff": 1344,
+    "rope_theta": 10000.0,
+    "batch_size": 32,
+    "max_iterations": 40000,
+    "learning_rate": 0.0003,
+    "min_learning_rate": 2.9999999999999997e-05,
+    "warmup_iters": 400,
+    "weight_decay": 0.1,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "grad_clip": 1.0,
+    "dataset": "TinyStories",
+    "train_data_path": "cs336_basics/artifacts/datasets/tinystories_train_tokens.npy",
+    "val_data_path": "cs336_basics/artifacts/datasets/tinystories_tokens.npy",
+    "device": null,
+    "dtype": "float32",
+    "seed": 42,
+    "log_interval": 50,
+    "eval_interval": 400,
+    "checkpoint_interval": 4000,
+    "metadata": {
+      "processed_tokens": 327680000,
+      "use_layer_norm": false,
+      "post_norm": false,
+      "use_swiglu": true,
+      "use_rope": true,
+      "use_ablation_model": true
+    }
+  },
+  "statistics": {
+    "total_steps": 901,
+    "total_wallclock_time": 7276.706995010376,
+    "total_wallclock_hours": 2.0213074986139934,
+    "train_loss": {
+      "min": 1.2525140047073364,
+      "max": 17.68258285522461,
+      "mean": 1.6529462671279906,
+      "final": 1.4283405542373657,
+      "initial": 17.68258285522461
+    },
+    "val_loss": {
+      "min": 1.3984794974327088,
+      "max": 16.72743692398071,
+      "mean": 1.7619464422806652,
+      "final": 1.3984794974327088,
+      "best": 1.3984794974327088
+    }
+  },
+  "metrics_count": 901
+}

@@ -1,0 +1,60 @@
+================================================================================
+ABLATION STUDY ANALYSIS REPORT
+================================================================================
+
+## Overall Statistics
+
+### baseline
+Description: Baseline model with all standard components
+  - Best validation loss: 1.3902
+  - Final train loss: 1.4181
+  - Training time: 2.10 hours
+  - Total steps: 901
+  - Δ vs baseline: +0.00%
+
+### no_layer_norm
+Description: Ablation: Remove all RMSNorm layers
+  - Best validation loss: 1.3985
+  - Final train loss: 1.4283
+  - Training time: 2.02 hours
+  - Total steps: 901
+  - Δ vs baseline: +0.60%
+
+### post_norm
+Description: Ablation: Post-norm instead of pre-norm
+  - Best validation loss: 1.3897
+  - Final train loss: 1.4185
+  - Training time: 2.21 hours
+  - Total steps: 901
+  - Δ vs baseline: -0.03%
+
+### no_position_emb
+Description: Ablation: No position embeddings (NoPE)
+  - Best validation loss: 1.3902
+  - Final train loss: 1.4182
+  - Training time: 2.20 hours
+  - Total steps: 901
+  - Δ vs baseline: +0.00%
+
+### silu_ffn
+Description: Ablation: SiLU FFN instead of SwiGLU
+  - Best validation loss: 1.4101
+  - Final train loss: 1.4475
+  - Training time: 2.05 hours
+  - Total steps: 901
+  - Δ vs baseline: +1.43%
+
+## Key Findings
+
+1. **Best performing ablation:** post_norm
+   - Validation loss: 1.3897
+
+2. **Worst performing ablation:** silu_ffn
+   - Validation loss: 1.4101
+   - Degradation: 1.4%
+
+3. **Component Importance Ranking (by validation loss degradation):**
+   1. silu_ffn: +1.43% (MINOR)
+   2. no_layer_norm: +0.60% (MINOR)
+   3. post_norm: -0.03% (MINOR)
+   4. no_position_emb: +0.00% (MINOR)

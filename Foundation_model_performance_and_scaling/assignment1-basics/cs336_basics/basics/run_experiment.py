@@ -108,10 +108,15 @@ def run_experiment(
         resume_from: Optional checkpoint to resume from
     """
     # Create experiment configuration
+    # Filter out keys that conflict with positional arguments
+    filtered_config = {
+        k: v for k, v in config_dict.items()
+        if k not in ('experiment_name', 'description')
+    }
     exp_config = create_experiment_config(
         experiment_name=experiment_name,
         description=config_dict.get('description', ''),
-        **{k: v for k, v in config_dict.items() if k != 'description'}
+        **filtered_config
     )
 
     # Initialize experiment logger
