@@ -1,7 +1,7 @@
 {
-  "experiment_name": "performance_test",
-  "experiment_id": "316c5e96",
-  "description": "Performance test with TF32 and compilation",
+  "experiment_name": "batch_1",
+  "experiment_id": "46c0a115",
+  "description": "Batch size sweep \u2014 batch_size=1, lr=0.0003, tokens\u2248327,680,000",
   "tags": [],
   "vocab_size": 10000,
   "context_length": 256,
@@ -10,11 +10,11 @@
   "num_heads": 16,
   "d_ff": 1344,
   "rope_theta": 10000.0,
-  "batch_size": 128,
-  "max_iterations": 100,
+  "batch_size": 1,
+  "max_iterations": 1280000,
   "learning_rate": 0.0003,
-  "min_learning_rate": 3e-05,
-  "warmup_iters": 10,
+  "min_learning_rate": 2.9999999999999997e-05,
+  "warmup_iters": 12800,
   "weight_decay": 0.1,
   "beta1": 0.9,
   "beta2": 0.999,
@@ -25,8 +25,10 @@
   "device": null,
   "dtype": "float32",
   "seed": 42,
-  "log_interval": 10,
-  "eval_interval": 50,
-  "checkpoint_interval": 1000,
-  "metadata": {}
+  "log_interval": 50,
+  "eval_interval": 12800,
+  "checkpoint_interval": 128000,
+  "metadata": {
+    "processed_tokens": 327680000
+  }
 }

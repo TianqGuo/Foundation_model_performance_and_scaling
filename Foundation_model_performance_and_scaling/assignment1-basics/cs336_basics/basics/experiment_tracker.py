@@ -13,7 +13,7 @@ This module provides comprehensive experiment tracking with:
 import json
 import csv
 import time
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict, field, fields
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import numpy as np
@@ -63,6 +63,9 @@ class ExperimentConfig:
     log_interval: int = 10
     eval_interval: int = 100
     checkpoint_interval: int = 1000
+
+    # Optional sweep metadata (e.g., processed_tokens)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary."""
@@ -332,9 +335,28 @@ def create_experiment_config(
     import uuid
     experiment_id = str(uuid.uuid4())[:8]
 
+    exp_fields = {f.name for f in fields(ExperimentConfig)}
+
+    normalized_kwargs: Dict[str, Any] = {}
+    metadata: Dict[str, Any] = {}
+
+    for key, value in kwargs.items():
+        if key in exp_fields:
+            if key == "metadata":
+                if not isinstance(value, dict):
+                    raise TypeError("ExperimentConfig metadata must be a dict")
+                metadata.update(value)
+            else:
+                normalized_kwargs[key] = value
+        else:
+            metadata[key] = value
+
+    if metadata:
+        normalized_kwargs["metadata"] = {**normalized_kwargs.get("metadata", {}), **metadata}
+
     return ExperimentConfig(
         experiment_name=experiment_name,
         experiment_id=experiment_id,
         description=description,
-        **kwargs
+        **normalized_kwargs
     )

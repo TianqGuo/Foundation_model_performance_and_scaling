@@ -1,9 +1,9 @@
 {
-  "experiment_name": "performance_test",
+  "experiment_name": "batch_128",
   "config": {
-    "experiment_name": "performance_test",
-    "experiment_id": "316c5e96",
-    "description": "Performance test with TF32 and compilation",
+    "experiment_name": "batch_128",
+    "experiment_id": "ecd1c19d",
+    "description": "Batch size sweep \u2014 batch_size=128, lr=0.0003, tokens\u2248327,680,000",
     "tags": [],
     "vocab_size": 10000,
     "context_length": 256,
@@ -13,10 +13,10 @@
     "d_ff": 1344,
     "rope_theta": 10000.0,
     "batch_size": 128,
-    "max_iterations": 100,
+    "max_iterations": 10000,
     "learning_rate": 0.0003,
-    "min_learning_rate": 3e-05,
-    "warmup_iters": 10,
+    "min_learning_rate": 2.9999999999999997e-05,
+    "warmup_iters": 100,
     "weight_decay": 0.1,
     "beta1": 0.9,
     "beta2": 0.999,
@@ -27,29 +27,31 @@
     "device": null,
     "dtype": "float32",
     "seed": 42,
-    "log_interval": 10,
-    "eval_interval": 50,
+    "log_interval": 50,
+    "eval_interval": 200,
     "checkpoint_interval": 1000,
-    "metadata": {}
+    "metadata": {
+      "processed_tokens": 327680000
+    }
   },
   "statistics": {
-    "total_steps": 13,
-    "total_wallclock_time": 266.41759037971497,
-    "total_wallclock_hours": 0.07400488621658749,
+    "total_steps": 251,
+    "total_wallclock_time": 5150.974877357483,
+    "total_wallclock_hours": 1.430826354821523,
     "train_loss": {
-      "min": 4.069375038146973,
+      "min": 1.4567322731018066,
       "max": 9.256617546081543,
-      "mean": 5.516600275039673,
-      "final": 4.069375038146973,
+      "mean": 1.770941532254219,
+      "final": 1.4802099466323853,
       "initial": 9.256617546081543
     },
     "val_loss": {
-      "min": 4.0491530179977415,
+      "min": 1.4868113994598389,
       "max": 9.25914568901062,
-      "mean": 5.937552913029989,
-      "final": 4.0491530179977415,
-      "best": 4.0491530179977415
+      "mean": 1.849988865618612,
+      "final": 1.5008089423179627,
+      "best": 1.4868113994598389
     }
   },
-  "metrics_count": 13
+  "metrics_count": 251
 }

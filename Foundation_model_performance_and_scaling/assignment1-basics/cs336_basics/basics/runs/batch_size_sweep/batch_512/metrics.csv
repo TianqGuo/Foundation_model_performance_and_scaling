@@ -1,0 +1,1 @@
+step,wallclock_time,elapsed_time,train_loss,val_loss,val_perplexity,learning_rate,tokens_per_sec

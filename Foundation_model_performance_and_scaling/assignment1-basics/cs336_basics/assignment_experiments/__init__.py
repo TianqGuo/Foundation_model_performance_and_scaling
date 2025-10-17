@@ -11,4 +11,7 @@ Experiments will be added here for:
 - Analysis and comparisons
 """
 
-__all__ = []
+__all__ = [
+    "lr_sweep",
+    "batch_size_experiment",
+]

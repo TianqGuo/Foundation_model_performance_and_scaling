@@ -1,0 +1,57 @@
+{
+  "experiment_name": "batch_256",
+  "config": {
+    "experiment_name": "batch_256",
+    "experiment_id": "5df4c8e0",
+    "description": "Batch size sweep \u2014 batch_size=256, lr=0.0003, tokens\u2248327,680,000",
+    "tags": [],
+    "vocab_size": 10000,
+    "context_length": 256,
+    "d_model": 512,
+    "num_layers": 4,
+    "num_heads": 16,
+    "d_ff": 1344,
+    "rope_theta": 10000.0,
+    "batch_size": 256,
+    "max_iterations": 5000,
+    "learning_rate": 0.0003,
+    "min_learning_rate": 2.9999999999999997e-05,
+    "warmup_iters": 100,
+    "weight_decay": 0.1,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "grad_clip": 1.0,
+    "dataset": "TinyStories",
+    "train_data_path": "cs336_basics/artifacts/datasets/tinystories_train_tokens.npy",
+    "val_data_path": "cs336_basics/artifacts/datasets/tinystories_tokens.npy",
+    "device": null,
+    "dtype": "float32",
+    "seed": 42,
+    "log_interval": 50,
+    "eval_interval": 200,
+    "checkpoint_interval": 1000,
+    "metadata": {
+      "processed_tokens": 327680000
+    }
+  },
+  "statistics": {
+    "total_steps": 126,
+    "total_wallclock_time": 27200.614812850952,
+    "total_wallclock_hours": 7.555726336903042,
+    "train_loss": {
+      "min": 1.5631775856018066,
+      "max": 9.257638931274414,
+      "mean": 1.9601756489276887,
+      "final": 1.5896053314208984,
+      "initial": 9.257638931274414
+    },
+    "val_loss": {
+      "min": 1.5908481895923614,
+      "max": 9.258949708938598,
+      "mean": 2.104735718323634,
+      "final": 1.5964753806591034,
+      "best": 1.5908481895923614
+    }
+  },
+  "metrics_count": 126
+}
