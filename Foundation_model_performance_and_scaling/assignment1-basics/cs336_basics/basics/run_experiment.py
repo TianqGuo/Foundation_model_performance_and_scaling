@@ -28,6 +28,13 @@ from cs336_basics.transformer_training import save_checkpoint_with_metadata, loa
 from cs336_basics.basics.experiment_tracker import ExperimentConfig, create_experiment_config
 from cs336_basics.basics.experiment_logger import ExperimentLogger
 
+# Import ablation model if needed
+try:
+    from cs336_basics.assignment_experiments.ablations.modified_transformer_lm import FlexibleTransformerLM
+    ABLATION_SUPPORT = True
+except ImportError:
+    ABLATION_SUPPORT = False
+
 
 def get_device(device_str=None):
     """Get appropriate device for training."""
@@ -148,17 +155,46 @@ def run_experiment(
     dtype_map = {"float32": torch.float32, "float16": torch.float16, "bfloat16": torch.bfloat16}
     torch_dtype = dtype_map.get(exp_config.dtype, torch.float32)
 
-    model = TransformerLM(
-        vocab_size=exp_config.vocab_size,
-        context_length=exp_config.context_length,
-        d_model=exp_config.d_model,
-        num_layers=exp_config.num_layers,
-        num_heads=exp_config.num_heads,
-        d_ff=exp_config.d_ff,
-        rope_theta=exp_config.rope_theta,
-        device=device,
-        dtype=torch_dtype,
-    )
+    # Check if this is an ablation experiment
+    use_ablation_model = config_dict.get("use_ablation_model", False)
+
+    if use_ablation_model:
+        if not ABLATION_SUPPORT:
+            raise ImportError("Ablation model not available. Check import paths.")
+
+        model = FlexibleTransformerLM(
+            vocab_size=exp_config.vocab_size,
+            context_length=exp_config.context_length,
+            d_model=exp_config.d_model,
+            num_layers=exp_config.num_layers,
+            num_heads=exp_config.num_heads,
+            d_ff=exp_config.d_ff,
+            rope_theta=exp_config.rope_theta,
+            use_layer_norm=config_dict.get("use_layer_norm", True),
+            post_norm=config_dict.get("post_norm", False),
+            use_swiglu=config_dict.get("use_swiglu", True),
+            use_rope=config_dict.get("use_rope", True),
+            use_final_norm=config_dict.get("use_final_norm", True),
+            device=device,
+            dtype=torch_dtype,
+        )
+        print(f"Using FlexibleTransformerLM (ablation model)")
+        print(f"  Layer norm: {config_dict.get('use_layer_norm', True)}")
+        print(f"  Post-norm: {config_dict.get('post_norm', False)}")
+        print(f"  SwiGLU: {config_dict.get('use_swiglu', True)}")
+        print(f"  RoPE: {config_dict.get('use_rope', True)}")
+    else:
+        model = TransformerLM(
+            vocab_size=exp_config.vocab_size,
+            context_length=exp_config.context_length,
+            d_model=exp_config.d_model,
+            num_layers=exp_config.num_layers,
+            num_heads=exp_config.num_heads,
+            d_ff=exp_config.d_ff,
+            rope_theta=exp_config.rope_theta,
+            device=device,
+            dtype=torch_dtype,
+        )
 
     num_params = count_parameters(model)
     print(f"Model initialized with {num_params:,} trainable parameters")
