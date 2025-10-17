@@ -1,0 +1,49 @@
+# Text Generation Results
+
+**Model:** cs336_basics/basics/runs/batch_size_sweep/batch_8/checkpoints/best_model.pt
+
+**Parameters:**
+- Temperature: 0.8
+- Max tokens: 300
+- Seed: 42
+
+## Sample 1
+
+**Prompt:** Once upon a time, there
+
+**Generated:**
+
+Once upon a time, there was a little girl named Sue. She had a big red box that she found in her room. Sue was very excited to open it up.
+Inside the box, Sue found a pretty doll. The doll had a harsh heart and a sad face. Sue decided to show the doll to her mom. Her mom said, "Sue, this doll is not nice. It needs a friend." So, Sue took the doll to her mom and showed it to her mom.
+Her mom said, "Let's take the doll to the park." They took the doll to the park and played with it. They had a lot of fun. Sue and the doll became best friends. From that day on, Sue always took good care of her doll.
+<|endoftext|>
+
+--------------------------------------------------------------------------------
+
+## Sample 2
+
+**Prompt:** One day, a little
+
+**Generated:**
+
+One day, a little girl named Lucy went to the kitchen. She saw the fridge, open and mild green. She wanted to look inside, but her mom said, "No, it's too hot."
+Lucy's friend, Tom, came over to play. He saw Lucy looking at the fridge. He asked, "What's that?" Lucy showed him the fridge. "It's a hot fridge," Tom said. "Let's find out."
+They looked inside the fridge. It was warm from the sun. Lucy and Tom were happy. They had fun looking into the fridge. It was a good day for them.
+<|endoftext|>
+
+--------------------------------------------------------------------------------
+
+## Sample 3
+
+**Prompt:** In a faraway land
+
+**Generated:**
+
+In a faraway land, there lived a little girl named Amy. She loved to eat prunes. One day, she saw a scary prune tree in her yard. Amy wanted to pick the prunes and eat them.
+Amy's friend, Tim, came to visit. He saw the scary tree with the prunes. "What are you doing?" he asked. "I want the prunes, but they are weird," Amy replied. Tim had an idea. "Let's make a plan!" he said.
+They thought and thought. Then, Amy remembered her mom's words. She said, "If I hide the prunes, we will not be scared anymore." They hid the prunes in a secret place under the tree. The scary tree saw that Amy was not scared, and it listened to her.
+From that day on, Amy and Tim played together often. They learned that a plan can help them find what makes you happy. And they lived happily ever after.
+<|endoftext|>
+
+--------------------------------------------------------------------------------
+
