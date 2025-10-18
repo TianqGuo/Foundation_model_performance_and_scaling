@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import torch
 import json
 from cs336_basics.transformer_training.model.transformer_lm import TransformerLM
-from cs336_basics.tokenizer import BPETokenizer
+from cs336_basics.tokenizer.bpe_tokenizer import Tokenizer
 
 
 def load_owt_tokenizer():
@@ -26,7 +26,7 @@ def load_owt_tokenizer():
 
     merges = [tuple(line.split()) for line in merges_lines if line.strip()]
 
-    return BPETokenizer(vocab, merges)
+    return Tokenizer(vocab, merges)
 
 
 def load_model(checkpoint_path, device='cuda'):
