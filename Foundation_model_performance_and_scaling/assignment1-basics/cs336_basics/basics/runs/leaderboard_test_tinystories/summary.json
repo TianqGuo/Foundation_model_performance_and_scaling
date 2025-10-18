@@ -1,0 +1,59 @@
+{
+  "experiment_name": "tinystories_weight_tied_test",
+  "config": {
+    "experiment_name": "tinystories_weight_tied_test",
+    "experiment_id": "d80fc17c",
+    "description": "Quick validation of weight tying on TinyStories",
+    "tags": [],
+    "vocab_size": 10000,
+    "context_length": 256,
+    "d_model": 512,
+    "num_layers": 4,
+    "num_heads": 16,
+    "d_ff": 1344,
+    "rope_theta": 10000.0,
+    "batch_size": 8,
+    "max_iterations": 10000,
+    "learning_rate": 0.0004,
+    "min_learning_rate": 4e-05,
+    "warmup_iters": 300,
+    "weight_decay": 0.1,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "grad_clip": 1.0,
+    "dataset": "TinyStories",
+    "train_data_path": "cs336_basics/artifacts/datasets/tinystories_train_tokens.npy",
+    "val_data_path": "cs336_basics/artifacts/datasets/tinystories_tokens.npy",
+    "device": null,
+    "dtype": "bfloat16",
+    "seed": 42,
+    "log_interval": 50,
+    "eval_interval": 400,
+    "checkpoint_interval": 4000,
+    "metadata": {
+      "use_weight_tying": true,
+      "embedding_scale": true,
+      "use_leaderboard_model": true
+    }
+  },
+  "statistics": {
+    "total_steps": 226,
+    "total_wallclock_time": 428.53552508354187,
+    "total_wallclock_hours": 0.1190376458565394,
+    "train_loss": {
+      "min": 1.7578125,
+      "max": 9.25,
+      "mean": 2.36390625,
+      "final": 1.8359375,
+      "initial": 9.25
+    },
+    "val_loss": {
+      "min": 2.041015625,
+      "max": 9.25,
+      "mean": 2.5315655048076926,
+      "final": 2.05390625,
+      "best": 2.041015625
+    }
+  },
+  "metrics_count": 226
+}

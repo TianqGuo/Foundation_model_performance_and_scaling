@@ -1,0 +1,8 @@
+{
+  "iterations": 2074,
+  "final_loss": 5.011607646942139,
+  "avg_loss_last_100": 4.997472476959229,
+  "time_hours": 0.5001241585943434,
+  "iters_per_second": 1.151935737044682,
+  "estimated_iters_1_5hr": 6222.0
+}

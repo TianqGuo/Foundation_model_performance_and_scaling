@@ -1,0 +1,18 @@
+{
+  "experiment_name": "leaderboard_optimized",
+  "description": "Optimized configuration for 1.5hr leaderboard - weight tying + fast schedule + larger batch",
+  "final_validation_loss": 4.678281617164612,
+  "training_time_hours": 1.5007632180717256,
+  "total_iterations": 5477,
+  "tokens_processed": 89735168,
+  "perplexity": 107.58504135129222,
+  "model_parameters": 28800000,
+  "optimizations": [
+    "Weight Tying (36% parameter reduction)",
+    "Larger Batch Size (64 vs 32)",
+    "Scaled Learning Rate (4e-4 vs 3e-4)",
+    "Mixed Precision (bfloat16)"
+  ],
+  "beat_baseline": true,
+  "improvement_over_baseline": 0.321718382835388
+}
