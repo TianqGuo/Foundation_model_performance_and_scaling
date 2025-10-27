@@ -14,11 +14,10 @@ The benchmarking infrastructure is ready to use. Your earlier run showed:
 uv run python -m cs336_systems.profiling_benchmarking.benchmark_direct \
     --model-sizes small medium large \
     --warmup-steps 5 \
-    --measure-steps 10 \
-    --output results_main.csv
+    --measure-steps 10
 ```
 
-This will give you results for part (b) of the assignment.
+This will give you results for part (b) of the assignment. Results will be saved to `results/profiling_benchmarking_direct.csv` by default.
 
 ### 2. Compare Warmup Settings (Part c)
 
@@ -26,9 +25,10 @@ This will give you results for part (b) of the assignment.
 # This runs warmup experiments: 0, 1, 2, 5, 10 steps
 uv run python -m cs336_systems.profiling_benchmarking.warmup_comparison \
     --model-size small \
-    --measure-steps 10 \
-    --output results_warmup.csv
+    --measure-steps 10
 ```
+
+Results will be saved to `results/profiling_benchmarking_warmup_comparison.csv` by default.
 
 ### 3. Benchmark Forward Pass Only
 
@@ -150,20 +150,20 @@ nvidia-smi
 Use your existing results or run:
 ```bash
 uv run python -m cs336_systems.profiling_benchmarking.benchmark_direct \
-    --model-sizes small medium large \
-    --output results_part_b.csv
+    --model-sizes small medium large
 ```
 
-Then copy the table into your writeup.
+Results will be saved to `results/profiling_benchmarking_direct.csv`. Copy the table into your writeup.
 
 ### Part (c): Warmup Effect
 
 Run:
 ```bash
 uv run python -m cs336_systems.profiling_benchmarking.warmup_comparison \
-    --model-size small \
-    --output results_part_c.csv
+    --model-size small
 ```
+
+Results will be saved to `results/profiling_benchmarking_warmup_comparison.csv`.
 
 Expected findings:
 - **No warmup (0)**: Slower first runs due to CUDA kernel compilation

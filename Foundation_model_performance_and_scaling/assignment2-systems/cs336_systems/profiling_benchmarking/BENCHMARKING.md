@@ -40,8 +40,9 @@ uv run python -m cs336_systems.run_benchmarks \
     --model-sizes small medium large \
     --context-length 512 \
     --warmup-steps 5 \
-    --measure-steps 10 \
-    --output results.csv
+    --measure-steps 10
+
+# Results will be saved to results/profiling_benchmarking_run_benchmarks.csv by default
 ```
 
 ## Model Configurations
@@ -113,7 +114,7 @@ for ctx_len in 128 256 512 1024; do
     uv run python -m cs336_systems.benchmark \
         --model-size small \
         --context-length $ctx_len \
-        --output "results_ctx${ctx_len}.csv"
+        --output "results/profiling_benchmarking_ctx${ctx_len}.csv"
 done
 ```
 

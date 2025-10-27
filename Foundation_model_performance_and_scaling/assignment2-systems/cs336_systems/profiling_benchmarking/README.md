@@ -24,18 +24,20 @@ This module contains all tools for benchmarking and profiling Transformer models
 uv run python -m cs336_systems.profiling_benchmarking.benchmark_direct \
     --model-sizes small medium large \
     --warmup-steps 5 \
-    --measure-steps 10 \
-    --output results.csv
+    --measure-steps 10
 ```
+
+Results will be saved to `results/profiling_benchmarking_direct.csv` by default.
 
 ### Compare Warmup Settings (Assignment Part c)
 
 ```bash
 uv run python -m cs336_systems.profiling_benchmarking.warmup_comparison \
     --model-size small \
-    --measure-steps 10 \
-    --output warmup_results.csv
+    --measure-steps 10
 ```
+
+Results will be saved to `results/profiling_benchmarking_warmup_comparison.csv` by default.
 
 ### Single Model Benchmark
 

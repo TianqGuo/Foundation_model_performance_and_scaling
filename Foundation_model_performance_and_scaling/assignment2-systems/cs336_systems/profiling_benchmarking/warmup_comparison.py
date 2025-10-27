@@ -6,6 +6,7 @@ This helps answer assignment part (c) about the effect of warmup steps.
 
 import pandas as pd
 import torch
+from pathlib import Path
 from cs336_systems.profiling_benchmarking.benchmark import (
     MODEL_CONFIGS,
     create_model,
@@ -68,8 +69,8 @@ def main():
     parser.add_argument(
         "--output",
         type=str,
-        default=None,
-        help="Output CSV file",
+        default="results/profiling_benchmarking_warmup_comparison.csv",
+        help="Output CSV file (default: results/profiling_benchmarking_warmup_comparison.csv)",
     )
 
     args = parser.parse_args()
@@ -113,6 +114,10 @@ def main():
 
     # Save if requested
     if args.output:
+        # Ensure the output directory exists
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
         df.to_csv(args.output, index=False)
         print(f"\nResults saved to {args.output}")
 

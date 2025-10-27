@@ -7,6 +7,7 @@ This avoids the subprocess overhead and timeout issues.
 import argparse
 import pandas as pd
 import torch
+from pathlib import Path
 
 from cs336_systems.profiling_benchmarking.benchmark import (
     MODEL_CONFIGS,
@@ -147,8 +148,8 @@ def main():
     parser.add_argument(
         "--output",
         type=str,
-        default=None,
-        help="Output CSV file path",
+        default="results/profiling_benchmarking_direct.csv",
+        help="Output CSV file path (default: results/profiling_benchmarking_direct.csv)",
     )
     parser.add_argument(
         "--device",
@@ -207,6 +208,10 @@ def main():
 
     # Save to CSV if requested
     if args.output:
+        # Ensure the output directory exists
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
         df.to_csv(args.output, index=False)
         print(f"Results saved to {args.output}")
 

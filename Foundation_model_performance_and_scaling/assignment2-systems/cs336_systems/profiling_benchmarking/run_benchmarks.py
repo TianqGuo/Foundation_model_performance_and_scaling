@@ -9,6 +9,7 @@ import argparse
 import subprocess
 import pandas as pd
 from pathlib import Path
+import os
 
 
 def run_single_benchmark(
@@ -216,8 +217,8 @@ def main():
     parser.add_argument(
         "--output",
         type=str,
-        default=None,
-        help="Output CSV file path",
+        default="results/profiling_benchmarking_run_benchmarks.csv",
+        help="Output CSV file path (default: results/profiling_benchmarking_run_benchmarks.csv)",
     )
     parser.add_argument(
         "--device",
@@ -260,6 +261,10 @@ def main():
 
     # Save to CSV if requested
     if args.output:
+        # Ensure the output directory exists
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
         df.to_csv(args.output, index=False)
         print(f"Results saved to {args.output}")
 

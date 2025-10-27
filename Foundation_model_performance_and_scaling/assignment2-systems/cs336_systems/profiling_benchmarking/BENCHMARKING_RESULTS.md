@@ -78,8 +78,9 @@ We created `benchmark_direct.py` which avoids subprocess overhead:
 
 ```bash
 uv run python -m cs336_systems.benchmark_direct \
-    --model-sizes small medium large \
-    --output results.csv
+    --model-sizes small medium large
+
+# Results saved to results/profiling_benchmarking_direct.csv by default
 ```
 
 ### 3. Performance Optimizations (For Future)
@@ -159,8 +160,9 @@ uv run python -m cs336_systems.benchmark \
 uv run python -m cs336_systems.benchmark_direct \
     --model-sizes small medium large \
     --warmup-steps 5 \
-    --measure-steps 10 \
-    --output results.csv
+    --measure-steps 10
+
+# Results saved to results/profiling_benchmarking_direct.csv by default
 ```
 
 ### Method 3: Subprocess Sweep (if you have time)
@@ -168,8 +170,9 @@ uv run python -m cs336_systems.benchmark_direct \
 ```bash
 # Note: This is slower due to subprocess overhead
 uv run python -m cs336_systems.run_benchmarks \
-    --model-sizes small medium \
-    --output results.csv
+    --model-sizes small medium
+
+# Results saved to results/profiling_benchmarking_run_benchmarks.csv by default
 ```
 
 ## Answering Assignment Questions
@@ -218,7 +221,7 @@ uv run python -m cs336_systems.benchmark \
 ## Next Steps
 
 1. ✅ Use `benchmark_direct.py` for reliable benchmarking
-2. 📊 Generate tables for writeup with `--output results.csv`
+2. 📊 Generate tables for writeup (results saved to `results/` folder by default)
 3. 🔬 Run warmup experiments for part (c)
 4. 📝 Document findings in writeup
 
