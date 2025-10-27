@@ -19,6 +19,7 @@ def run_single_benchmark(
     measure_steps: int,
     pass_type: str = "forward_backward",
     device: str = "cuda",
+    timeout: int = 600,  # 10 minutes default
 ) -> dict:
     """
     Run a single benchmark and parse the results.
@@ -27,7 +28,7 @@ def run_single_benchmark(
         Dictionary with benchmark results
     """
     cmd = [
-        "uv", "run", "python", "-m", "cs336_systems.benchmark",
+        "uv", "run", "python", "-m", "cs336_systems.profiling_benchmarking.benchmark",
         "--model-size", model_size,
         "--context-length", str(context_length),
         "--batch-size", str(batch_size),
@@ -37,7 +38,48 @@ def run_single_benchmark(
         "--device", device,
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"  WARNING: Benchmark timed out after {timeout}s")
+        return {
+            "model_size": model_size,
+            "context_length": context_length,
+            "batch_size": batch_size,
+            "warmup_steps": warmup_steps,
+            "measure_steps": measure_steps,
+            "pass_type": pass_type,
+            "num_params": None,
+            "mean_time_ms": None,
+            "std_time_ms": None,
+            "cv_percent": None,
+            "error": "timeout",
+        }
+
+    # Check if command failed
+    if result.returncode != 0:
+        # Check for OOM error
+        error_type = "failed"
+        if "out of memory" in result.stderr.lower() or "oom" in result.stderr.lower():
+            error_type = "OOM"
+            print(f"  WARNING: Out of memory - model too large for GPU")
+        else:
+            print(f"  WARNING: Benchmark failed with return code {result.returncode}")
+            print(f"  STDERR: {result.stderr[:200]}")
+
+        return {
+            "model_size": model_size,
+            "context_length": context_length,
+            "batch_size": batch_size,
+            "warmup_steps": warmup_steps,
+            "measure_steps": measure_steps,
+            "pass_type": pass_type,
+            "num_params": None,
+            "mean_time_ms": None,
+            "std_time_ms": None,
+            "cv_percent": None,
+            "error": error_type,
+        }
 
     # Parse output
     lines = result.stdout.strip().split("\n")
@@ -48,18 +90,32 @@ def run_single_benchmark(
 
     for line in lines:
         if "Mean time:" in line:
-            # Extract mean time in ms
-            parts = line.split()
-            mean_time = float(parts[2])  # in ms
+            try:
+                # Extract mean time in ms
+                parts = line.split()
+                mean_time = float(parts[2])  # in ms
+            except (IndexError, ValueError) as e:
+                print(f"  WARNING: Failed to parse mean time from: {line}")
         elif "Std dev:" in line:
-            # Extract std dev in ms
-            parts = line.split()
-            std_time = float(parts[2])  # in ms
+            try:
+                # Extract std dev in ms
+                parts = line.split()
+                std_time = float(parts[2])  # in ms
+            except (IndexError, ValueError) as e:
+                print(f"  WARNING: Failed to parse std dev from: {line}")
         elif "Model has" in line:
-            # Extract number of parameters
-            parts = line.split()
-            num_params_str = parts[2].replace(",", "")
-            num_params = int(num_params_str)
+            try:
+                # Extract number of parameters
+                parts = line.split()
+                num_params_str = parts[2].replace(",", "")
+                num_params = int(num_params_str)
+            except (IndexError, ValueError) as e:
+                print(f"  WARNING: Failed to parse num params from: {line}")
+
+    # Check if we got valid results
+    if mean_time is None or std_time is None:
+        print(f"  WARNING: Failed to parse benchmark results")
+        print(f"  Output preview: {result.stdout[:500]}")
 
     return {
         "model_size": model_size,
@@ -72,6 +128,7 @@ def run_single_benchmark(
         "mean_time_ms": mean_time,
         "std_time_ms": std_time,
         "cv_percent": (std_time / mean_time * 100) if mean_time and std_time else None,
+        "error": None,
     }
 
 
@@ -83,6 +140,7 @@ def run_benchmark_sweep(
     measure_steps: int = 10,
     pass_type: str = "forward_backward",
     device: str = "cuda",
+    timeout: int = 600,
 ) -> pd.DataFrame:
     """
     Run benchmarks for multiple model sizes.
@@ -102,9 +160,15 @@ def run_benchmark_sweep(
             measure_steps=measure_steps,
             pass_type=pass_type,
             device=device,
+            timeout=timeout,
         )
         results.append(result)
-        print(f"  Mean: {result['mean_time_ms']:.2f} ms, Std: {result['std_time_ms']:.2f} ms")
+
+        # Print results if available
+        if result['mean_time_ms'] is not None and result['std_time_ms'] is not None:
+            print(f"  Mean: {result['mean_time_ms']:.2f} ms, Std: {result['std_time_ms']:.2f} ms")
+        else:
+            print(f"  Failed: {result.get('error', 'unknown error')}")
 
     return pd.DataFrame(results)
 
@@ -161,6 +225,12 @@ def main():
         default="cuda",
         help="Device to use",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=600,
+        help="Timeout in seconds for each benchmark (default: 600)",
+    )
 
     args = parser.parse_args()
 
@@ -173,6 +243,7 @@ def main():
         measure_steps=args.measure_steps,
         pass_type=args.pass_type,
         device=args.device,
+        timeout=args.timeout,
     )
 
     # Display results
