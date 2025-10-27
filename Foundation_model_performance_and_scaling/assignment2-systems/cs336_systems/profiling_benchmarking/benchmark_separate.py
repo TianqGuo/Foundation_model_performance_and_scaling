@@ -115,7 +115,11 @@ def benchmark_model_separate(
             print(f"  ERROR: {str(e)[:200]}")
             error_type = "runtime_error"
 
-        torch.cuda.empty_cache()
+        # Try to clean up, but don't fail if empty_cache itself fails
+        try:
+            torch.cuda.empty_cache()
+        except RuntimeError:
+            pass  # Ignore if empty_cache fails due to OOM
 
         return {
             "model_size": model_size,
