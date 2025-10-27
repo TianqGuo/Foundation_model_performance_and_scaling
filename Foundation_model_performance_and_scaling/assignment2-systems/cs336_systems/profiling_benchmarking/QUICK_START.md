@@ -8,7 +8,26 @@ The benchmarking infrastructure is ready to use. Your earlier run showed:
 
 ## Quick Commands
 
-### 1. Benchmark All Models That Fit in VRAM
+### 1. Benchmark Forward and Backward Passes Separately (Part b) ⭐
+
+**This is what you need for assignment part (b):**
+
+```bash
+uv run python -m cs336_systems.profiling_benchmarking.benchmark_separate \
+    --model-sizes small medium large \
+    --warmup-steps 5 \
+    --measure-steps 10
+```
+
+This will:
+- Measure **forward pass** time separately
+- Measure **backward pass** time separately
+- Show you the ratio between them
+- Generate a table ready for your writeup
+
+Results saved to `results/profiling_benchmarking_separate.csv` by default.
+
+### 2. Benchmark All Models (Combined Forward+Backward)
 
 ```bash
 uv run python -m cs336_systems.profiling_benchmarking.benchmark_direct \
@@ -17,9 +36,9 @@ uv run python -m cs336_systems.profiling_benchmarking.benchmark_direct \
     --measure-steps 10
 ```
 
-This will give you results for part (b) of the assignment. Results will be saved to `results/profiling_benchmarking_direct.csv` by default.
+This measures forward+backward together (not separately). Results saved to `results/profiling_benchmarking_direct.csv`.
 
-### 2. Compare Warmup Settings (Part c)
+### 3. Compare Warmup Settings (Part c)
 
 ```bash
 # This runs warmup experiments: 0, 1, 2, 5, 10 steps
@@ -30,7 +49,7 @@ uv run python -m cs336_systems.profiling_benchmarking.warmup_comparison \
 
 Results will be saved to `results/profiling_benchmarking_warmup_comparison.csv` by default.
 
-### 3. Benchmark Forward Pass Only
+### 4. Benchmark Forward Pass Only
 
 ```bash
 uv run python -m cs336_systems.profiling_benchmarking.benchmark \
@@ -40,7 +59,7 @@ uv run python -m cs336_systems.profiling_benchmarking.benchmark \
     --measure-steps 10
 ```
 
-### 4. Benchmark Large Models with Reduced Settings
+### 5. Benchmark Large Models with Reduced Settings
 
 ```bash
 # XL model - reduced context and batch size
@@ -145,15 +164,32 @@ nvidia-smi
 
 ## Assignment Deliverables
 
-### Part (b): Forward/Backward Timing
+### Part (b): Forward/Backward Timing ⭐
 
-Use your existing results or run:
+**Use the separate benchmarking script:**
+
 ```bash
-uv run python -m cs336_systems.profiling_benchmarking.benchmark_direct \
-    --model-sizes small medium large
+uv run python -m cs336_systems.profiling_benchmarking.benchmark_separate \
+    --model-sizes small medium large \
+    --warmup-steps 5 \
+    --measure-steps 10
 ```
 
-Results will be saved to `results/profiling_benchmarking_direct.csv`. Copy the table into your writeup.
+This will:
+1. Measure forward pass separately
+2. Measure backward pass separately
+3. Show standard deviations for both
+4. Generate a markdown table ready for your writeup
+
+Results saved to `results/profiling_benchmarking_separate.csv`.
+
+**Sample output for your writeup:**
+```
+small model (128.6M parameters):
+  Forward pass:  152.30 ± 8.45 ms (CV: 5.55%)
+  Backward pass: 305.20 ± 12.30 ms (CV: 4.03%)
+  Ratio: Backward is 2.00x forward
+```
 
 ### Part (c): Warmup Effect
 

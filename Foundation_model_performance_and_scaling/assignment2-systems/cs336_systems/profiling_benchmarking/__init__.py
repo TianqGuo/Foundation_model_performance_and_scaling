@@ -11,6 +11,7 @@ from .benchmark import (
     create_model,
     generate_random_batch,
     benchmark_forward,
+    benchmark_backward,
     benchmark_forward_backward,
 )
 
@@ -20,5 +21,6 @@ __all__ = [
     "create_model",
     "generate_random_batch",
     "benchmark_forward",
+    "benchmark_backward",
     "benchmark_forward_backward",
 ]

@@ -6,6 +6,7 @@ This module contains all tools for benchmarking and profiling Transformer models
 
 ### Core Scripts
 - **`benchmark.py`** - Main benchmarking module with model configs and timing functions
+- **`benchmark_separate.py`** - ⭐ Measures forward/backward passes separately (for assignment part b)
 - **`benchmark_direct.py`** - Direct benchmarking (recommended) - runs sweeps without subprocess
 - **`run_benchmarks.py`** - Subprocess-based benchmarking - slower but more isolated
 - **`warmup_comparison.py`** - Analyzes effect of warmup steps (for assignment part c)
@@ -18,7 +19,18 @@ This module contains all tools for benchmarking and profiling Transformer models
 
 ## Quick Start
 
-### Benchmark Models That Fit in VRAM
+### Benchmark Forward and Backward Passes Separately (Part b) ⭐
+
+```bash
+uv run python -m cs336_systems.profiling_benchmarking.benchmark_separate \
+    --model-sizes small medium large \
+    --warmup-steps 5 \
+    --measure-steps 10
+```
+
+This measures forward and backward passes **separately** and generates a table for your writeup. Results saved to `results/profiling_benchmarking_separate.csv` by default.
+
+### Benchmark Models That Fit in VRAM (Combined Forward+Backward)
 
 ```bash
 uv run python -m cs336_systems.profiling_benchmarking.benchmark_direct \
@@ -27,7 +39,7 @@ uv run python -m cs336_systems.profiling_benchmarking.benchmark_direct \
     --measure-steps 10
 ```
 
-Results will be saved to `results/profiling_benchmarking_direct.csv` by default.
+This measures forward+backward together. Results saved to `results/profiling_benchmarking_direct.csv` by default.
 
 ### Compare Warmup Settings (Assignment Part c)
 

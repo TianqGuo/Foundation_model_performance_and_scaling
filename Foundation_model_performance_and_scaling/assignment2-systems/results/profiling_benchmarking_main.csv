@@ -1,0 +1,6 @@
+model_size,context_length,batch_size,warmup_steps,measure_steps,pass_type,num_params,mean_time_ms,std_time_ms,cv_percent,error
+small,512,4,5,10,forward_backward,128625408.0,295.62,18.24,6.170083214938096,
+medium,512,4,5,10,forward_backward,423183360.0,854.8,32.2,3.766963032288255,
+large,512,4,5,10,forward_backward,969411840.0,16919.09,48.69,0.2877814350535401,
+xl,512,4,5,10,forward_backward,,,,,OOM
+2.7B,512,4,5,10,forward_backward,,,,,OOM

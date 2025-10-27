@@ -157,6 +157,61 @@ def benchmark_forward(
     return np.mean(times), np.std(times)
 
 
+def benchmark_backward(
+    model: nn.Module,
+    input_ids: torch.Tensor,
+    warmup_steps: int = 5,
+    measure_steps: int = 10,
+    use_sync: bool = True,
+) -> tuple[float, float]:
+    """
+    Benchmark backward pass only (assuming forward pass already done).
+
+    This measures only the backward pass time by doing the forward pass
+    first without timing, then timing only the backward pass.
+
+    Args:
+        model: Model to benchmark
+        input_ids: Input token IDs
+        warmup_steps: Number of warmup steps before timing
+        measure_steps: Number of steps to measure
+        use_sync: Whether to call torch.cuda.synchronize() after each step
+
+    Returns:
+        Tuple of (mean_time, std_time) in seconds
+    """
+    model.train()
+
+    # Warmup
+    for _ in range(warmup_steps):
+        model.zero_grad()
+        logits = model(input_ids)
+        loss = logits.sum()
+        loss.backward()
+        if use_sync:
+            torch.cuda.synchronize()
+
+    # Measure - do forward pass first, then time only backward
+    times = []
+    for _ in range(measure_steps):
+        model.zero_grad()
+        # Forward pass (not timed)
+        logits = model(input_ids)
+        loss = logits.sum()
+        if use_sync:
+            torch.cuda.synchronize()
+
+        # Time only the backward pass
+        start = timeit.default_timer()
+        loss.backward()
+        if use_sync:
+            torch.cuda.synchronize()
+        end = timeit.default_timer()
+        times.append(end - start)
+
+    return np.mean(times), np.std(times)
+
+
 def benchmark_forward_backward(
     model: nn.Module,
     input_ids: torch.Tensor,
@@ -165,7 +220,7 @@ def benchmark_forward_backward(
     use_sync: bool = True,
 ) -> tuple[float, float]:
     """
-    Benchmark forward and backward pass.
+    Benchmark forward and backward pass together.
 
     Args:
         model: Model to benchmark
@@ -241,9 +296,9 @@ def main():
     parser.add_argument(
         "--pass-type",
         type=str,
-        choices=["forward", "forward_backward"],
+        choices=["forward", "backward", "forward_backward", "separate"],
         default="forward_backward",
-        help="Type of pass to benchmark",
+        help="Type of pass to benchmark (separate = measure forward and backward separately)",
     )
     parser.add_argument(
         "--no-sync",
@@ -303,16 +358,11 @@ def main():
 
     # Benchmark
     print(f"Running benchmark ({args.pass_type})...")
-    if args.pass_type == "forward":
-        mean_time, std_time = benchmark_forward(
-            model,
-            input_ids,
-            warmup_steps=args.warmup_steps,
-            measure_steps=args.measure_steps,
-            use_sync=not args.no_sync,
-        )
-    else:
-        mean_time, std_time = benchmark_forward_backward(
+
+    if args.pass_type == "separate":
+        # Measure forward and backward separately
+        print("\n1. Measuring forward pass...")
+        fwd_mean, fwd_std = benchmark_forward(
             model,
             input_ids,
             warmup_steps=args.warmup_steps,
@@ -320,11 +370,61 @@ def main():
             use_sync=not args.no_sync,
         )
 
-    print()
-    print("Results:")
-    print(f"  Mean time: {mean_time * 1000:.2f} ms ({mean_time:.6f} s)")
-    print(f"  Std dev: {std_time * 1000:.2f} ms ({std_time:.6f} s)")
-    print(f"  Coefficient of variation: {(std_time / mean_time * 100):.2f}%")
+        print("2. Measuring backward pass...")
+        bwd_mean, bwd_std = benchmark_backward(
+            model,
+            input_ids,
+            warmup_steps=args.warmup_steps,
+            measure_steps=args.measure_steps,
+            use_sync=not args.no_sync,
+        )
+
+        print()
+        print("Results:")
+        print(f"  Forward pass:")
+        print(f"    Mean time: {fwd_mean * 1000:.2f} ms ({fwd_mean:.6f} s)")
+        print(f"    Std dev: {fwd_std * 1000:.2f} ms ({fwd_std:.6f} s)")
+        print(f"    Coefficient of variation: {(fwd_std / fwd_mean * 100):.2f}%")
+        print()
+        print(f"  Backward pass:")
+        print(f"    Mean time: {bwd_mean * 1000:.2f} ms ({bwd_mean:.6f} s)")
+        print(f"    Std dev: {bwd_std * 1000:.2f} ms ({bwd_std:.6f} s)")
+        print(f"    Coefficient of variation: {(bwd_std / bwd_mean * 100):.2f}%")
+        print()
+        print(f"  Total (forward + backward):")
+        print(f"    Mean time: {(fwd_mean + bwd_mean) * 1000:.2f} ms ({fwd_mean + bwd_mean:.6f} s)")
+        print(f"    Ratio (backward/forward): {bwd_mean / fwd_mean:.2f}x")
+    else:
+        if args.pass_type == "forward":
+            mean_time, std_time = benchmark_forward(
+                model,
+                input_ids,
+                warmup_steps=args.warmup_steps,
+                measure_steps=args.measure_steps,
+                use_sync=not args.no_sync,
+            )
+        elif args.pass_type == "backward":
+            mean_time, std_time = benchmark_backward(
+                model,
+                input_ids,
+                warmup_steps=args.warmup_steps,
+                measure_steps=args.measure_steps,
+                use_sync=not args.no_sync,
+            )
+        else:  # forward_backward
+            mean_time, std_time = benchmark_forward_backward(
+                model,
+                input_ids,
+                warmup_steps=args.warmup_steps,
+                measure_steps=args.measure_steps,
+                use_sync=not args.no_sync,
+            )
+
+        print()
+        print("Results:")
+        print(f"  Mean time: {mean_time * 1000:.2f} ms ({mean_time:.6f} s)")
+        print(f"  Std dev: {std_time * 1000:.2f} ms ({std_time:.6f} s)")
+        print(f"  Coefficient of variation: {(std_time / mean_time * 100):.2f}%")
 
 
 if __name__ == "__main__":
