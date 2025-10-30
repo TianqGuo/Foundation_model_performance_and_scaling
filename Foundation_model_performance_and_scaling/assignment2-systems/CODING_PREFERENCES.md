@@ -1,0 +1,300 @@
+# Coding Preferences and Project Organization
+
+This document captures my preferred coding style and project organization for future reference.
+
+## Directory Structure
+
+### Core Principle: Keep Root Clean
+- **Root directory**: Only essential files (READMEs, config files, main scripts)
+- **DO NOT clutter root** with temporary files, logs, or module-specific documentation
+- Each module should be self-contained in its own subdirectory
+
+### Module Organization
+```
+cs336_systems/
+├── profiling_benchmarking/     # Benchmarking module
+│   ├── *.py                     # Python implementation files
+│   ├── *.sh                     # Shell scripts for running tasks
+│   └── README.md                # Single README with usage info
+│
+├── nsight_systems_profiler/     # Profiling module
+│   ├── *.py                     # Python implementation files
+│   ├── *.sh                     # Shell scripts for each task
+│   └── README.md                # Single README with usage info
+│
+└── [future_module]/             # Each new task gets its own folder
+```
+
+### Results and Output
+```
+results/                         # All output files
+├── profiling_benchmarking_*.csv
+├── nsight_profiles/
+│   ├── part_a/
+│   ├── part_b_c/
+│   └── ...
+└── [module_name]_*.csv
+```
+
+**Key principles:**
+- All results go to `results/` directory
+- Use descriptive naming: `results/{module}_{script}.csv`
+- Organized by module and task
+
+## File Naming Conventions
+
+### Python Files
+- Module files: `{function}_module.py` (e.g., `profile_model.py`, `benchmark_separate.py`)
+- Implementation files: descriptive names without prefixes
+- Keep names concise but clear
+
+### Shell Scripts
+- Task-based naming: `part_{letter}.sh` for assignment questions
+- Example: `part_b.sh`, `part_c.sh`
+- Alternative: `profile_part_a.sh` if module name needed for clarity
+
+### Output Files
+- Pattern: `{module}_{description}.csv`
+- Examples:
+  - `profiling_benchmarking_separate.csv`
+  - `profiling_benchmarking_warmup_comparison.csv`
+- **NOT**: Generic names like `results.csv`, `results_main.csv`
+
+## Documentation Style
+
+### Minimal Documentation Files
+- **ONE README per module** - not multiple MD files
+- Put explanations **inside scripts as comments**, not separate files
+- Only create docs when absolutely necessary
+
+### README Contents
+- Brief overview
+- Quick start commands
+- File listing with descriptions
+- Usage examples
+- **NO**: Excessive explanations or tutorials (put in code comments)
+
+### Script Documentation
+- **Include all usage info in the script header**
+- Format:
+  ```bash
+  #!/bin/bash
+  # ==============================================================================
+  # Title and Purpose
+  # ==============================================================================
+  #
+  # USAGE:
+  #   cd path/to/script
+  #   ./script.sh
+  #
+  # OUTPUT:
+  #   Where files are saved
+  #
+  # NOTES:
+  #   Important information
+  #
+  # ==============================================================================
+  ```
+
+## Code Organization Preferences
+
+### Python Scripts
+1. **Clear separation of concerns**: One script per task/purpose
+2. **Reusable functions**: Import from shared modules
+3. **Command-line arguments**: Use argparse with sensible defaults
+4. **Output paths**: Default to `results/` with descriptive names
+
+### Shell Scripts
+1. **One script per assignment question/task**
+2. **Self-documenting**: All instructions in comments
+3. **Error handling**: Use `set -e` to exit on errors
+4. **User feedback**: Echo what's happening, show progress
+
+### Example Pattern
+```python
+# Good: Separate script for each task
+benchmark_separate.py       # Measures forward/backward separately
+warmup_comparison.py        # Tests warmup effect
+
+# Bad: One giant script with modes
+benchmark.py --mode separate --mode warmup  # Too many responsibilities
+```
+
+## Platform Considerations
+
+### WSL/Ubuntu Environment
+- **Line endings**: Always LF (Unix), not CRLF (Windows)
+- **Permissions**: Make scripts executable with `chmod +x`
+- **Paths**: Use forward slashes, relative paths preferred
+
+### Fix Line Endings
+When creating files, always fix line endings:
+```bash
+sed -i 's/\r$//' script.sh  # Remove Windows \r
+chmod +x script.sh          # Make executable
+```
+
+## Dependencies and Imports
+
+### Module Dependencies
+- Clearly specify in `pyproject.toml`
+- Use relative imports within modules
+- Import from installed packages (e.g., `cs336_basics`)
+
+### Example Import Pattern
+```python
+# Within module
+from .benchmark import MODEL_CONFIGS, create_model
+
+# From other assignment modules
+from cs336_basics.transformer_training.model import TransformerLM
+```
+
+## Output and Results Management
+
+### Default Behavior
+- **Always provide sensible defaults** for output paths
+- **Create directories automatically** if they don't exist
+- **Don't fail silently**: Print where files are saved
+
+### Example Pattern
+```python
+parser.add_argument(
+    "--output",
+    type=str,
+    default="results/module_name_output.csv",  # Good default
+    help="Output CSV file path (default: results/module_name_output.csv)",
+)
+
+# In code:
+output_path = Path(args.output)
+output_path.parent.mkdir(parents=True, exist_ok=True)  # Auto-create
+df.to_csv(args.output, index=False)
+print(f"Results saved to {args.output}")  # Confirm to user
+```
+
+## What to Ask Before Creating Files
+
+### Always Clarify
+1. **Where to put it?** - Existing module or new folder?
+2. **Is this temporary?** - Should it be gitignored?
+3. **Is documentation needed?** - Or can it go in code comments?
+
+### General Rules
+- ❌ **Don't create** extra documentation files without asking
+- ❌ **Don't create** files in root without asking
+- ✅ **Do create** well-organized module folders
+- ✅ **Do include** comprehensive inline documentation
+
+## Error Handling
+
+### Shell Scripts
+```bash
+set -e  # Exit on any error
+
+# Handle OOM gracefully
+if run_command; then
+    echo "✓ Success"
+else
+    echo "✗ Failed (likely OOM)"
+fi
+```
+
+### Python Scripts
+```python
+try:
+    # Main logic
+    result = operation()
+except RuntimeError as e:
+    if "out of memory" in str(e).lower():
+        print("WARNING: Out of memory")
+        error_type = "OOM"
+
+    # Clean up gracefully
+    try:
+        torch.cuda.empty_cache()
+    except RuntimeError:
+        pass  # Ignore if cleanup fails
+
+    return error_result
+```
+
+## Git and Version Control
+
+### What to Commit
+- ✅ Source code (`.py`, `.sh`)
+- ✅ Configuration files
+- ✅ Essential READMEs (one per module)
+- ✅ Requirements/dependencies
+
+### What to Ignore
+- ❌ Results files (`.csv`, `.nsys-rep`)
+- ❌ Large binary files
+- ❌ Temporary files
+- ❌ Cache directories
+
+### .gitignore Pattern
+```gitignore
+# Results
+results/
+*.csv
+*.nsys-rep
+*.sqlite
+
+# Caches
+__pycache__/
+.pytest_cache/
+```
+
+## Summary of Key Preferences
+
+1. **Keep root directory clean** - put everything in module folders
+2. **One README per module** - not multiple documentation files
+3. **Explanations in code comments** - not separate files
+4. **Descriptive output names** - `module_task.csv`, not `results.csv`
+5. **Results in `results/` folder** - with automatic directory creation
+6. **Shell script per task** - `part_b.sh`, `part_c.sh`
+7. **Self-documenting code** - comprehensive headers and comments
+8. **Handle errors gracefully** - especially OOM errors
+9. **Fix line endings** - always use Unix LF format
+10. **Ask before creating files** - especially in root or documentation
+
+## Example: Good vs Bad Organization
+
+### ❌ Bad
+```
+assignment2-systems/
+├── results_main.csv              # Cluttered root
+├── results_warmup.csv
+├── QUICK_START.md               # Too many docs
+├── DETAILED_GUIDE.md
+├── TROUBLESHOOTING.md
+├── cs336_systems/
+│   └── profiling_benchmarking/
+│       └── benchmark.py
+```
+
+### ✅ Good
+```
+assignment2-systems/
+├── CODING_PREFERENCES.md         # Essential reference doc
+├── results/                      # All outputs here 
+│   ├── profiling_benchmarking_separate.csv
+│   └── profiling_benchmarking_warmup.csv
+└── cs336_systems/
+    ├── profiling_benchmarking/
+    │   ├── benchmark.py
+    │   ├── benchmark_separate.py
+    │   ├── warmup_comparison.py
+    │   ├── part_b.sh            # Scripts with inline docs
+    │   ├── part_c.sh
+    │   └── README.md            # Single README
+    └── nsight_systems_profiler/
+        ├── profile_model.py
+        ├── profile_part_a.sh
+        └── README.md
+```
+
+---
+
+**For Future Sessions**: Import this file at the start so I understand your organizational preferences and coding style.

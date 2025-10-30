@@ -156,10 +156,17 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# NVIDIA Nsight Systems profile files (large binary files with embedded secrets)
+# NVIDIA Nsight Systems profile files (large binary files, can trigger false positive secret detection)
 *.nsys-rep
 *.sqlite
-results/nsight_profiles/
+results/nsight_profiles/*.nsys-rep
+results/nsight_profiles/*.sqlite
+results/nsight_profiles/**/*.nsys-rep
+results/nsight_profiles/**/*.sqlite
+
+# Keep only analysis summaries (text files)
+!results/nsight_profiles/ANALYSIS_SUMMARY.txt
+!results/nsight_profiles/**/*.txt
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
