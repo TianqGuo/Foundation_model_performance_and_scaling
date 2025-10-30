@@ -156,6 +156,11 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# NVIDIA Nsight Systems profile files (large binary files with embedded secrets)
+*.nsys-rep
+*.sqlite
+results/nsight_profiles/
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
