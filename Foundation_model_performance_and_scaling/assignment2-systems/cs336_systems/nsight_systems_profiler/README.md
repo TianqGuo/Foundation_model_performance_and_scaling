@@ -92,3 +92,26 @@ The profiler adds NVTX ranges for:
 - NVIDIA Nsight Systems installed (`nsys` command)
 - CUDA-capable GPU
 - A100 40GB recommended for xl/2.7B models
+
+### WSL2 Limitations
+
+If running in WSL2, nsys **cannot capture GPU kernel execution data** due to virtualized GPU drivers.
+
+**What works in WSL2:**
+- ✓ NVTX timing (accurate - matches Python timing within 0.2%)
+- ✓ CUDA API traces
+- ✓ Overall timing for Part (a)
+
+**What doesn't work:**
+- ✗ Individual kernel details (needed for Parts b-e)
+- ✗ Kernel names, execution times, memory ops
+
+**Workarounds:**
+1. **Use compute center** - Run scripts on native Linux for full kernel data
+2. **Use analysis script** - Extract available WSL2 data:
+   ```bash
+   python analyze_wsl_profiles.py ../../results/nsight_profiles/part_a/small_forward_ctx512.sqlite
+   ```
+3. **Windows GUI** - Open .nsys-rep files in Nsight Systems GUI (may show more data)
+
+See `WSL2_PROFILING_NOTES.txt` for detailed information.

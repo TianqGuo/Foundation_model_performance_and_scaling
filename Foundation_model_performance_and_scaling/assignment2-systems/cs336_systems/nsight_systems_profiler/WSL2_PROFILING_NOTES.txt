@@ -1,0 +1,102 @@
+================================================================================
+WSL2 Nsight Systems Profiling - Known Limitations and Workarounds
+================================================================================
+
+ISSUE:
+------
+When running `nsys profile` in WSL2, the generated reports show:
+  "SKIPPED: does not contain CUDA kernel data"
+
+This means you cannot see individual GPU kernel execution details (kernel names,
+execution times, memory operations, etc.).
+
+ROOT CAUSE:
+-----------
+WSL2 uses a virtualized GPU driver layer that doesn't expose low-level kernel
+profiling interfaces that Nsight Systems requires. The GPU is accessed through
+a paravirtualized interface, not native GPU access.
+
+WHAT STILL WORKS:
+-----------------
+✓ NVTX ranges (your custom annotations)
+✓ CUDA API calls (cudaLaunchKernel, cudaMalloc, etc.)
+✓ Overall timing information
+✓ Memory allocation/transfer API calls
+✓ Python call stacks (with --python-backtrace=cuda)
+
+WHAT DOESN'T WORK:
+------------------
+✗ GPU kernel execution details (kernel names like "volta_sgemm_*")
+✗ Per-kernel execution times
+✗ GPU memory operations details
+✗ Kernel launch parameters (grid/block sizes)
+✗ Register usage and occupancy metrics
+
+VERIFICATION:
+-------------
+You can still answer Part (a) of the assignment using WSL2:
+
+  Nsight profile:  607.25 ms average forward pass (large model)
+  Python timing:   608.29 ms average forward pass (large model)
+
+  Difference: 0.2% - excellent match! ✓
+
+This confirms the profiling captures accurate timing, just not kernel details.
+
+WORKAROUNDS FOR PARTS (b)-(e):
+-------------------------------
+
+Option 1: Use your school's compute center (RECOMMENDED)
+  - Transfer code to compute center with A100 GPU
+  - Run profiling scripts on native Linux
+  - Get full kernel-level data
+  - This is the best option for detailed analysis
+
+Option 2: Open .nsys-rep files in Nsight Systems GUI on Windows
+  - Download Nsight Systems GUI for Windows
+  - Open the .nsys-rep files generated in WSL2
+  - The GUI *sometimes* can extract more data than CLI tools
+  - Note: This may still have limitations due to WSL2
+
+Option 3: Use the analysis helper script
+  - Run: python analyze_wsl_profiles.py <path_to_sqlite_file>
+  - Extracts NVTX timing and CUDA API information
+  - Good for Part (a), limited for Parts (b)-(e)
+
+USING THE ANALYSIS SCRIPT:
+--------------------------
+Example:
+  cd cs336_systems/nsight_systems_profiler
+  python analyze_wsl_profiles.py ../../results/nsight_profiles/part_a/large_forward_ctx512.sqlite
+
+Output shows:
+  - NVTX range timings (warmup, forward steps, backward steps, etc.)
+  - CUDA API call statistics
+  - Comparison data for Part (a)
+
+RECOMMENDATION FOR YOUR ASSIGNMENT:
+------------------------------------
+1. Use WSL2 to verify Part (a) - timing comparison works fine
+2. Transfer code to school compute center for Parts (b)-(e)
+3. Run the profiling scripts on native Linux with A100 GPU
+4. Download the .nsys-rep files back to your local machine
+5. Analyze in Nsight Systems GUI
+
+The profiling scripts are already set up correctly with:
+  --trace=cuda,nvtx
+  --stats=true
+  --python-backtrace=cuda
+
+They will work perfectly on native Linux and give you full kernel details.
+
+WHAT TO TRANSFER TO COMPUTE CENTER:
+------------------------------------
+Copy entire cs336_systems/nsight_systems_profiler/ folder:
+  - profile_model.py
+  - annotated_attention.py
+  - profile_part_a.sh through profile_part_e.sh
+  - __init__.py
+
+Then run the scripts there - they'll generate complete profiles.
+
+================================================================================
