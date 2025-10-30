@@ -122,16 +122,111 @@ benchmark.py --mode separate --mode warmup  # Too many responsibilities
 
 ## Platform Considerations
 
-### WSL/Ubuntu Environment
-- **Line endings**: Always LF (Unix), not CRLF (Windows)
-- **Permissions**: Make scripts executable with `chmod +x`
-- **Paths**: Use forward slashes, relative paths preferred
+### Development Workflow: Local Testing → H100 Deployment
 
-### Fix Line Endings
-When creating files, always fix line endings:
+**Two Environments**:
+1. **Local laptop** (WSL2/Windows with RTX 4090)
+   - For testing code logic and small-scale runs
+   - Limited GPU memory (16 GB)
+   - WSL2 has GPU driver limitations (e.g., nsys profiling)
+
+2. **Lightning AI H100 instance** (Ubuntu with H100)
+   - For production runs and full profiling
+   - High GPU memory (80 GB)
+   - Native Linux - full GPU access
+
+**Code Compatibility Requirements**:
+- ✅ All scripts must work on **both** environments
+- ✅ Use relative paths (not absolute)
+- ✅ Auto-detect capabilities (e.g., GPU memory)
+- ✅ Graceful degradation (e.g., skip large models on small GPU)
+- ✅ No hardcoded environment-specific paths
+
+### Writing Portable Scripts
+
+**Python Scripts**:
+```python
+# ✅ Good: Auto-detect GPU memory
+import torch
+gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+
+if gpu_memory_gb < 20:
+    print("WARNING: Limited GPU memory, skipping xl/2.7B models")
+    model_sizes = ["small", "medium", "large"]
+else:
+    model_sizes = ["small", "medium", "large", "xl", "2.7B"]
+
+# ✅ Good: Relative paths
+output_path = Path("../../results/output.csv")
+output_path.parent.mkdir(parents=True, exist_ok=True)
+
+# ❌ Bad: Absolute paths
+output_path = "/home/user/results/output.csv"  # Won't work on different machines
+```
+
+**Shell Scripts**:
 ```bash
+# ✅ Good: Check capabilities before running
+if ! command -v nsys &> /dev/null; then
+    echo "WARNING: nsys not found, skipping profiling"
+    exit 0
+fi
+
+# ✅ Good: Auto-detect WSL2
+if grep -qi microsoft /proc/version 2>/dev/null; then
+    echo "Running in WSL2 - some features may be limited"
+fi
+
+# ✅ Good: Relative paths from script location
+cd "$(dirname "$0")"
+OUTPUT_DIR="../../results"
+```
+
+### Testing Workflow
+
+**1. Test locally (WSL2/RTX 4090)**:
+```bash
+# Test with small models only
+python benchmark.py --model-size small --context-length 512
+
+# Verify script runs without errors
+./part_b.sh  # Should handle OOM gracefully for large models
+```
+
+**2. Deploy to H100**:
+```bash
+# Copy entire module folder
+scp -r cs336_systems/module_name/ h100:~/assignment2-systems/cs336_systems/
+
+# Run full suite on H100
+ssh h100
+cd ~/assignment2-systems/cs336_systems/module_name
+./run_all.sh  # Runs all model sizes
+```
+
+**3. Download results**:
+```bash
+# Download only text summaries (not large binary files)
+scp h100:~/assignment2-systems/results/**/*.txt ./results/
+scp h100:~/assignment2-systems/results/**/*.csv ./results/
+
+# Don't download: *.nsys-rep, *.sqlite (too large)
+```
+
+### Line Endings and Permissions
+
+**Always use Unix (LF) line endings**:
+```bash
+# Fix line endings when creating files
 sed -i 's/\r$//' script.sh  # Remove Windows \r
-chmod +x script.sh          # Make executable
+
+# Make executable
+chmod +x script.sh
+```
+
+**Why?**: Both WSL2 and native Linux require LF endings. CRLF causes:
+```
+bash: ./script.sh: /bin/bash^M: bad interpreter
 ```
 
 ## Dependencies and Imports
@@ -226,25 +321,64 @@ except RuntimeError as e:
 - ✅ Configuration files
 - ✅ Essential READMEs (one per module)
 - ✅ Requirements/dependencies
+- ✅ Analysis summaries (`.txt` files with extracted metrics)
 
 ### What to Ignore
-- ❌ Results files (`.csv`, `.nsys-rep`)
-- ❌ Large binary files
+- ❌ Results files (`.csv`, large data)
+- ❌ Binary profiling files (`.nsys-rep`, `.sqlite`)
 - ❌ Temporary files
 - ❌ Cache directories
 
+### Why Not Commit Large Binary/Result Files?
+
+**Problem**: Large files cause multiple issues:
+- ❌ Slow git operations (push/pull/clone)
+- ❌ Bloat repository history permanently
+- ❌ Binary files may trigger GitHub secret detection (false positives)
+- ❌ Waste storage for data that can be regenerated
+
+**Examples**:
+- Profiling files: `.nsys-rep`, `.sqlite` (10-50 MB each)
+- Model checkpoints: `.pt`, `.pth` (100+ MB)
+- Large datasets: `.csv`, `.parquet` (varies)
+- Compiled binaries: `.so`, `.dylib`
+
+**Better Alternative**: Extract summaries
+- ✅ Commit text summaries (~20 KB) instead of binary files
+- ✅ Contains key metrics needed for analysis
+- ✅ Human-readable and git-friendly
+- ✅ Can regenerate full results anytime by re-running scripts
+
 ### .gitignore Pattern
 ```gitignore
-# Results
+# Results directory - regenerable outputs
 results/
-*.csv
+
+# Large binary files
 *.nsys-rep
 *.sqlite
+*.pt
+*.pth
+*.ckpt
+
+# CSV results (can be large)
+*.csv
+
+# BUT keep small text summaries
+!results/**/ANALYSIS_SUMMARY.txt
+!results/**/*_report.txt
+!results/**/*.md
 
 # Caches
 __pycache__/
 .pytest_cache/
 ```
+
+### Important Git Rules
+- ❌ **NEVER commit** when you're unsure what's staged
+- ❌ **NEVER let me run** `git commit` or `git push` directly
+- ✅ **ALWAYS ask** before committing files
+- ✅ **ALWAYS review** what's staged with `git status` first
 
 ## Summary of Key Preferences
 
