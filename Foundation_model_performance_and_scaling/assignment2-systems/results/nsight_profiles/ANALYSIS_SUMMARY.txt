@@ -14,6 +14,3318 @@ To regenerate profiles:
 
 
 ========================================
+Profile: 2.7B_ctx1024_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx1024_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 5,124.27 ms
+  Forward steps (avg): 845.35 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 846.60 ms
+    forward_step_1: 845.76 ms
+    forward_step_2: 843.13 ms
+    forward_step_3: 844.14 ms
+    forward_step_4: 844.36 ms
+    forward_step_5: 845.43 ms
+    forward_step_6: 846.14 ms
+    forward_step_7: 845.25 ms
+    forward_step_8: 844.60 ms
+    forward_step_9: 848.09 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 324,450
+     Total time: 9,534.44 ms
+     Avg time: 0.03 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 729.11 ms
+     Avg time: 48.61 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 4,335
+     Total time: 20.12 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 256
+     Total time: 19.30 ms
+     Avg time: 0.08 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.42 ms
+     Avg time: 3.60 ms
+
+  6. cudaMemcpyAsync_v3020
+     Calls: 480
+     Total time: 7.74 ms
+     Avg time: 0.02 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.62 ms
+     Avg time: 3.62 ms
+
+  8. cudaFree_v3020
+     Calls: 1
+     Total time: 1.46 ms
+     Avg time: 1.46 ms
+
+  9. cuLaunchKernel
+     Calls: 226
+     Total time: 0.83 ms
+     Avg time: 0.00 ms
+
+  10. cudaStreamIsCapturing_v10000
+     Calls: 707
+     Total time: 0.27 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 845.35 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx1024_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx1024_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,597.12 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 19,444
+     Total time: 531.82 ms
+     Avg time: 0.03 ms
+
+  2. cudaMalloc_v3020
+     Calls: 1,629
+     Total time: 156.94 ms
+     Avg time: 0.10 ms
+
+  3. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.79 ms
+     Avg time: 3.70 ms
+
+  4. cudaGetDeviceProperties_v2_v12000
+     Calls: 2
+     Total time: 4.03 ms
+     Avg time: 2.02 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 238
+     Total time: 1.51 ms
+     Avg time: 0.01 ms
+
+  6. cudaFree_v3020
+     Calls: 2
+     Total time: 1.36 ms
+     Avg time: 0.68 ms
+
+  7. cudaStreamIsCapturing_v10000
+     Calls: 2,080
+     Total time: 1.21 ms
+     Avg time: 0.00 ms
+
+  8. cuLaunchKernel
+     Calls: 226
+     Total time: 0.90 ms
+     Avg time: 0.00 ms
+
+  9. cudaMemcpyAsync_v3020
+     Calls: 26
+     Total time: 0.48 ms
+     Avg time: 0.02 ms
+
+  10. cudaStreamCreate_v3020
+     Calls: 1
+     Total time: 0.19 ms
+     Avg time: 0.19 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx1024_training.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx1024_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 925.86 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 19,444
+     Total time: 586.52 ms
+     Avg time: 0.03 ms
+
+  2. cudaMalloc_v3020
+     Calls: 1,629
+     Total time: 139.83 ms
+     Avg time: 0.09 ms
+
+  3. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.39 ms
+     Avg time: 3.85 ms
+
+  4. cudaGetDeviceProperties_v2_v12000
+     Calls: 2
+     Total time: 6.02 ms
+     Avg time: 3.01 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 238
+     Total time: 1.34 ms
+     Avg time: 0.01 ms
+
+  6. cudaFree_v3020
+     Calls: 2
+     Total time: 1.16 ms
+     Avg time: 0.58 ms
+
+  7. cudaStreamIsCapturing_v10000
+     Calls: 2,080
+     Total time: 0.91 ms
+     Avg time: 0.00 ms
+
+  8. cuLaunchKernel
+     Calls: 226
+     Total time: 0.87 ms
+     Avg time: 0.00 ms
+
+  9. cudaMemcpyAsync_v3020
+     Calls: 26
+     Total time: 0.43 ms
+     Avg time: 0.02 ms
+
+  10. cudaStreamCreate_v3020
+     Calls: 1
+     Total time: 0.15 ms
+     Avg time: 0.15 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx128_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx128_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,176.68 ms
+  Forward steps (avg): 257.22 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 250.13 ms
+    forward_step_1: 248.52 ms
+    forward_step_2: 253.45 ms
+    forward_step_3: 252.78 ms
+    forward_step_4: 282.90 ms
+    forward_step_5: 280.87 ms
+    forward_step_6: 248.95 ms
+    forward_step_7: 250.93 ms
+    forward_step_8: 251.18 ms
+    forward_step_9: 252.45 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 324,450
+     Total time: 1,412.15 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 31.85 ms
+     Avg time: 2.12 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 4,815
+     Total time: 20.54 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 244
+     Total time: 18.74 ms
+     Avg time: 0.08 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.96 ms
+     Avg time: 3.74 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 2,895
+     Total time: 10.08 ms
+     Avg time: 0.00 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 480
+     Total time: 6.04 ms
+     Avg time: 0.01 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.56 ms
+     Avg time: 3.56 ms
+
+  9. cudaFree_v3020
+     Calls: 1
+     Total time: 1.29 ms
+     Avg time: 1.29 ms
+
+  10. cuLaunchKernel
+     Calls: 226
+     Total time: 0.84 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 257.22 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx128_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx128_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 5,721.77 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,004,085
+     Total time: 4,280.31 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 62,400
+     Total time: 305.99 ms
+     Avg time: 0.00 ms
+
+  3. cudaMalloc_v3020
+     Calls: 819
+     Total time: 87.43 ms
+     Avg time: 0.11 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 10,095
+     Total time: 46.86 ms
+     Avg time: 0.00 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.30 ms
+     Avg time: 3.83 ms
+
+  6. cuLaunchKernel
+     Calls: 3,616
+     Total time: 14.83 ms
+     Avg time: 0.00 ms
+
+  7. cudaMemsetAsync_v3020
+     Calls: 2,910
+     Total time: 11.30 ms
+     Avg time: 0.00 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.93 ms
+     Avg time: 3.93 ms
+
+  9. cuKernelGetFunction
+     Calls: 3,390
+     Total time: 2.75 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.23 ms
+     Avg time: 0.61 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx128_training.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx128_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 5,532.36 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,024,227
+     Total time: 4,609.71 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 954.18 ms
+     Avg time: 27.26 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 62,400
+     Total time: 298.32 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,496
+     Total time: 114.46 ms
+     Avg time: 0.08 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 10,095
+     Total time: 46.00 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.16 ms
+     Avg time: 3.79 ms
+
+  7. cuLaunchKernel
+     Calls: 3,616
+     Total time: 14.29 ms
+     Avg time: 0.00 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 2,910
+     Total time: 12.14 ms
+     Avg time: 0.00 ms
+
+  9. cuKernelGetFunction
+     Calls: 3,390
+     Total time: 2.91 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.53 ms
+     Avg time: 2.53 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx256_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx256_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,360.85 ms
+  Forward steps (avg): 262.47 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 266.87 ms
+    forward_step_1: 264.26 ms
+    forward_step_2: 265.74 ms
+    forward_step_3: 258.89 ms
+    forward_step_4: 262.52 ms
+    forward_step_5: 264.03 ms
+    forward_step_6: 261.64 ms
+    forward_step_7: 259.87 ms
+    forward_step_8: 261.64 ms
+    forward_step_9: 259.26 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 324,450
+     Total time: 1,485.57 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 71.02 ms
+     Avg time: 4.73 ms
+
+  3. cudaMalloc_v3020
+     Calls: 261
+     Total time: 20.48 ms
+     Avg time: 0.08 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 3,855
+     Total time: 17.33 ms
+     Avg time: 0.00 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.85 ms
+     Avg time: 3.71 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 2,400
+     Total time: 9.02 ms
+     Avg time: 0.00 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 480
+     Total time: 5.92 ms
+     Avg time: 0.01 ms
+
+  8. cuLaunchKernel
+     Calls: 706
+     Total time: 2.98 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.56 ms
+     Avg time: 2.56 ms
+
+  10. cuKernelGetFunction
+     Calls: 480
+     Total time: 1.64 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 262.47 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx256_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx256_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 5,671.46 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,001,190
+     Total time: 4,166.78 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 62,400
+     Total time: 306.00 ms
+     Avg time: 0.00 ms
+
+  3. cudaMalloc_v3020
+     Calls: 1,084
+     Total time: 89.32 ms
+     Avg time: 0.08 ms
+
+  4. cuLaunchKernel
+     Calls: 8,401
+     Total time: 33.36 ms
+     Avg time: 0.00 ms
+
+  5. cudaMemsetAsync_v3020
+     Calls: 8,685
+     Total time: 26.51 ms
+     Avg time: 0.00 ms
+
+  6. cudaLaunchKernelExC_v11060
+     Calls: 4,830
+     Total time: 23.28 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.12 ms
+     Avg time: 3.78 ms
+
+  8. cuKernelGetFunction
+     Calls: 8,175
+     Total time: 4.65 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.58 ms
+     Avg time: 2.58 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.30 ms
+     Avg time: 0.65 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx256_training.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx256_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 5,568.80 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,021,332
+     Total time: 4,656.97 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 951.97 ms
+     Avg time: 27.20 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 62,400
+     Total time: 303.37 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,571
+     Total time: 120.94 ms
+     Avg time: 0.08 ms
+
+  5. cuLaunchKernel
+     Calls: 8,401
+     Total time: 32.86 ms
+     Avg time: 0.00 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 8,685
+     Total time: 26.76 ms
+     Avg time: 0.00 ms
+
+  7. cudaLaunchKernelExC_v11060
+     Calls: 4,830
+     Total time: 23.01 ms
+     Avg time: 0.00 ms
+
+  8. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.69 ms
+     Avg time: 3.67 ms
+
+  9. cuKernelGetFunction
+     Calls: 8,175
+     Total time: 4.82 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.61 ms
+     Avg time: 2.61 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx512_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx512_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 3,012.65 ms
+  Forward steps (avg): 421.47 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 420.86 ms
+    forward_step_1: 421.22 ms
+    forward_step_2: 425.82 ms
+    forward_step_3: 421.36 ms
+    forward_step_4: 420.58 ms
+    forward_step_5: 421.66 ms
+    forward_step_6: 421.03 ms
+    forward_step_7: 421.06 ms
+    forward_step_8: 420.55 ms
+    forward_step_9: 420.54 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 324,450
+     Total time: 3,556.39 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 329.61 ms
+     Avg time: 21.97 ms
+
+  3. cudaMalloc_v3020
+     Calls: 271
+     Total time: 21.09 ms
+     Avg time: 0.08 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 3,855
+     Total time: 17.56 ms
+     Avg time: 0.00 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.31 ms
+     Avg time: 3.83 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 2,400
+     Total time: 9.58 ms
+     Avg time: 0.00 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 480
+     Total time: 6.20 ms
+     Avg time: 0.01 ms
+
+  8. cuLaunchKernel
+     Calls: 706
+     Total time: 3.06 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.83 ms
+     Avg time: 2.83 ms
+
+  10. cuKernelGetFunction
+     Calls: 480
+     Total time: 1.65 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 421.47 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx512_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx512_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 7,772.12 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,001,190
+     Total time: 10,129.01 ms
+     Avg time: 0.01 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 62,400
+     Total time: 446.30 ms
+     Avg time: 0.01 ms
+
+  3. cudaMalloc_v3020
+     Calls: 1,291
+     Total time: 88.33 ms
+     Avg time: 0.07 ms
+
+  4. cudaDeviceSynchronize_v3020
+     Calls: 25
+     Total time: 74.70 ms
+     Avg time: 2.99 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 7,215
+     Total time: 33.48 ms
+     Avg time: 0.00 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 7,740
+     Total time: 26.91 ms
+     Avg time: 0.00 ms
+
+  7. cuLaunchKernel
+     Calls: 6,016
+     Total time: 24.03 ms
+     Avg time: 0.00 ms
+
+  8. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.20 ms
+     Avg time: 3.80 ms
+
+  9. cuKernelGetFunction
+     Calls: 5,790
+     Total time: 4.07 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.61 ms
+     Avg time: 2.61 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: 2.7B_ctx512_training.sqlite
+========================================
+
+======================================================================
+Analyzing: 2.7B_ctx512_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 7,699.95 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,021,332
+     Total time: 10,560.74 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 1,018.63 ms
+     Avg time: 29.10 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 62,400
+     Total time: 463.24 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,587
+     Total time: 129.72 ms
+     Avg time: 0.08 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 7,215
+     Total time: 39.35 ms
+     Avg time: 0.01 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 7,740
+     Total time: 27.64 ms
+     Avg time: 0.00 ms
+
+  7. cuLaunchKernel
+     Calls: 6,016
+     Total time: 24.99 ms
+     Avg time: 0.00 ms
+
+  8. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.81 ms
+     Avg time: 3.70 ms
+
+  9. cuKernelGetFunction
+     Calls: 5,790
+     Total time: 4.23 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.61 ms
+     Avg time: 2.61 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx1024_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx1024_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,717.89 ms
+  Forward steps (avg): 346.20 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 345.98 ms
+    forward_step_1: 345.85 ms
+    forward_step_2: 345.98 ms
+    forward_step_3: 345.99 ms
+    forward_step_4: 345.81 ms
+    forward_step_5: 346.07 ms
+    forward_step_6: 345.85 ms
+    forward_step_7: 345.93 ms
+    forward_step_8: 348.70 ms
+    forward_step_9: 345.81 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 235,390
+     Total time: 2,922.41 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 381.94 ms
+     Avg time: 25.46 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 4,875
+     Total time: 23.20 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 204
+     Total time: 15.99 ms
+     Avg time: 0.08 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.99 ms
+     Avg time: 3.75 ms
+
+  6. cudaMemcpyAsync_v3020
+     Calls: 540
+     Total time: 6.78 ms
+     Avg time: 0.01 ms
+
+  7. cudaMemsetAsync_v3020
+     Calls: 540
+     Total time: 4.21 ms
+     Avg time: 0.01 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.55 ms
+     Avg time: 2.55 ms
+
+  9. cudaFree_v3020
+     Calls: 1
+     Total time: 1.41 ms
+     Avg time: 1.41 ms
+
+  10. cuLaunchKernel
+     Calls: 254
+     Total time: 1.08 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 346.20 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx1024_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx1024_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 6,342.60 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 726,715
+     Total time: 7,129.10 ms
+     Avg time: 0.01 ms
+
+  2. cudaMemsetAsync_v3020
+     Calls: 4,440
+     Total time: 463.71 ms
+     Avg time: 0.10 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 44,280
+     Total time: 462.83 ms
+     Avg time: 0.01 ms
+
+  4. cudaDeviceSynchronize_v3020
+     Calls: 25
+     Total time: 261.81 ms
+     Avg time: 10.47 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 9,735
+     Total time: 131.49 ms
+     Avg time: 0.01 ms
+
+  6. cudaMalloc_v3020
+     Calls: 1,093
+     Total time: 76.51 ms
+     Avg time: 0.07 ms
+
+  7. cuLaunchKernel
+     Calls: 5,144
+     Total time: 47.58 ms
+     Avg time: 0.01 ms
+
+  8. cuKernelGetFunction
+     Calls: 4,890
+     Total time: 16.77 ms
+     Avg time: 0.00 ms
+
+  9. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.24 ms
+     Avg time: 3.81 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.59 ms
+     Avg time: 2.59 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx1024_training.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx1024_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 5,785.87 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 733,009
+     Total time: 7,132.93 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 564.46 ms
+     Avg time: 16.13 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 44,280
+     Total time: 471.12 ms
+     Avg time: 0.01 ms
+
+  4. cudaMemsetAsync_v3020
+     Calls: 4,440
+     Total time: 372.17 ms
+     Avg time: 0.08 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 9,735
+     Total time: 131.50 ms
+     Avg time: 0.01 ms
+
+  6. cudaMalloc_v3020
+     Calls: 1,118
+     Total time: 80.29 ms
+     Avg time: 0.07 ms
+
+  7. cuLaunchKernel
+     Calls: 5,144
+     Total time: 29.47 ms
+     Avg time: 0.01 ms
+
+  8. cuKernelGetFunction
+     Calls: 4,890
+     Total time: 17.38 ms
+     Avg time: 0.00 ms
+
+  9. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.41 ms
+     Avg time: 3.85 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.62 ms
+     Avg time: 2.62 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx128_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx128_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,881.71 ms
+  Forward steps (avg): 201.79 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 195.67 ms
+    forward_step_1: 189.86 ms
+    forward_step_2: 196.97 ms
+    forward_step_3: 190.85 ms
+    forward_step_4: 195.69 ms
+    forward_step_5: 198.39 ms
+    forward_step_6: 192.36 ms
+    forward_step_7: 195.75 ms
+    forward_step_8: 241.63 ms
+    forward_step_9: 220.73 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 235,390
+     Total time: 1,159.70 ms
+     Avg time: 0.00 ms
+
+  2. cudaLaunchKernelExC_v11060
+     Calls: 7,575
+     Total time: 33.17 ms
+     Avg time: 0.00 ms
+
+  3. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.03 ms
+     Avg time: 3.76 ms
+
+  4. cudaMalloc_v3020
+     Calls: 174
+     Total time: 12.90 ms
+     Avg time: 0.07 ms
+
+  5. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 9.13 ms
+     Avg time: 0.61 ms
+
+  6. cudaMemcpyAsync_v3020
+     Calls: 540
+     Total time: 6.90 ms
+     Avg time: 0.01 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.61 ms
+     Avg time: 2.61 ms
+
+  8. cudaFree_v3020
+     Calls: 1
+     Total time: 1.38 ms
+     Avg time: 1.38 ms
+
+  9. cuLaunchKernel
+     Calls: 254
+     Total time: 0.98 ms
+     Avg time: 0.00 ms
+
+  10. cudaStreamIsCapturing_v10000
+     Calls: 681
+     Total time: 0.26 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 201.79 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx128_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx128_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 4,667.86 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 727,750
+     Total time: 3,156.97 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 44,280
+     Total time: 226.38 ms
+     Avg time: 0.01 ms
+
+  3. cudaMalloc_v3020
+     Calls: 608
+     Total time: 60.83 ms
+     Avg time: 0.10 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 13,020
+     Total time: 59.72 ms
+     Avg time: 0.00 ms
+
+  5. cuLaunchKernel
+     Calls: 4,574
+     Total time: 18.39 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.73 ms
+     Avg time: 3.68 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.91 ms
+     Avg time: 3.91 ms
+
+  8. cuKernelGetFunction
+     Calls: 4,320
+     Total time: 3.10 ms
+     Avg time: 0.00 ms
+
+  9. cudaFree_v3020
+     Calls: 2
+     Total time: 1.34 ms
+     Avg time: 0.67 ms
+
+  10. cudaStreamIsCapturing_v10000
+     Calls: 1,112
+     Total time: 0.59 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx128_training.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx128_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 4,222.71 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 734,044
+     Total time: 3,192.60 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 353.15 ms
+     Avg time: 10.09 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 44,280
+     Total time: 223.01 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,011
+     Total time: 84.62 ms
+     Avg time: 0.08 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 13,020
+     Total time: 60.06 ms
+     Avg time: 0.00 ms
+
+  6. cuLaunchKernel
+     Calls: 4,574
+     Total time: 18.21 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.56 ms
+     Avg time: 3.89 ms
+
+  8. cuKernelGetFunction
+     Calls: 4,320
+     Total time: 3.04 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.54 ms
+     Avg time: 2.54 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.29 ms
+     Avg time: 0.64 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx256_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx256_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,998.01 ms
+  Forward steps (avg): 203.98 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 204.69 ms
+    forward_step_1: 202.27 ms
+    forward_step_2: 204.95 ms
+    forward_step_3: 201.02 ms
+    forward_step_4: 201.97 ms
+    forward_step_5: 203.18 ms
+    forward_step_6: 204.04 ms
+    forward_step_7: 204.82 ms
+    forward_step_8: 207.33 ms
+    forward_step_9: 205.51 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 235,390
+     Total time: 1,140.62 ms
+     Avg time: 0.00 ms
+
+  2. cudaLaunchKernelExC_v11060
+     Calls: 7,035
+     Total time: 30.02 ms
+     Avg time: 0.00 ms
+
+  3. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 20.09 ms
+     Avg time: 1.34 ms
+
+  4. cudaMalloc_v3020
+     Calls: 178
+     Total time: 20.03 ms
+     Avg time: 0.11 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.72 ms
+     Avg time: 3.93 ms
+
+  6. cudaMemcpyAsync_v3020
+     Calls: 540
+     Total time: 6.73 ms
+     Avg time: 0.01 ms
+
+  7. cuLaunchKernel
+     Calls: 794
+     Total time: 3.42 ms
+     Avg time: 0.00 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.64 ms
+     Avg time: 2.64 ms
+
+  9. cuKernelGetFunction
+     Calls: 540
+     Total time: 1.60 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 1
+     Total time: 1.44 ms
+     Avg time: 1.44 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 203.98 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx256_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx256_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 4,676.66 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 724,510
+     Total time: 3,199.55 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 44,280
+     Total time: 232.05 ms
+     Avg time: 0.01 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 18,420
+     Total time: 82.33 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 822
+     Total time: 74.04 ms
+     Avg time: 0.09 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.48 ms
+     Avg time: 3.87 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 4,350
+     Total time: 15.28 ms
+     Avg time: 0.00 ms
+
+  7. cuLaunchKernel
+     Calls: 2,414
+     Total time: 10.97 ms
+     Avg time: 0.00 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.88 ms
+     Avg time: 3.88 ms
+
+  9. cuKernelGetFunction
+     Calls: 2,160
+     Total time: 2.89 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.30 ms
+     Avg time: 0.65 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx256_training.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx256_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 4,248.75 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 730,804
+     Total time: 3,267.51 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 353.37 ms
+     Avg time: 10.10 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 44,280
+     Total time: 233.36 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,160
+     Total time: 99.42 ms
+     Avg time: 0.09 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 18,420
+     Total time: 81.85 ms
+     Avg time: 0.00 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 4,350
+     Total time: 15.01 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.70 ms
+     Avg time: 3.68 ms
+
+  8. cuLaunchKernel
+     Calls: 2,414
+     Total time: 10.68 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 9.28 ms
+     Avg time: 9.28 ms
+
+  10. cuKernelGetFunction
+     Calls: 2,160
+     Total time: 2.85 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx512_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx512_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,975.08 ms
+  Forward steps (avg): 199.92 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 200.52 ms
+    forward_step_1: 200.31 ms
+    forward_step_2: 199.83 ms
+    forward_step_3: 196.14 ms
+    forward_step_4: 198.09 ms
+    forward_step_5: 201.78 ms
+    forward_step_6: 203.89 ms
+    forward_step_7: 197.21 ms
+    forward_step_8: 203.71 ms
+    forward_step_9: 197.74 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 235,390
+     Total time: 1,160.48 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 47.84 ms
+     Avg time: 3.19 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 4,335
+     Total time: 19.97 ms
+     Avg time: 0.00 ms
+
+  4. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.13 ms
+     Avg time: 3.78 ms
+
+  5. cudaMalloc_v3020
+     Calls: 191
+     Total time: 14.63 ms
+     Avg time: 0.08 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 2,700
+     Total time: 10.12 ms
+     Avg time: 0.00 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 540
+     Total time: 6.63 ms
+     Avg time: 0.01 ms
+
+  8. cuLaunchKernel
+     Calls: 794
+     Total time: 3.43 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.58 ms
+     Avg time: 2.58 ms
+
+  10. cuKernelGetFunction
+     Calls: 540
+     Total time: 1.67 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 199.92 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx512_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx512_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 4,725.85 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 726,670
+     Total time: 3,114.65 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 44,280
+     Total time: 219.74 ms
+     Avg time: 0.00 ms
+
+  3. cudaMalloc_v3020
+     Calls: 920
+     Total time: 66.36 ms
+     Avg time: 0.07 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 10,290
+     Total time: 46.33 ms
+     Avg time: 0.00 ms
+
+  5. cudaMemsetAsync_v3020
+     Calls: 6,540
+     Total time: 23.40 ms
+     Avg time: 0.00 ms
+
+  6. cuLaunchKernel
+     Calls: 4,589
+     Total time: 19.74 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.18 ms
+     Avg time: 3.80 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 4.79 ms
+     Avg time: 4.79 ms
+
+  9. cuKernelGetFunction
+     Calls: 4,335
+     Total time: 3.57 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.40 ms
+     Avg time: 0.70 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: large_ctx512_training.sqlite
+========================================
+
+======================================================================
+Analyzing: large_ctx512_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 4,183.04 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 732,964
+     Total time: 3,182.87 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 352.09 ms
+     Avg time: 10.06 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 44,280
+     Total time: 218.43 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,084
+     Total time: 77.60 ms
+     Avg time: 0.07 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 10,290
+     Total time: 45.83 ms
+     Avg time: 0.00 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 6,540
+     Total time: 24.25 ms
+     Avg time: 0.00 ms
+
+  7. cuLaunchKernel
+     Calls: 4,589
+     Total time: 19.53 ms
+     Avg time: 0.00 ms
+
+  8. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.34 ms
+     Avg time: 3.84 ms
+
+  9. cuKernelGetFunction
+     Calls: 4,335
+     Total time: 3.61 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.57 ms
+     Avg time: 2.57 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx1024_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx1024_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,768.34 ms
+  Forward steps (avg): 163.10 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 163.27 ms
+    forward_step_1: 163.07 ms
+    forward_step_2: 163.00 ms
+    forward_step_3: 163.22 ms
+    forward_step_4: 163.32 ms
+    forward_step_5: 162.92 ms
+    forward_step_6: 163.36 ms
+    forward_step_7: 163.23 ms
+    forward_step_8: 163.42 ms
+    forward_step_9: 162.21 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 128,170
+     Total time: 1,212.35 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 297.71 ms
+     Avg time: 19.85 ms
+
+  3. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.50 ms
+     Avg time: 3.88 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 3,255
+     Total time: 15.00 ms
+     Avg time: 0.00 ms
+
+  5. cudaMalloc_v3020
+     Calls: 132
+     Total time: 10.81 ms
+     Avg time: 0.08 ms
+
+  6. cudaMemcpyAsync_v3020
+     Calls: 360
+     Total time: 4.56 ms
+     Avg time: 0.01 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.59 ms
+     Avg time: 2.59 ms
+
+  8. cudaFree_v3020
+     Calls: 1
+     Total time: 1.26 ms
+     Avg time: 1.26 ms
+
+  9. cuLaunchKernel
+     Calls: 170
+     Total time: 0.72 ms
+     Avg time: 0.00 ms
+
+  10. cudaStreamIsCapturing_v10000
+     Calls: 471
+     Total time: 0.19 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 163.10 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx1024_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx1024_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 3,510.27 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 395,395
+     Total time: 2,941.56 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 25
+     Total time: 238.64 ms
+     Avg time: 9.55 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 23,760
+     Total time: 211.91 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 628
+     Total time: 42.36 ms
+     Avg time: 0.07 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 5,790
+     Total time: 27.72 ms
+     Avg time: 0.00 ms
+
+  6. cuLaunchKernel
+     Calls: 4,145
+     Total time: 17.06 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.49 ms
+     Avg time: 3.87 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 1,905
+     Total time: 7.34 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.36 ms
+     Avg time: 3.36 ms
+
+  10. cuKernelGetFunction
+     Calls: 3,975
+     Total time: 2.85 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx1024_training.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx1024_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,913.55 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 398,353
+     Total time: 3,008.89 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 384.69 ms
+     Avg time: 10.99 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 23,760
+     Total time: 214.50 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 640
+     Total time: 43.62 ms
+     Avg time: 0.07 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 5,790
+     Total time: 27.70 ms
+     Avg time: 0.00 ms
+
+  6. cuLaunchKernel
+     Calls: 4,145
+     Total time: 16.86 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.44 ms
+     Avg time: 3.86 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 1,905
+     Total time: 7.43 ms
+     Avg time: 0.00 ms
+
+  9. cuKernelGetFunction
+     Calls: 3,975
+     Total time: 2.89 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.85 ms
+     Avg time: 2.85 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx128_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx128_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,490.02 ms
+  Forward steps (avg): 107.83 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 106.30 ms
+    forward_step_1: 107.64 ms
+    forward_step_2: 106.76 ms
+    forward_step_3: 107.78 ms
+    forward_step_4: 111.96 ms
+    forward_step_5: 106.90 ms
+    forward_step_6: 109.26 ms
+    forward_step_7: 105.48 ms
+    forward_step_8: 106.23 ms
+    forward_step_9: 110.01 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 128,170
+     Total time: 711.87 ms
+     Avg time: 0.01 ms
+
+  2. cudaLaunchKernelExC_v11060
+     Calls: 5,055
+     Total time: 21.06 ms
+     Avg time: 0.00 ms
+
+  3. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.27 ms
+     Avg time: 3.82 ms
+
+  4. cudaMalloc_v3020
+     Calls: 105
+     Total time: 7.95 ms
+     Avg time: 0.08 ms
+
+  5. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 5.31 ms
+     Avg time: 0.35 ms
+
+  6. cudaMemcpyAsync_v3020
+     Calls: 360
+     Total time: 4.47 ms
+     Avg time: 0.01 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.62 ms
+     Avg time: 2.62 ms
+
+  8. cudaFree_v3020
+     Calls: 1
+     Total time: 1.26 ms
+     Avg time: 1.26 ms
+
+  9. cuLaunchKernel
+     Calls: 170
+     Total time: 0.65 ms
+     Avg time: 0.00 ms
+
+  10. cudaStreamCreate_v3020
+     Calls: 1
+     Total time: 0.19 ms
+     Avg time: 0.19 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 107.83 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx128_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx128_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 3,040.34 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 396,085
+     Total time: 1,858.33 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 23,760
+     Total time: 121.81 ms
+     Avg time: 0.01 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 8,670
+     Total time: 40.35 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 252
+     Total time: 21.94 ms
+     Avg time: 0.09 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.47 ms
+     Avg time: 3.87 ms
+
+  6. cuLaunchKernel
+     Calls: 3,425
+     Total time: 14.04 ms
+     Avg time: 0.00 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 8.54 ms
+     Avg time: 8.54 ms
+
+  8. cuKernelGetFunction
+     Calls: 3,255
+     Total time: 2.50 ms
+     Avg time: 0.00 ms
+
+  9. cudaFree_v3020
+     Calls: 2
+     Total time: 1.23 ms
+     Avg time: 0.62 ms
+
+  10. cudaDeviceSynchronize_v3020
+     Calls: 25
+     Total time: 0.38 ms
+     Avg time: 0.02 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx128_training.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx128_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,505.11 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 399,043
+     Total time: 1,995.54 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 146.20 ms
+     Avg time: 4.18 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 23,760
+     Total time: 127.26 ms
+     Avg time: 0.01 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 8,670
+     Total time: 41.75 ms
+     Avg time: 0.00 ms
+
+  5. cudaMalloc_v3020
+     Calls: 519
+     Total time: 37.30 ms
+     Avg time: 0.07 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.74 ms
+     Avg time: 3.93 ms
+
+  7. cuLaunchKernel
+     Calls: 3,425
+     Total time: 14.44 ms
+     Avg time: 0.00 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.59 ms
+     Avg time: 2.59 ms
+
+  9. cuKernelGetFunction
+     Calls: 3,255
+     Total time: 2.46 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.71 ms
+     Avg time: 0.85 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx256_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx256_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,494.87 ms
+  Forward steps (avg): 109.63 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 111.80 ms
+    forward_step_1: 107.22 ms
+    forward_step_2: 111.70 ms
+    forward_step_3: 108.01 ms
+    forward_step_4: 112.58 ms
+    forward_step_5: 109.01 ms
+    forward_step_6: 108.53 ms
+    forward_step_7: 107.24 ms
+    forward_step_8: 107.66 ms
+    forward_step_9: 112.51 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 128,170
+     Total time: 716.49 ms
+     Avg time: 0.01 ms
+
+  2. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.37 ms
+     Avg time: 3.84 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 3,255
+     Total time: 14.48 ms
+     Avg time: 0.00 ms
+
+  4. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 12.10 ms
+     Avg time: 0.81 ms
+
+  5. cudaMalloc_v3020
+     Calls: 111
+     Total time: 8.39 ms
+     Avg time: 0.08 ms
+
+  6. cudaMemcpyAsync_v3020
+     Calls: 360
+     Total time: 4.27 ms
+     Avg time: 0.01 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.60 ms
+     Avg time: 2.60 ms
+
+  8. cuLaunchKernel
+     Calls: 530
+     Total time: 2.21 ms
+     Avg time: 0.00 ms
+
+  9. cuKernelGetFunction
+     Calls: 360
+     Total time: 1.40 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 1
+     Total time: 1.29 ms
+     Avg time: 1.29 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 109.63 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx256_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx256_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 3,015.62 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 396,070
+     Total time: 1,837.68 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 23,760
+     Total time: 119.37 ms
+     Avg time: 0.01 ms
+
+  3. cudaMalloc_v3020
+     Calls: 432
+     Total time: 32.71 ms
+     Avg time: 0.08 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 6,165
+     Total time: 28.97 ms
+     Avg time: 0.00 ms
+
+  5. cuLaunchKernel
+     Calls: 4,145
+     Total time: 17.14 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.07 ms
+     Avg time: 3.77 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 5.43 ms
+     Avg time: 5.43 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 765
+     Total time: 4.44 ms
+     Avg time: 0.01 ms
+
+  9. cuKernelGetFunction
+     Calls: 3,975
+     Total time: 3.25 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.14 ms
+     Avg time: 0.57 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx256_training.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx256_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,461.42 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 399,028
+     Total time: 1,923.16 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 147.73 ms
+     Avg time: 4.22 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 23,760
+     Total time: 121.04 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 614
+     Total time: 42.94 ms
+     Avg time: 0.07 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 6,165
+     Total time: 29.11 ms
+     Avg time: 0.00 ms
+
+  6. cuLaunchKernel
+     Calls: 4,145
+     Total time: 17.62 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.48 ms
+     Avg time: 3.87 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 765
+     Total time: 4.34 ms
+     Avg time: 0.01 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.77 ms
+     Avg time: 3.77 ms
+
+  10. cuKernelGetFunction
+     Calls: 3,975
+     Total time: 3.22 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx512_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx512_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,488.59 ms
+  Forward steps (avg): 111.51 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 107.15 ms
+    forward_step_1: 111.48 ms
+    forward_step_2: 112.21 ms
+    forward_step_3: 110.00 ms
+    forward_step_4: 110.50 ms
+    forward_step_5: 113.67 ms
+    forward_step_6: 113.59 ms
+    forward_step_7: 114.79 ms
+    forward_step_8: 111.89 ms
+    forward_step_9: 109.84 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 128,170
+     Total time: 713.31 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 29.82 ms
+     Avg time: 1.99 ms
+
+  3. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.22 ms
+     Avg time: 3.81 ms
+
+  4. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 13.17 ms
+     Avg time: 13.17 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 2,895
+     Total time: 12.80 ms
+     Avg time: 0.00 ms
+
+  6. cudaMalloc_v3020
+     Calls: 119
+     Total time: 9.21 ms
+     Avg time: 0.08 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 360
+     Total time: 4.31 ms
+     Avg time: 0.01 ms
+
+  8. cuLaunchKernel
+     Calls: 530
+     Total time: 2.28 ms
+     Avg time: 0.00 ms
+
+  9. cuKernelGetFunction
+     Calls: 360
+     Total time: 1.47 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 1
+     Total time: 1.15 ms
+     Avg time: 1.15 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 111.51 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx512_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx512_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 3,061.31 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 395,350
+     Total time: 1,843.23 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 23,760
+     Total time: 121.67 ms
+     Avg time: 0.01 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 7,605
+     Total time: 34.27 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 507
+     Total time: 34.08 ms
+     Avg time: 0.07 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.97 ms
+     Avg time: 3.74 ms
+
+  6. cuLaunchKernel
+     Calls: 3,065
+     Total time: 12.78 ms
+     Avg time: 0.00 ms
+
+  7. cudaMemsetAsync_v3020
+     Calls: 765
+     Total time: 4.53 ms
+     Avg time: 0.01 ms
+
+  8. cuKernelGetFunction
+     Calls: 2,895
+     Total time: 2.86 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.55 ms
+     Avg time: 2.55 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.19 ms
+     Avg time: 0.60 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: medium_ctx512_training.sqlite
+========================================
+
+======================================================================
+Analyzing: medium_ctx512_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,474.01 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 398,308
+     Total time: 1,954.95 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 147.29 ms
+     Avg time: 4.21 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 23,760
+     Total time: 124.66 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 573
+     Total time: 41.53 ms
+     Avg time: 0.07 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 7,605
+     Total time: 35.15 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.54 ms
+     Avg time: 3.89 ms
+
+  7. cuLaunchKernel
+     Calls: 3,065
+     Total time: 13.40 ms
+     Avg time: 0.00 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 765
+     Total time: 4.28 ms
+     Avg time: 0.01 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.51 ms
+     Avg time: 3.51 ms
+
+  10. cuKernelGetFunction
+     Calls: 2,895
+     Total time: 2.88 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
 Profile: part_a/large_forward_ctx512.sqlite
 ========================================
 
@@ -686,6 +3998,2214 @@ SUMMARY FOR ASSIGNMENT QUESTIONS:
 Part (a) - Forward pass time:
   Average forward pass: 53.59 ms
   (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx1024_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx1024_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,221.43 ms
+  Forward steps (avg): 58.67 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 58.58 ms
+    forward_step_1: 58.57 ms
+    forward_step_2: 58.70 ms
+    forward_step_3: 58.69 ms
+    forward_step_4: 58.64 ms
+    forward_step_5: 58.71 ms
+    forward_step_6: 58.74 ms
+    forward_step_7: 58.70 ms
+    forward_step_8: 58.66 ms
+    forward_step_9: 58.68 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 49,750
+     Total time: 427.17 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 208.84 ms
+     Avg time: 13.92 ms
+
+  3. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.23 ms
+     Avg time: 3.81 ms
+
+  4. cudaMalloc_v3020
+     Calls: 61
+     Total time: 8.17 ms
+     Avg time: 0.13 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 1,635
+     Total time: 7.41 ms
+     Avg time: 0.00 ms
+
+  6. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.52 ms
+     Avg time: 2.52 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 180
+     Total time: 2.30 ms
+     Avg time: 0.01 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 180
+     Total time: 1.39 ms
+     Avg time: 0.01 ms
+
+  9. cudaFree_v3020
+     Calls: 1
+     Total time: 1.13 ms
+     Avg time: 1.13 ms
+
+  10. cuLaunchKernel
+     Calls: 86
+     Total time: 0.39 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 58.67 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx1024_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx1024_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,929.66 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 153,355
+     Total time: 990.64 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 25
+     Total time: 132.26 ms
+     Avg time: 5.29 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 9,000
+     Total time: 58.40 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 262
+     Total time: 20.69 ms
+     Avg time: 0.08 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 3,450
+     Total time: 16.42 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.36 ms
+     Avg time: 3.84 ms
+
+  7. cuLaunchKernel
+     Calls: 1,541
+     Total time: 6.56 ms
+     Avg time: 0.00 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 1,560
+     Total time: 5.88 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.57 ms
+     Avg time: 2.57 ms
+
+  10. cuKernelGetFunction
+     Calls: 1,455
+     Total time: 2.43 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx1024_training.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx1024_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,273.86 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 154,417
+     Total time: 1,063.03 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 190.56 ms
+     Avg time: 5.44 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 9,000
+     Total time: 60.53 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 269
+     Total time: 20.18 ms
+     Avg time: 0.08 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 3,450
+     Total time: 16.68 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.33 ms
+     Avg time: 3.83 ms
+
+  7. cuLaunchKernel
+     Calls: 1,541
+     Total time: 6.72 ms
+     Avg time: 0.00 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 1,560
+     Total time: 5.79 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.56 ms
+     Avg time: 2.56 ms
+
+  10. cuKernelGetFunction
+     Calls: 1,455
+     Total time: 2.03 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx128_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx128_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,524.98 ms
+  Forward steps (avg): 45.07 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 43.13 ms
+    forward_step_1: 45.45 ms
+    forward_step_2: 44.74 ms
+    forward_step_3: 48.66 ms
+    forward_step_4: 46.86 ms
+    forward_step_5: 44.56 ms
+    forward_step_6: 44.13 ms
+    forward_step_7: 46.08 ms
+    forward_step_8: 43.21 ms
+    forward_step_9: 43.86 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 49,750
+     Total time: 472.38 ms
+     Avg time: 0.01 ms
+
+  2. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.27 ms
+     Avg time: 3.82 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 2,535
+     Total time: 10.99 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 36
+     Total time: 5.39 ms
+     Avg time: 0.15 ms
+
+  5. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.84 ms
+     Avg time: 3.84 ms
+
+  6. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 2.54 ms
+     Avg time: 0.17 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 180
+     Total time: 2.33 ms
+     Avg time: 0.01 ms
+
+  8. cudaFree_v3020
+     Calls: 1
+     Total time: 2.07 ms
+     Avg time: 2.07 ms
+
+  9. cuModuleLoadData
+     Calls: 1
+     Total time: 0.64 ms
+     Avg time: 0.64 ms
+
+  10. cuLaunchKernel
+     Calls: 86
+     Total time: 0.37 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 45.07 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx128_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx128_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,810.65 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 152,965
+     Total time: 927.95 ms
+     Avg time: 0.01 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 9,000
+     Total time: 48.18 ms
+     Avg time: 0.01 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 6,855
+     Total time: 30.29 ms
+     Avg time: 0.00 ms
+
+  4. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.01 ms
+     Avg time: 3.75 ms
+
+  5. cudaMalloc_v3020
+     Calls: 94
+     Total time: 8.96 ms
+     Avg time: 0.10 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 555
+     Total time: 3.79 ms
+     Avg time: 0.01 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.56 ms
+     Avg time: 2.56 ms
+
+  8. cuLaunchKernel
+     Calls: 476
+     Total time: 2.06 ms
+     Avg time: 0.00 ms
+
+  9. cuKernelGetFunction
+     Calls: 390
+     Total time: 1.48 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.11 ms
+     Avg time: 0.56 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx128_training.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx128_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,174.46 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 154,027
+     Total time: 972.14 ms
+     Avg time: 0.01 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 9,000
+     Total time: 47.35 ms
+     Avg time: 0.01 ms
+
+  3. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 40.33 ms
+     Avg time: 1.15 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 6,855
+     Total time: 29.83 ms
+     Avg time: 0.00 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.20 ms
+     Avg time: 3.80 ms
+
+  6. cudaMalloc_v3020
+     Calls: 164
+     Total time: 13.21 ms
+     Avg time: 0.08 ms
+
+  7. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 4.75 ms
+     Avg time: 4.75 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 555
+     Total time: 3.52 ms
+     Avg time: 0.01 ms
+
+  9. cuLaunchKernel
+     Calls: 476
+     Total time: 2.11 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.48 ms
+     Avg time: 0.74 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx256_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx256_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,177.02 ms
+  Forward steps (avg): 44.55 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 44.43 ms
+    forward_step_1: 44.91 ms
+    forward_step_2: 43.96 ms
+    forward_step_3: 43.87 ms
+    forward_step_4: 44.98 ms
+    forward_step_5: 43.43 ms
+    forward_step_6: 44.02 ms
+    forward_step_7: 46.45 ms
+    forward_step_8: 44.91 ms
+    forward_step_9: 44.52 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 49,750
+     Total time: 423.73 ms
+     Avg time: 0.01 ms
+
+  2. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.30 ms
+     Avg time: 3.82 ms
+
+  3. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 7.45 ms
+     Avg time: 0.50 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 1,635
+     Total time: 7.36 ms
+     Avg time: 0.00 ms
+
+  5. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 7.22 ms
+     Avg time: 7.22 ms
+
+  6. cudaMalloc_v3020
+     Calls: 43
+     Total time: 4.34 ms
+     Avg time: 0.10 ms
+
+  7. cudaMemsetAsync_v3020
+     Calls: 720
+     Total time: 2.85 ms
+     Avg time: 0.00 ms
+
+  8. cudaMemcpyAsync_v3020
+     Calls: 180
+     Total time: 2.13 ms
+     Avg time: 0.01 ms
+
+  9. cuKernelGetFunction
+     Calls: 180
+     Total time: 1.24 ms
+     Avg time: 0.01 ms
+
+  10. cuLaunchKernel
+     Calls: 266
+     Total time: 1.15 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 44.55 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx256_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx256_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,830.32 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 153,670
+     Total time: 911.12 ms
+     Avg time: 0.01 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 9,000
+     Total time: 46.39 ms
+     Avg time: 0.01 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 3,465
+     Total time: 16.10 ms
+     Avg time: 0.00 ms
+
+  4. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.82 ms
+     Avg time: 3.71 ms
+
+  5. cudaMalloc_v3020
+     Calls: 189
+     Total time: 13.87 ms
+     Avg time: 0.07 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 2,190
+     Total time: 8.20 ms
+     Avg time: 0.00 ms
+
+  7. cuLaunchKernel
+     Calls: 1,721
+     Total time: 7.30 ms
+     Avg time: 0.00 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.76 ms
+     Avg time: 3.76 ms
+
+  9. cuKernelGetFunction
+     Calls: 1,635
+     Total time: 2.10 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.23 ms
+     Avg time: 0.62 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx256_training.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx256_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,242.23 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 154,732
+     Total time: 975.70 ms
+     Avg time: 0.01 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 9,000
+     Total time: 47.50 ms
+     Avg time: 0.01 ms
+
+  3. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 39.92 ms
+     Avg time: 1.14 ms
+
+  4. cudaMalloc_v3020
+     Calls: 249
+     Total time: 19.33 ms
+     Avg time: 0.08 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 3,465
+     Total time: 16.45 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.09 ms
+     Avg time: 3.77 ms
+
+  7. cudaMemsetAsync_v3020
+     Calls: 2,190
+     Total time: 7.97 ms
+     Avg time: 0.00 ms
+
+  8. cuLaunchKernel
+     Calls: 1,721
+     Total time: 7.43 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.56 ms
+     Avg time: 2.56 ms
+
+  10. cuKernelGetFunction
+     Calls: 1,635
+     Total time: 2.10 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx512_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx512_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,214.79 ms
+  Forward steps (avg): 45.25 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 45.15 ms
+    forward_step_1: 45.42 ms
+    forward_step_2: 45.14 ms
+    forward_step_3: 46.16 ms
+    forward_step_4: 45.52 ms
+    forward_step_5: 44.38 ms
+    forward_step_6: 45.76 ms
+    forward_step_7: 46.12 ms
+    forward_step_8: 44.08 ms
+    forward_step_9: 44.73 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 49,750
+     Total time: 428.01 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 18.51 ms
+     Avg time: 1.23 ms
+
+  3. cuLibraryLoadData
+     Calls: 4
+     Total time: 17.63 ms
+     Avg time: 4.41 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 1,455
+     Total time: 6.76 ms
+     Avg time: 0.00 ms
+
+  5. cudaMalloc_v3020
+     Calls: 48
+     Total time: 5.03 ms
+     Avg time: 0.10 ms
+
+  6. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.87 ms
+     Avg time: 2.87 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 180
+     Total time: 2.35 ms
+     Avg time: 0.01 ms
+
+  8. cuKernelGetFunction
+     Calls: 180
+     Total time: 1.62 ms
+     Avg time: 0.01 ms
+
+  9. cudaMemsetAsync_v3020
+     Calls: 180
+     Total time: 1.34 ms
+     Avg time: 0.01 ms
+
+  10. cudaFree_v3020
+     Calls: 1
+     Total time: 1.18 ms
+     Avg time: 1.18 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 45.25 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx512_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx512_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,825.34 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 153,310
+     Total time: 921.66 ms
+     Avg time: 0.01 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 9,000
+     Total time: 46.78 ms
+     Avg time: 0.01 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 3,630
+     Total time: 16.85 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 219
+     Total time: 16.73 ms
+     Avg time: 0.08 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.26 ms
+     Avg time: 3.81 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 1,665
+     Total time: 6.34 ms
+     Avg time: 0.00 ms
+
+  7. cuLaunchKernel
+     Calls: 1,361
+     Total time: 5.85 ms
+     Avg time: 0.00 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.58 ms
+     Avg time: 2.58 ms
+
+  9. cuKernelGetFunction
+     Calls: 1,275
+     Total time: 2.00 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.20 ms
+     Avg time: 0.60 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: small_ctx512_training.sqlite
+========================================
+
+======================================================================
+Analyzing: small_ctx512_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,185.81 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 154,372
+     Total time: 961.26 ms
+     Avg time: 0.01 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 9,000
+     Total time: 46.21 ms
+     Avg time: 0.01 ms
+
+  3. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 40.02 ms
+     Avg time: 1.14 ms
+
+  4. cudaMalloc_v3020
+     Calls: 246
+     Total time: 19.73 ms
+     Avg time: 0.08 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 3,630
+     Total time: 16.69 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.40 ms
+     Avg time: 3.85 ms
+
+  7. cudaMemsetAsync_v3020
+     Calls: 1,665
+     Total time: 6.60 ms
+     Avg time: 0.00 ms
+
+  8. cuLaunchKernel
+     Calls: 1,361
+     Total time: 5.77 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.58 ms
+     Avg time: 2.58 ms
+
+  10. cuKernelGetFunction
+     Calls: 1,275
+     Total time: 1.91 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx1024_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx1024_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 4,144.07 ms
+  Forward steps (avg): 644.38 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 644.41 ms
+    forward_step_1: 644.53 ms
+    forward_step_2: 644.30 ms
+    forward_step_3: 644.29 ms
+    forward_step_4: 644.65 ms
+    forward_step_5: 644.36 ms
+    forward_step_6: 644.16 ms
+    forward_step_7: 644.39 ms
+    forward_step_8: 644.35 ms
+    forward_step_9: 644.31 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 385,810
+     Total time: 6,213.86 ms
+     Avg time: 0.02 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 398.28 ms
+     Avg time: 26.55 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 6,495
+     Total time: 28.03 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 294
+     Total time: 21.81 ms
+     Avg time: 0.07 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.31 ms
+     Avg time: 3.83 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 3,600
+     Total time: 13.99 ms
+     Avg time: 0.00 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 720
+     Total time: 9.08 ms
+     Avg time: 0.01 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.55 ms
+     Avg time: 2.55 ms
+
+  9. cudaFree_v3020
+     Calls: 1
+     Total time: 1.25 ms
+     Avg time: 1.25 ms
+
+  10. cuLaunchKernel
+     Calls: 338
+     Total time: 1.25 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 644.38 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx1024_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx1024_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 1,494.78 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 24,830
+     Total time: 441.68 ms
+     Avg time: 0.02 ms
+
+  2. cudaMalloc_v3020
+     Calls: 1,572
+     Total time: 121.81 ms
+     Avg time: 0.08 ms
+
+  3. cudaGetDeviceProperties_v2_v12000
+     Calls: 2
+     Total time: 21.27 ms
+     Avg time: 10.63 ms
+
+  4. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.16 ms
+     Avg time: 3.79 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 381
+     Total time: 1.91 ms
+     Avg time: 0.01 ms
+
+  6. cuLaunchKernel
+     Calls: 338
+     Total time: 1.43 ms
+     Avg time: 0.00 ms
+
+  7. cudaFree_v3020
+     Calls: 1
+     Total time: 1.32 ms
+     Avg time: 1.32 ms
+
+  8. cudaStreamIsCapturing_v10000
+     Calls: 2,247
+     Total time: 1.00 ms
+     Avg time: 0.00 ms
+
+  9. cudaMemsetAsync_v3020
+     Calls: 213
+     Total time: 0.94 ms
+     Avg time: 0.00 ms
+
+  10. cudaMemcpyAsync_v3020
+     Calls: 42
+     Total time: 0.53 ms
+     Avg time: 0.01 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx1024_training.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx1024_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 815.97 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 24,830
+     Total time: 443.39 ms
+     Avg time: 0.02 ms
+
+  2. cudaMalloc_v3020
+     Calls: 1,572
+     Total time: 119.59 ms
+     Avg time: 0.08 ms
+
+  3. cudaGetDeviceProperties_v2_v12000
+     Calls: 2
+     Total time: 24.08 ms
+     Avg time: 12.04 ms
+
+  4. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.03 ms
+     Avg time: 3.76 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 381
+     Total time: 1.89 ms
+     Avg time: 0.00 ms
+
+  6. cuLaunchKernel
+     Calls: 338
+     Total time: 1.44 ms
+     Avg time: 0.00 ms
+
+  7. cudaFree_v3020
+     Calls: 1
+     Total time: 1.31 ms
+     Avg time: 1.31 ms
+
+  8. cudaStreamIsCapturing_v10000
+     Calls: 2,247
+     Total time: 0.97 ms
+     Avg time: 0.00 ms
+
+  9. cudaMemsetAsync_v3020
+     Calls: 213
+     Total time: 0.92 ms
+     Avg time: 0.00 ms
+
+  10. cudaMemcpyAsync_v3020
+     Calls: 42
+     Total time: 0.51 ms
+     Avg time: 0.01 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx128_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx128_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,491.68 ms
+  Forward steps (avg): 316.76 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 322.32 ms
+    forward_step_1: 325.39 ms
+    forward_step_2: 319.14 ms
+    forward_step_3: 320.34 ms
+    forward_step_4: 320.30 ms
+    forward_step_5: 312.20 ms
+    forward_step_6: 317.74 ms
+    forward_step_7: 310.18 ms
+    forward_step_8: 305.82 ms
+    forward_step_9: 314.17 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 385,810
+     Total time: 1,673.29 ms
+     Avg time: 0.00 ms
+
+  2. cudaLaunchKernelExC_v11060
+     Calls: 10,095
+     Total time: 41.35 ms
+     Avg time: 0.00 ms
+
+  3. cudaMalloc_v3020
+     Calls: 258
+     Total time: 18.61 ms
+     Avg time: 0.07 ms
+
+  4. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.15 ms
+     Avg time: 3.79 ms
+
+  5. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 14.92 ms
+     Avg time: 0.99 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 1,440
+     Total time: 9.88 ms
+     Avg time: 0.01 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 720
+     Total time: 9.18 ms
+     Avg time: 0.01 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.63 ms
+     Avg time: 2.63 ms
+
+  9. cudaFree_v3020
+     Calls: 1
+     Total time: 1.37 ms
+     Avg time: 1.37 ms
+
+  10. cuLaunchKernel
+     Calls: 338
+     Total time: 1.34 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 316.76 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx128_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx128_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 6,968.64 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,190,485
+     Total time: 5,109.11 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 73,440
+     Total time: 374.03 ms
+     Avg time: 0.01 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 24,495
+     Total time: 109.37 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 902
+     Total time: 88.55 ms
+     Avg time: 0.10 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.69 ms
+     Avg time: 3.92 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 1,455
+     Total time: 11.56 ms
+     Avg time: 0.01 ms
+
+  7. cuLaunchKernel
+     Calls: 1,808
+     Total time: 7.63 ms
+     Avg time: 0.00 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.61 ms
+     Avg time: 2.61 ms
+
+  9. cuKernelGetFunction
+     Calls: 1,470
+     Total time: 2.42 ms
+     Avg time: 0.00 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.54 ms
+     Avg time: 0.77 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx128_training.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx128_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 6,640.89 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,202,995
+     Total time: 5,043.65 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 747.42 ms
+     Avg time: 21.35 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 73,440
+     Total time: 372.05 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,494
+     Total time: 127.68 ms
+     Avg time: 0.09 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 24,495
+     Total time: 108.58 ms
+     Avg time: 0.00 ms
+
+  6. cudaStreamCreate_v3020
+     Calls: 1
+     Total time: 60.06 ms
+     Avg time: 60.06 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.76 ms
+     Avg time: 3.94 ms
+
+  8. cudaMemsetAsync_v3020
+     Calls: 1,455
+     Total time: 11.62 ms
+     Avg time: 0.01 ms
+
+  9. cuLaunchKernel
+     Calls: 1,808
+     Total time: 7.54 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.58 ms
+     Avg time: 2.58 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx256_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx256_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,562.21 ms
+  Forward steps (avg): 312.41 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 312.97 ms
+    forward_step_1: 313.45 ms
+    forward_step_2: 308.05 ms
+    forward_step_3: 317.36 ms
+    forward_step_4: 312.01 ms
+    forward_step_5: 308.54 ms
+    forward_step_6: 312.65 ms
+    forward_step_7: 316.56 ms
+    forward_step_8: 309.56 ms
+    forward_step_9: 313.00 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 385,810
+     Total time: 1,685.73 ms
+     Avg time: 0.00 ms
+
+  2. cudaLaunchKernelExC_v11060
+     Calls: 9,375
+     Total time: 39.70 ms
+     Avg time: 0.00 ms
+
+  3. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 29.67 ms
+     Avg time: 1.98 ms
+
+  4. cudaMalloc_v3020
+     Calls: 265
+     Total time: 19.84 ms
+     Avg time: 0.07 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.09 ms
+     Avg time: 3.77 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 2,160
+     Total time: 12.42 ms
+     Avg time: 0.01 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 720
+     Total time: 8.38 ms
+     Avg time: 0.01 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.24 ms
+     Avg time: 3.24 ms
+
+  9. cudaFree_v3020
+     Calls: 1
+     Total time: 1.31 ms
+     Avg time: 1.31 ms
+
+  10. cuLaunchKernel
+     Calls: 338
+     Total time: 1.28 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 312.41 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx256_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx256_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 7,252.31 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,189,030
+     Total time: 5,091.02 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 73,440
+     Total time: 372.94 ms
+     Avg time: 0.01 ms
+
+  3. cudaMalloc_v3020
+     Calls: 1,214
+     Total time: 111.38 ms
+     Avg time: 0.09 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 23,070
+     Total time: 103.34 ms
+     Avg time: 0.00 ms
+
+  5. cudaMemsetAsync_v3020
+     Calls: 10,845
+     Total time: 42.76 ms
+     Avg time: 0.00 ms
+
+  6. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.52 ms
+     Avg time: 3.88 ms
+
+  7. cuLaunchKernel
+     Calls: 2,513
+     Total time: 10.73 ms
+     Avg time: 0.00 ms
+
+  8. cuKernelGetFunction
+     Calls: 2,175
+     Total time: 2.80 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.55 ms
+     Avg time: 2.55 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.39 ms
+     Avg time: 0.70 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx256_training.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx256_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 6,484.64 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,201,540
+     Total time: 5,131.42 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 744.19 ms
+     Avg time: 21.26 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 73,440
+     Total time: 374.82 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,716
+     Total time: 159.19 ms
+     Avg time: 0.09 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 23,070
+     Total time: 103.29 ms
+     Avg time: 0.00 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 10,845
+     Total time: 43.26 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.72 ms
+     Avg time: 3.68 ms
+
+  8. cuLaunchKernel
+     Calls: 2,513
+     Total time: 10.44 ms
+     Avg time: 0.00 ms
+
+  9. cuKernelGetFunction
+     Calls: 2,175
+     Total time: 2.60 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.55 ms
+     Avg time: 2.55 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx512_forward.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx512_forward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 2,681.62 ms
+  Forward steps (avg): 352.35 ms
+  Forward steps (count): 10
+
+  Individual forward steps:
+    forward_step_0: 350.68 ms
+    forward_step_1: 349.73 ms
+    forward_step_2: 349.44 ms
+    forward_step_3: 349.54 ms
+    forward_step_4: 349.58 ms
+    forward_step_5: 349.61 ms
+    forward_step_6: 349.31 ms
+    forward_step_7: 376.75 ms
+    forward_step_8: 349.42 ms
+    forward_step_9: 349.44 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 385,810
+     Total time: 2,020.94 ms
+     Avg time: 0.01 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 15
+     Total time: 197.82 ms
+     Avg time: 13.19 ms
+
+  3. cudaLaunchKernelExC_v11060
+     Calls: 6,495
+     Total time: 28.52 ms
+     Avg time: 0.00 ms
+
+  4. cudaMalloc_v3020
+     Calls: 278
+     Total time: 21.47 ms
+     Avg time: 0.08 ms
+
+  5. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.37 ms
+     Avg time: 3.84 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 3,600
+     Total time: 14.36 ms
+     Avg time: 0.00 ms
+
+  7. cudaMemcpyAsync_v3020
+     Calls: 720
+     Total time: 9.04 ms
+     Avg time: 0.01 ms
+
+  8. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 3.88 ms
+     Avg time: 3.88 ms
+
+  9. cudaFree_v3020
+     Calls: 1
+     Total time: 1.29 ms
+     Avg time: 1.29 ms
+
+  10. cuLaunchKernel
+     Calls: 338
+     Total time: 1.28 ms
+     Avg time: 0.00 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+Part (a) - Forward pass time:
+  Average forward pass: 352.35 ms
+  (Compare this with Python timing from part_b_results.csv)
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx512_forward_backward.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx512_forward_backward.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 6,773.23 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,189,030
+     Total time: 4,959.94 ms
+     Avg time: 0.00 ms
+
+  2. cudaMemcpyAsync_v3020
+     Calls: 73,440
+     Total time: 350.52 ms
+     Avg time: 0.00 ms
+
+  3. cudaMalloc_v3020
+     Calls: 1,378
+     Total time: 102.98 ms
+     Avg time: 0.07 ms
+
+  4. cudaLaunchKernelExC_v11060
+     Calls: 14,430
+     Total time: 64.16 ms
+     Avg time: 0.00 ms
+
+  5. cudaMemsetAsync_v3020
+     Calls: 14,445
+     Total time: 51.26 ms
+     Avg time: 0.00 ms
+
+  6. cuLaunchKernel
+     Calls: 5,393
+     Total time: 21.60 ms
+     Avg time: 0.00 ms
+
+  7. cuLibraryLoadData
+     Calls: 4
+     Total time: 15.00 ms
+     Avg time: 3.75 ms
+
+  8. cuKernelGetFunction
+     Calls: 5,055
+     Total time: 3.79 ms
+     Avg time: 0.00 ms
+
+  9. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.59 ms
+     Avg time: 2.59 ms
+
+  10. cudaFree_v3020
+     Calls: 2
+     Total time: 1.35 ms
+     Avg time: 0.68 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
+
+======================================================================
+NOTE: WSL2 Limitation
+======================================================================
+
+WSL2 cannot capture GPU kernel execution data. For detailed kernel analysis
+(Parts b-e), you need to:
+
+1. Run on native Linux (e.g., your school's compute center with A100)
+2. OR open the .nsys-rep file in Nsight Systems GUI on Windows
+   (The GUI can sometimes access more data than the CLI)
+
+The data above comes from CUDA API traces and NVTX ranges, which provide
+timing information but not kernel-level details.
+
+
+----------------------------------------
+
+
+========================================
+Profile: xl_ctx512_training.sqlite
+========================================
+
+======================================================================
+Analyzing: xl_ctx512_training.sqlite
+======================================================================
+
+NVTX Ranges (Top 10):
+----------------------------------------------------------------------
+  Warmup: 6,519.85 ms
+
+CUDA API Calls (Top 10):
+----------------------------------------------------------------------
+  1. cudaLaunchKernel_v7000
+     Calls: 1,201,540
+     Total time: 5,135.31 ms
+     Avg time: 0.00 ms
+
+  2. cudaDeviceSynchronize_v3020
+     Calls: 35
+     Total time: 755.10 ms
+     Avg time: 21.57 ms
+
+  3. cudaMemcpyAsync_v3020
+     Calls: 73,440
+     Total time: 376.09 ms
+     Avg time: 0.01 ms
+
+  4. cudaMalloc_v3020
+     Calls: 1,646
+     Total time: 169.43 ms
+     Avg time: 0.10 ms
+
+  5. cudaLaunchKernelExC_v11060
+     Calls: 14,430
+     Total time: 66.39 ms
+     Avg time: 0.00 ms
+
+  6. cudaMemsetAsync_v3020
+     Calls: 14,445
+     Total time: 53.73 ms
+     Avg time: 0.00 ms
+
+  7. cuLaunchKernel
+     Calls: 5,393
+     Total time: 23.04 ms
+     Avg time: 0.00 ms
+
+  8. cuLibraryLoadData
+     Calls: 4
+     Total time: 14.97 ms
+     Avg time: 3.74 ms
+
+  9. cuKernelGetFunction
+     Calls: 5,055
+     Total time: 3.88 ms
+     Avg time: 0.00 ms
+
+  10. cudaGetDeviceProperties_v2_v12000
+     Calls: 1
+     Total time: 2.60 ms
+     Avg time: 2.60 ms
+
+======================================================================
+SUMMARY FOR ASSIGNMENT QUESTIONS:
+======================================================================
 
 ======================================================================
 NOTE: WSL2 Limitation

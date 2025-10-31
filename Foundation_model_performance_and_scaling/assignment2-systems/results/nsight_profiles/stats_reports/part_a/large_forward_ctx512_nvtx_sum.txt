@@ -1,0 +1,25 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/part_a/large_forward_ctx512.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/part_a/large_forward_ctx512.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/part_a/large_forward_ctx512.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/nvtx_sum.py]... 
+
+ ** NVTX Range Summary (nvtx_sum):
+
+ Time (%)  Total Time (ns)  Instances    Avg (ns)      Med (ns)     Min (ns)    Max (ns)   StdDev (ns)   Style        Range      
+ --------  ---------------  ---------  ------------  ------------  ----------  ----------  -----------  -------  ----------------
+     45.9       2239924695          1  2239924695.0  2239924695.0  2239924695  2239924695          0.0  PushPop  :warmup         
+      6.1        299909476          1   299909476.0   299909476.0   299909476   299909476          0.0  PushPop  :model_creation 
+      4.9        237861037          1   237861037.0   237861037.0   237861037   237861037          0.0  PushPop  :forward_step_0 
+      4.8        236647178          1   236647178.0   236647178.0   236647178   236647178          0.0  PushPop  :forward_step_5 
+      4.8        234381185          1   234381185.0   234381185.0   234381185   234381185          0.0  PushPop  :forward_step_8 
+      4.8        234134414          1   234134414.0   234134414.0   234134414   234134414          0.0  PushPop  :forward_step_2 
+      4.8        233382609          1   233382609.0   233382609.0   233382609   233382609          0.0  PushPop  :forward_step_9 
+      4.8        233281943          1   233281943.0   233281943.0   233281943   233281943          0.0  PushPop  :forward_step_4 
+      4.8        232636410          1   232636410.0   232636410.0   232636410   232636410          0.0  PushPop  :forward_step_1 
+      4.8        232535709          1   232535709.0   232535709.0   232535709   232535709          0.0  PushPop  :forward_step_6 
+      4.8        232148055          1   232148055.0   232148055.0   232148055   232148055          0.0  PushPop  :forward_step_3 
+      4.7        231549123          1   231549123.0   231549123.0   231549123   231549123          0.0  PushPop  :forward_step_7 
+      0.1          5781351          1     5781351.0     5781351.0     5781351     5781351          0.0  PushPop  :data_generation
+

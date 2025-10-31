@@ -1,0 +1,14 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/medium_ctx1024_training.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/medium_ctx1024_training.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/medium_ctx1024_training.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_gpu_mem_time_sum.py]... 
+
+ ** CUDA GPU MemOps Summary (by Time) (cuda_gpu_mem_time_sum):
+
+ Time (%)  Total Time (ns)  Count  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)            Operation           
+ --------  ---------------  -----  --------  --------  --------  --------  -----------  ------------------------------
+     99.0        212263668  23760    8933.7    2432.0      2336    208895      34987.2  [CUDA memcpy Device-to-Device]
+      1.0          2050359   1905    1076.3    1024.0       704      3136        226.8  [CUDA memset]                 
+

@@ -1,0 +1,35 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/2.7B_ctx512_forward.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/2.7B_ctx512_forward.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/2.7B_ctx512_forward.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)    Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                        Name                      
+ --------  ---------------  ---------  ----------  ----------  --------  --------  -----------  ------------------------------------------------
+     89.7       3556386455     324450     10961.3      3809.0      2523  57757884     159973.0  cudaLaunchKernel                                
+      8.3        329613324         15  21974221.6  22032704.0  21101183  22245012     287651.7  cudaDeviceSynchronize                           
+      0.5         21085199        271     77805.2     68082.0      3669    750502      49390.7  cudaMalloc                                      
+      0.4         17555916       3855      4554.1      4358.0      2789     26403       1201.8  cudaLaunchKernelExC_v11060                      
+      0.4         15306318          4   3826579.5   4327290.0    890911   5760827    2071903.5  cuLibraryLoadData                               
+      0.2          9584715       2400      3993.6      3131.0      1742     19439       2170.6  cudaMemsetAsync                                 
+      0.2          6197699        480     12911.9     12586.0     11197     25085       1601.5  cudaMemcpyAsync                                 
+      0.1          3058261        706      4331.8      4213.0      2904     13853        941.8  cuLaunchKernel                                  
+      0.1          2826658          1   2826658.0   2826658.0   2826658   2826658          0.0  cudaGetDeviceProperties_v2_v12000               
+      0.0          1645547        480      3428.2      1065.0       871   1123784      51244.0  cuKernelGetFunction                             
+      0.0          1361328          1   1361328.0   1361328.0   1361328   1361328          0.0  cudaFree                                        
+      0.0           287754        722       398.6       348.0       216     10157        474.8  cudaStreamIsCapturing_v10000                    
+      0.0           183237          1    183237.0    183237.0    183237    183237          0.0  cudaStreamCreate                                
+      0.0           148001        810       182.7       140.0        74       723        108.1  cuGetProcAddress_v2                             
+      0.0            73364          1     73364.0     73364.0     73364     73364          0.0  cuModuleLoadData                                
+      0.0            14248         18       791.6       244.5       226      5400       1286.2  cudaEventCreateWithFlags                        
+      0.0            13524         31       436.3       293.0       242      2879        590.4  cudaOccupancyMaxActiveClusters_v11070           
+      0.0             6879          1      6879.0      6879.0      6879      6879          0.0  cudaStreamDestroy                               
+      0.0             6107          2      3053.5      3053.5      1737      4370       1861.8  cudaOccupancyAvailableDynamicSMemPerBlock_v10200
+      0.0             5687          3      1895.7      1683.0      1285      2719        740.3  cuInit                                          
+      0.0             3861          5       772.2       762.0       565      1020        170.0  cuLibraryGetKernel                              
+      0.0             1886          3       628.7       351.0       144      1391        668.3  cuModuleGetLoadingMode                          
+      0.0              820          2       410.0       410.0       159       661        355.0  cudaGetDriverEntryPoint_v11030                  
+

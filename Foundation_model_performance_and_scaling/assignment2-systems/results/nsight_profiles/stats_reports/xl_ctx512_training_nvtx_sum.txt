@@ -1,0 +1,28 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/xl_ctx512_training.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/xl_ctx512_training.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/xl_ctx512_training.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/nvtx_sum.py]... 
+
+ ** NVTX Range Summary (nvtx_sum):
+
+ Time (%)  Total Time (ns)  Instances    Avg (ns)      Med (ns)     Min (ns)    Max (ns)   StdDev (ns)   Style        Range      
+ --------  ---------------  ---------  ------------  ------------  ----------  ----------  -----------  -------  ----------------
+     24.6       7862239612         10   786223961.2   773505040.0   766140826   832577708   25172282.7  PushPop  :backward       
+     20.4       6519845947          1  6519845947.0  6519845947.0  6519845947  6519845947          0.0  PushPop  :warmup         
+     12.7       4047060839         10   404706083.9   403787725.0   391755299   417591389    9044372.0  PushPop  :forward        
+      4.0       1290343328          1  1290343328.0  1290343328.0  1290343328  1290343328          0.0  PushPop  :training_step_6
+      4.0       1281016995          1  1281016995.0  1281016995.0  1281016995  1281016995          0.0  PushPop  :training_step_0
+      4.0       1279729773          1  1279729773.0  1279729773.0  1279729773  1279729773          0.0  PushPop  :training_step_8
+      3.9       1256603008          1  1256603008.0  1256603008.0  1256603008  1256603008          0.0  PushPop  :training_step_4
+      3.9       1252267600          1  1252267600.0  1252267600.0  1252267600  1252267600          0.0  PushPop  :training_step_5
+      3.9       1245810993          1  1245810993.0  1245810993.0  1245810993  1245810993          0.0  PushPop  :training_step_3
+      3.9       1245169375          1  1245169375.0  1245169375.0  1245169375  1245169375          0.0  PushPop  :training_step_7
+      3.9       1241115673          1  1241115673.0  1241115673.0  1241115673  1241115673          0.0  PushPop  :training_step_9
+      3.9       1238516207          1  1238516207.0  1238516207.0  1238516207  1238516207          0.0  PushPop  :training_step_2
+      3.9       1235628921          1  1235628921.0  1235628921.0  1235628921  1235628921          0.0  PushPop  :training_step_1
+      2.1        656106107         10    65610610.7    65526742.5    65218155    66012958     278743.5  PushPop  :optimizer_step 
+      1.0        324670881          1   324670881.0   324670881.0   324670881   324670881          0.0  PushPop  :model_creation 
+      0.0          5244854          1     5244854.0     5244854.0     5244854     5244854          0.0  PushPop  :data_generation
+

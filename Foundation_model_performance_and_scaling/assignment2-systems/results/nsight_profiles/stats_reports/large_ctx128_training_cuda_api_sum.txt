@@ -1,0 +1,35 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/large_ctx128_training.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/large_ctx128_training.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/large_ctx128_training.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                        Name                      
+ --------  ---------------  ---------  ----------  ---------  --------  --------  -----------  ------------------------------------------------
+     80.7       3192597884     734044      4349.3     3720.0      2408  59757522     102467.7  cudaLaunchKernel                                
+      8.9        353151600         35  10090045.7    16226.0     11993  24976315   12055467.9  cudaDeviceSynchronize                           
+      5.6        223005255      44280      5036.3     4624.0      3363    246218       2198.3  cudaMemcpyAsync                                 
+      2.1         84617852       1011     83697.2    70678.0      3516   1037751      53795.1  cudaMalloc                                      
+      1.5         60059247      13020      4612.8     4315.0      2575   1045317       9252.2  cudaLaunchKernelExC_v11060                      
+      0.5         18209963       4574      3981.2     3802.0      2743     31348        939.8  cuLaunchKernel                                  
+      0.4         15557908          4   3889477.0  4427514.0    862977   5839903    2124695.6  cuLibraryLoadData                               
+      0.1          3039120       4320       703.5      296.0       177   1134433      17322.4  cuKernelGetFunction                             
+      0.1          2537586          1   2537586.0  2537586.0   2537586   2537586          0.0  cudaGetDeviceProperties_v2_v12000               
+      0.0          1286946          2    643473.0   643473.0      2273   1284673     906793.7  cudaFree                                        
+      0.0           799967       1530       522.9      409.0       210     10437        463.0  cudaStreamIsCapturing_v10000                    
+      0.0           187543          1    187543.0   187543.0    187543    187543          0.0  cudaStreamCreate                                
+      0.0           175066         15     11671.1    11671.0      9994     12474        636.2  cudaMemsetAsync                                 
+      0.0           141961        810       175.3      140.0        75       702         98.2  cuGetProcAddress_v2                             
+      0.0            90222          1     90222.0    90222.0     90222     90222          0.0  cuModuleLoadData                                
+      0.0            23699         36       658.3      254.0       215      5003        973.5  cudaEventCreateWithFlags                        
+      0.0            12586         31       406.0      280.0       262      2353        466.8  cudaOccupancyMaxActiveClusters_v11070           
+      0.0             6792          1      6792.0     6792.0      6792      6792          0.0  cudaStreamDestroy                               
+      0.0             6208          2      3104.0     3104.0      1823      4385       1811.6  cudaOccupancyAvailableDynamicSMemPerBlock_v10200
+      0.0             5212          3      1737.3     1306.0       908      2998       1109.8  cuInit                                          
+      0.0             4830          6       805.0      731.5       522      1415        320.3  cuLibraryGetKernel                              
+      0.0             2053          3       684.3      445.0       170      1438        667.0  cuModuleGetLoadingMode                          
+      0.0              985          2       492.5      492.5       247       738        347.2  cudaGetDriverEntryPoint_v11030                  
+

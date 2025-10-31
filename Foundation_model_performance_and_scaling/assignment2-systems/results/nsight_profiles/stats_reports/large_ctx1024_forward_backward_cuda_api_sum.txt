@@ -1,0 +1,35 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/large_ctx1024_forward_backward.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/large_ctx1024_forward_backward.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/large_ctx1024_forward_backward.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                        Name                      
+ --------  ---------------  ---------  ----------  ---------  --------  --------  -----------  ------------------------------------------------
+     82.8       7129095875     726715      9810.0     3765.0      2386  58465592     107189.6  cudaLaunchKernel                                
+      5.4        463706387       4440    104438.4     3872.0      1425   1122440     293873.8  cudaMemsetAsync                                 
+      5.4        462825719      44280     10452.3     4665.0      3425    349178      36083.5  cudaMemcpyAsync                                 
+      3.0        261808752         25  10472350.1  9256415.0     15364  16728583    4118920.0  cudaDeviceSynchronize                           
+      1.5        131493313       9735     13507.3     4680.0      3086    110298      25343.3  cudaLaunchKernelExC_v11060                      
+      0.9         76514423       1093     70004.0    63053.0      4354    270791      22685.7  cudaMalloc                                      
+      0.6         47576852       5144      9249.0     3984.0      2803    736127      35023.8  cuLaunchKernel                                  
+      0.2         16770097       4890      3429.5      361.0       178  14309450     204635.2  cuKernelGetFunction                             
+      0.2         15236823          4   3809205.8  4344974.5    863601   5683273    2062687.8  cuLibraryLoadData                               
+      0.0          2591623          1   2591623.0  2591623.0   2591623   2591623          0.0  cudaGetDeviceProperties_v2_v12000               
+      0.0          1356589          2    678294.5   678294.5      2014   1354575     956405.1  cudaFree                                        
+      0.0           736424       1597       461.1      414.0       223     11199        442.0  cudaStreamIsCapturing_v10000                    
+      0.0           177463          1    177463.0   177463.0    177463    177463          0.0  cudaStreamCreate                                
+      0.0           164723        810       203.4      138.5        72     14730        522.9  cuGetProcAddress_v2                             
+      0.0            83993          1     83993.0    83993.0     83993     83993          0.0  cuModuleLoadData                                
+      0.0            24793         36       688.7      255.5       223      6222       1156.7  cudaEventCreateWithFlags                        
+      0.0            13640         31       440.0      300.0       275      2512        538.3  cudaOccupancyMaxActiveClusters_v11070           
+      0.0             6937          1      6937.0     6937.0      6937      6937          0.0  cudaStreamDestroy                               
+      0.0             6770          7       967.1      783.0       666      1763        387.0  cuLibraryGetKernel                              
+      0.0             6320          3      2106.7     1856.0      1654      2810        617.4  cuInit                                          
+      0.0             5984          2      2992.0     2992.0      1735      4249       1777.7  cudaOccupancyAvailableDynamicSMemPerBlock_v10200
+      0.0             2188          3       729.3      329.0       224      1635        786.1  cuModuleGetLoadingMode                          
+      0.0              769          2       384.5      384.5       171       598        301.9  cudaGetDriverEntryPoint_v11030                  
+
