@@ -34,54 +34,73 @@ echo ""
 OUTPUT_DIR="../../results/nsight_profiles/part_e"
 mkdir -p "$OUTPUT_DIR"
 
-MODEL="small"
+# Profile all model sizes for attention analysis
+MODELS=("small" "medium" "large" "xl" "2.7B")
 CTX=512
 BATCH=4
 
 echo "Profiling self-attention components..."
-echo "Model: $MODEL"
 echo "Context: $CTX"
 echo "Batch: $BATCH"
 echo ""
 
-# Calculate FLOPs for reference
-D_MODEL=768  # small model
-NUM_HEADS=12
-D_HEAD=$((D_MODEL / NUM_HEADS))  # 64
+# Function to get model dimensions
+get_model_dims() {
+    case $1 in
+        "small")   echo "768 12" ;;   # d_model, num_heads
+        "medium")  echo "1024 16" ;;
+        "large")   echo "1280 20" ;;
+        "xl")      echo "1600 25" ;;
+        "2.7B")    echo "2560 32" ;;
+    esac
+}
 
-echo "FLOPs calculation (per attention layer):"
-echo "  d_model = $D_MODEL"
-echo "  num_heads = $NUM_HEADS"
-echo "  d_head = $D_HEAD"
-echo "  seq_len = $CTX"
-echo "  batch_size = $BATCH"
-echo ""
-echo "  QK^T matmul: 2 * batch * num_heads * seq_len^2 * d_head"
-echo "            = 2 * $BATCH * $NUM_HEADS * $CTX^2 * $D_HEAD"
-echo "            = $((2 * BATCH * NUM_HEADS * CTX * CTX * D_HEAD)) FLOPs"
-echo ""
-echo "  Softmax: ~5 * batch * num_heads * seq_len^2 (approx)"
-echo "         = 5 * $BATCH * $NUM_HEADS * $CTX^2"
-echo "         = $((5 * BATCH * NUM_HEADS * CTX * CTX)) FLOPs"
-echo ""
-echo "  Attention @ V: 2 * batch * num_heads * seq_len^2 * d_head"
-echo "               = $((2 * BATCH * NUM_HEADS * CTX * CTX * D_HEAD)) FLOPs"
-echo ""
+for model in "${MODELS[@]}"; do
+    echo "=========================================="
+    echo "Profiling model: $model (attention analysis)"
+    echo "=========================================="
+    echo ""
 
-uv run nsys profile \
-    -o "${OUTPUT_DIR}/${MODEL}_attention_analysis.nsys-rep" \
-    --force-overwrite true \
-     \
-    --trace=cuda,nvtx --stats=true \
-    --python-backtrace=cuda \
-    python -m cs336_systems.nsight_systems_profiler.profile_model \
-    --model-size "$MODEL" \
-    --context-length "$CTX" \
-    --batch-size "$BATCH" \
-    --warmup-steps 5 \
-    --measure-steps 10 \
-    --profile-type forward \
-    --use-annotated-attention
+    # Get model-specific dimensions
+    read D_MODEL NUM_HEADS <<< $(get_model_dims "$model")
+    D_HEAD=$((D_MODEL / NUM_HEADS))
+
+    echo "FLOPs calculation (per attention layer):"
+    echo "  d_model = $D_MODEL"
+    echo "  num_heads = $NUM_HEADS"
+    echo "  d_head = $D_HEAD"
+    echo "  seq_len = $CTX"
+    echo "  batch_size = $BATCH"
+    echo ""
+    echo "  QK^T matmul: 2 * batch * num_heads * seq_len^2 * d_head"
+    echo "            = 2 * $BATCH * $NUM_HEADS * $CTX^2 * $D_HEAD"
+    echo "            = $((2 * BATCH * NUM_HEADS * CTX * CTX * D_HEAD)) FLOPs"
+    echo ""
+    echo "  Softmax: ~5 * batch * num_heads * seq_len^2 (approx)"
+    echo "         = 5 * $BATCH * $NUM_HEADS * $CTX^2"
+    echo "         = $((5 * BATCH * NUM_HEADS * CTX * CTX)) FLOPs"
+    echo ""
+    echo "  Attention @ V: 2 * batch * num_heads * seq_len^2 * d_head"
+    echo "               = $((2 * BATCH * NUM_HEADS * CTX * CTX * D_HEAD)) FLOPs"
+    echo ""
+
+    uv run nsys profile \
+        -o "${OUTPUT_DIR}/${model}_attention_analysis.nsys-rep" \
+        --force-overwrite true \
+        --trace=cuda,nvtx --stats=true \
+        --python-backtrace=cuda \
+        python -m cs336_systems.nsight_systems_profiler.profile_model \
+        --model-size "$model" \
+        --context-length "$CTX" \
+        --batch-size "$BATCH" \
+        --warmup-steps 5 \
+        --measure-steps 10 \
+        --profile-type forward \
+        --use-annotated-attention
+
+    echo "  ✓ Attention profile saved for $model"
+    echo ""
+done
 
 echo ""
 echo "=========================================="

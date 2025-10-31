@@ -28,8 +28,9 @@ echo ""
 OUTPUT_DIR="../../results/nsight_profiles/part_a"
 mkdir -p "$OUTPUT_DIR"
 
-# Profile forward-only for small, medium, large with ctx=512
-MODELS=("small" "medium" "large")
+# Profile forward-only for all model sizes with ctx=512
+# Assignment requires: Table 1 model sizes (small, medium, large, xl, 2.7B)
+MODELS=("small" "medium" "large" "xl" "2.7B")
 
 for model in "${MODELS[@]}"; do
     output="${OUTPUT_DIR}/${model}_forward_ctx512.nsys-rep"

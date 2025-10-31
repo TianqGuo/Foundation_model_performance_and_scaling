@@ -32,25 +32,35 @@ echo ""
 OUTPUT_DIR="../../results/nsight_profiles/part_d"
 mkdir -p "$OUTPUT_DIR"
 
-MODEL="small"
+# Profile all model sizes for training step analysis
+MODELS=("small" "medium" "large" "xl" "2.7B")
 
 echo "Profiling complete training step (forward + backward + optimizer)..."
 echo ""
 
-uv run nsys profile \
-    -o "${OUTPUT_DIR}/${MODEL}_training_step.nsys-rep" \
-    --force-overwrite true \
-     \
-    --trace=cuda,nvtx --stats=true \
-    --python-backtrace=cuda \
-    python -m cs336_systems.nsight_systems_profiler.profile_model \
-    --model-size "$MODEL" \
-    --context-length 512 \
-    --batch-size 4 \
-    --warmup-steps 5 \
-    --measure-steps 10 \
-    --profile-type training \
-    --use-annotated-attention
+for model in "${MODELS[@]}"; do
+    echo "=========================================="
+    echo "Profiling model: $model (training)"
+    echo "=========================================="
+    echo ""
+
+    uv run nsys profile \
+        -o "${OUTPUT_DIR}/${model}_training_step.nsys-rep" \
+        --force-overwrite true \
+        --trace=cuda,nvtx --stats=true \
+        --python-backtrace=cuda \
+        python -m cs336_systems.nsight_systems_profiler.profile_model \
+        --model-size "$model" \
+        --context-length 512 \
+        --batch-size 4 \
+        --warmup-steps 5 \
+        --measure-steps 10 \
+        --profile-type training \
+        --use-annotated-attention
+
+    echo "  ✓ Training profile saved for $model"
+    echo ""
+done
 
 echo ""
 echo "=========================================="

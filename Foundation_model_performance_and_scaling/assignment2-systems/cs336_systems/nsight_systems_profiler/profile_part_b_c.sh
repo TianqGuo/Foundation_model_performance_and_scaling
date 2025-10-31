@@ -37,44 +37,57 @@ echo ""
 OUTPUT_DIR="../../results/nsight_profiles/part_b_c"
 mkdir -p "$OUTPUT_DIR"
 
-MODEL="small"  # Use small for quick analysis
+# Profile all model sizes for comprehensive kernel analysis
+# Assignment: Analyze kernels across different model sizes
+MODELS=("small" "medium" "large" "xl" "2.7B")
 
-echo "Profiling $MODEL model with annotated attention..."
+echo "Profiling all models with annotated attention for kernel analysis..."
 echo ""
 
-# Profile forward only
-echo "1. Forward pass only..."
-uv run nsys profile \
-    -o "${OUTPUT_DIR}/${MODEL}_forward_annotated.nsys-rep" \
-    --force-overwrite true \
-     \
-    --trace=cuda,nvtx --stats=true \
-    --python-backtrace=cuda \
-    python -m cs336_systems.nsight_systems_profiler.profile_model \
-    --model-size "$MODEL" \
-    --context-length 512 \
-    --batch-size 4 \
-    --warmup-steps 5 \
-    --measure-steps 10 \
-    --profile-type forward \
-    --use-annotated-attention
+for model in "${MODELS[@]}"; do
+    echo "=========================================="
+    echo "Profiling model: $model"
+    echo "=========================================="
+    echo ""
 
-echo ""
-echo "2. Forward + Backward..."
-uv run nsys profile \
-    -o "${OUTPUT_DIR}/${MODEL}_forward_backward_annotated.nsys-rep" \
-    --force-overwrite true \
-     \
-    --trace=cuda,nvtx --stats=true \
-    --python-backtrace=cuda \
-    python -m cs336_systems.nsight_systems_profiler.profile_model \
-    --model-size "$MODEL" \
-    --context-length 512 \
-    --batch-size 4 \
-    --warmup-steps 5 \
-    --measure-steps 10 \
-    --profile-type forward_backward \
-    --use-annotated-attention
+    # Profile forward only
+    echo "1. Forward pass only..."
+    uv run nsys profile \
+        -o "${OUTPUT_DIR}/${model}_forward_annotated.nsys-rep" \
+        --force-overwrite true \
+        --trace=cuda,nvtx --stats=true \
+        --python-backtrace=cuda \
+        python -m cs336_systems.nsight_systems_profiler.profile_model \
+        --model-size "$model" \
+        --context-length 512 \
+        --batch-size 4 \
+        --warmup-steps 5 \
+        --measure-steps 10 \
+        --profile-type forward \
+        --use-annotated-attention
+
+    echo "  ✓ Forward profile saved"
+    echo ""
+
+    # Profile forward + backward
+    echo "2. Forward + Backward..."
+    uv run nsys profile \
+        -o "${OUTPUT_DIR}/${model}_forward_backward_annotated.nsys-rep" \
+        --force-overwrite true \
+        --trace=cuda,nvtx --stats=true \
+        --python-backtrace=cuda \
+        python -m cs336_systems.nsight_systems_profiler.profile_model \
+        --model-size "$model" \
+        --context-length 512 \
+        --batch-size 4 \
+        --warmup-steps 5 \
+        --measure-steps 10 \
+        --profile-type forward_backward \
+        --use-annotated-attention
+
+    echo "  ✓ Forward+Backward profile saved"
+    echo ""
+done
 
 echo ""
 echo "=========================================="

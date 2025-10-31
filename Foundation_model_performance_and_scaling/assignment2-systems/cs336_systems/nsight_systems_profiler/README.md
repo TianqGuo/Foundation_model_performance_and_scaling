@@ -7,25 +7,45 @@ This directory contains scripts for profiling Transformer models with NVIDIA Nsi
 ```bash
 cd cs336_systems/nsight_systems_profiler
 
-# Run specific parts
-./profile_part_a.sh    # Part (a): Forward pass timing
-./profile_part_b_c.sh  # Parts (b) & (c): Kernel analysis
-./profile_part_d.sh    # Part (d): Training step
-./profile_part_e.sh    # Part (e): Attention components
+# Run specific parts (each profiles ALL 5 model sizes)
+./profile_part_a.sh    # Part (a): Forward pass timing - 5 models
+./profile_part_b_c.sh  # Parts (b) & (c): Kernel analysis - 5 models × 2 profiles
+./profile_part_d.sh    # Part (d): Training step - 5 models
+./profile_part_e.sh    # Part (e): Attention components - 5 models
 
-# Or profile everything (1-3 hours)
+# Extract text summaries (commit these, not binary files)
+./extract_all_analyses.sh    # NVTX timing → ANALYSIS_SUMMARY.txt
+./export_stats_reports.sh    # Kernel statistics → stats_reports/
+
+# Or profile everything (models × contexts × types)
 ./profile_all.sh
 ```
 
+### Model Coverage
+
+**All scripts now profile all 5 model sizes**: small, medium, large, xl, 2.7B
+
+- `profile_part_a.sh` - 5 models × forward pass = **5 profiles**
+- `profile_part_b_c.sh` - 5 models × (forward + forward+backward) = **10 profiles**
+- `profile_part_d.sh` - 5 models × training = **5 profiles**
+- `profile_part_e.sh` - 5 models × attention = **5 profiles**
+- Total: **25 profiles** covering all assignment requirements
+
 ### Files
 
+**Profiling Scripts**:
 - `profile_model.py` - Main profiling script with NVTX annotations
 - `annotated_attention.py` - NVTX-annotated attention for detailed profiling
 - `profile_part_a.sh` - Forward pass profiling (question a)
 - `profile_part_b_c.sh` - Kernel analysis (questions b & c)
 - `profile_part_d.sh` - Training step profiling (question d)
 - `profile_part_e.sh` - Attention component analysis (question e)
-- `profile_all.sh` - Profile all models and contexts
+- `profile_all.sh` - Profile all models, contexts, and types
+
+**Analysis Scripts**:
+- `analyze_wsl_profiles.py` - Extract NVTX timing from .sqlite files
+- `extract_all_analyses.sh` - Batch process all profiles → ANALYSIS_SUMMARY.txt
+- `export_stats_reports.sh` - Extract kernel statistics → stats_reports/
 
 ### Assignment Questions
 
@@ -35,13 +55,50 @@ cd cs336_systems/nsight_systems_profiler
 **Part (d):** Compare kernel distribution: inference vs training
 **Part (e):** Compare softmax vs matmul runtime/FLOPs in attention
 
-### Output
+### Output Structure
 
-Profiles saved to: `../../results/nsight_profiles/`
+```
+results/nsight_profiles/
+├── ANALYSIS_SUMMARY.txt          # NVTX timing (commit this)
+├── stats_reports/                # Kernel statistics (commit this)
+│   ├── part_a/
+│   ├── part_b_c/
+│   ├── part_d/
+│   └── part_e/
+├── part_a/
+│   ├── small_forward_ctx512.nsys-rep     # Binary (don't commit)
+│   ├── medium_forward_ctx512.nsys-rep
+│   ├── large_forward_ctx512.nsys-rep
+│   ├── xl_forward_ctx512.nsys-rep
+│   └── 2.7B_forward_ctx512.nsys-rep
+├── part_b_c/
+│   ├── small_forward_annotated.nsys-rep
+│   ├── small_forward_backward_annotated.nsys-rep
+│   └── ... (10 profiles total)
+├── part_d/
+│   └── ... (5 training profiles)
+└── part_e/
+    └── ... (5 attention profiles)
+```
 
-### Viewing Profiles
+**Total output**: 25 binary profiles + text summaries
 
-1. Download `.nsys-rep` files to your local machine
+### Working with Results
+
+**On H100 (after profiling)**:
+```bash
+# Extract text summaries
+./extract_all_analyses.sh    # Creates ANALYSIS_SUMMARY.txt
+./export_stats_reports.sh    # Creates stats_reports/
+
+# Download ONLY text files to local (not 125MB+ binary files)
+# From local machine:
+scp h100:~/path/results/nsight_profiles/ANALYSIS_SUMMARY.txt ./results/nsight_profiles/
+scp -r h100:~/path/results/nsight_profiles/stats_reports/ ./results/nsight_profiles/
+```
+
+**Viewing Binary Profiles**:
+1. Download `.nsys-rep` files to local Windows machine (if needed for GUI)
 2. Open with Nsight Systems GUI
 3. Use NVTX ranges to filter (exclude warmup)
 4. Check "CUDA GPU Kernel Summary" in Stats System View
@@ -91,27 +148,33 @@ The profiler adds NVTX ranges for:
 
 - NVIDIA Nsight Systems installed (`nsys` command)
 - CUDA-capable GPU
-- A100 40GB recommended for xl/2.7B models
+- H100 80GB recommended for all models (xl/2.7B require high memory)
 
-### WSL2 Limitations
+### Environment Compatibility
 
-If running in WSL2, nsys **cannot capture GPU kernel execution data** due to virtualized GPU drivers.
+**All scripts work on both**:
+- ✅ Local WSL2 (testing with small models)
+- ✅ H100 Lightning AI instance (production with all models)
 
-**What works in WSL2:**
-- ✓ NVTX timing (accurate - matches Python timing within 0.2%)
-- ✓ CUDA API traces
-- ✓ Overall timing for Part (a)
+**Local WSL2 Limitations**:
+- NVTX timing works correctly ✓
+- GPU kernel data may not be captured (virtualized driver)
+- Use for testing script logic, then run on H100 for complete data
 
-**What doesn't work:**
-- ✗ Individual kernel details (needed for Parts b-e)
-- ✗ Kernel names, execution times, memory ops
+**H100 (Recommended)**:
+- Complete kernel data capture ✓
+- Sufficient memory for all 5 model sizes ✓
+- Native Linux profiling capabilities ✓
 
-**Workarounds:**
-1. **Use compute center** - Run scripts on native Linux for full kernel data
-2. **Use analysis script** - Extract available WSL2 data:
-   ```bash
-   python analyze_wsl_profiles.py ../../results/nsight_profiles/part_a/small_forward_ctx512.sqlite
-   ```
-3. **Windows GUI** - Open .nsys-rep files in Nsight Systems GUI (may show more data)
+**Workflow**: Test locally → Deploy to H100 → Download text summaries
 
-See `WSL2_PROFILING_NOTES.txt` for detailed information.
+### Runtime Estimates
+
+On H100 instance:
+- `profile_part_a.sh`: ~10-15 min (5 models)
+- `profile_part_b_c.sh`: ~30-40 min (10 profiles)
+- `profile_part_d.sh`: ~15-20 min (5 models)
+- `profile_part_e.sh`: ~15-20 min (5 models)
+- **Total**: ~70-95 minutes for all parts
+
+Note: xl and 2.7B models take longer than smaller models.
