@@ -18,6 +18,12 @@
 #   - Text reports in ../../results/nsight_profiles/stats_reports/
 #   - Each profile gets multiple report types
 #
+# FIX NOTES (Oct 31, 2025):
+#   - Added --force-export=true flag to handle stale .sqlite files
+#   - Added cleanup step to delete old .sqlite files before processing
+#   - This fixes the issue where ~350-byte placeholder files were created
+#     when nsys stats refused to regenerate stale exports
+#
 # ==============================================================================
 
 set -e
@@ -43,6 +49,12 @@ fi
 PROFILES_DIR="../../results/nsight_profiles"
 STATS_DIR="${PROFILES_DIR}/stats_reports"
 mkdir -p "$STATS_DIR"
+
+# Clean up any stale .sqlite export files to avoid conflicts
+echo "Cleaning up stale .sqlite export files..."
+find "$PROFILES_DIR" -name "*.sqlite" -delete 2>/dev/null || true
+echo "  ✓ Cleanup complete"
+echo ""
 
 # Report types to generate
 REPORTS=(
@@ -85,6 +97,7 @@ for nsys_file in $nsys_files; do
 
         nsys stats \
             --report "$report_type" \
+            --force-export=true \
             "$nsys_file" \
             > "$output_file" 2>&1 || {
             echo "    WARNING: $report_type report failed (may be skipped if no data)"
