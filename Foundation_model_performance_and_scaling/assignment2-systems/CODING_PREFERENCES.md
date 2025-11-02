@@ -28,18 +28,25 @@ cs336_systems/
 ### Results and Output
 ```
 results/                         # All output files
-├── profiling_benchmarking_*.csv
-├── nsight_profiles/
+├── profiling_benchmarking/      # Organized by module
+│   ├── separate.csv
+│   └── warmup_comparison.csv
+├── nsight_profiles/             # Organized by module
 │   ├── part_a/
 │   ├── part_b_c/
-│   └── ...
-└── [module_name]_*.csv
+│   └── ANALYSIS_SUMMARY.txt
+├── mixed_precision/             # Organized by module
+│   └── mixed_precision_benchmark.csv
+└── [module_name]/               # Each module gets its own subdirectory
 ```
 
 **Key principles:**
 - All results go to `results/` directory
-- Use descriptive naming: `results/{module}_{script}.csv`
-- Organized by module and task
+- **IMPORTANT**: Each module gets its own subdirectory in `results/`
+  - ✅ `results/mixed_precision/mixed_precision_benchmark.csv`
+  - ❌ `results/mixed_precision_benchmark.csv`
+- Use descriptive naming: `results/{module}/{script}.csv`
+- Organized by module and task for scalability
 
 ## File Naming Conventions
 
@@ -54,10 +61,12 @@ results/                         # All output files
 - Alternative: `profile_part_a.sh` if module name needed for clarity
 
 ### Output Files
-- Pattern: `{module}_{description}.csv`
+- Pattern: `results/{module}/{description}.csv`
 - Examples:
-  - `profiling_benchmarking_separate.csv`
-  - `profiling_benchmarking_warmup_comparison.csv`
+  - `results/profiling_benchmarking/separate.csv`
+  - `results/profiling_benchmarking/warmup_comparison.csv`
+  - `results/mixed_precision/mixed_precision_benchmark.csv`
+- **NOT**: All files in root `results/` directory
 - **NOT**: Generic names like `results.csv`, `results_main.csv`
 
 ## Documentation Style
@@ -257,16 +266,20 @@ from cs336_basics.transformer_training.model import TransformerLM
 parser.add_argument(
     "--output",
     type=str,
-    default="results/module_name_output.csv",  # Good default
-    help="Output CSV file path (default: results/module_name_output.csv)",
+    default="results/module_name/output.csv",  # Good default - organized by module
+    help="Output CSV file path (default: results/module_name/output.csv)",
 )
 
 # In code:
 output_path = Path(args.output)
-output_path.parent.mkdir(parents=True, exist_ok=True)  # Auto-create
+output_path.parent.mkdir(parents=True, exist_ok=True)  # Auto-create subdirectory
 df.to_csv(args.output, index=False)
 print(f"Results saved to {args.output}")  # Confirm to user
 ```
+
+**Key principle**: Always organize results by module subdirectory for scalability:
+- ✅ `results/mixed_precision/benchmark.csv` - Easy to find module-specific results
+- ❌ `results/mixed_precision_benchmark.csv` - Root directory becomes cluttered
 
 ## What to Ask Before Creating Files
 
@@ -386,7 +399,7 @@ __pycache__/
 2. **One README per module** - not multiple documentation files
 3. **Explanations in code comments** - not separate files
 4. **Descriptive output names** - `module_task.csv`, not `results.csv`
-5. **Results in `results/` folder** - with automatic directory creation
+5. **Results organized by module** - `results/{module}/file.csv`, not `results/file.csv`
 6. **Shell script per task** - `part_b.sh`, `part_c.sh`
 7. **Self-documenting code** - comprehensive headers and comments
 8. **Handle errors gracefully** - especially OOM errors
@@ -412,9 +425,14 @@ assignment2-systems/
 ```
 assignment2-systems/
 ├── CODING_PREFERENCES.md         # Essential reference doc
-├── results/                      # All outputs here 
-│   ├── profiling_benchmarking_separate.csv
-│   └── profiling_benchmarking_warmup.csv
+├── results/                      # All outputs here, organized by module
+│   ├── profiling_benchmarking/  # Module subdirectory
+│   │   ├── separate.csv
+│   │   └── warmup_comparison.csv
+│   ├── nsight_profiles/         # Module subdirectory
+│   │   └── ANALYSIS_SUMMARY.txt
+│   └── mixed_precision/         # Module subdirectory
+│       └── mixed_precision_benchmark.csv
 └── cs336_systems/
     ├── profiling_benchmarking/
     │   ├── benchmark.py
@@ -423,9 +441,13 @@ assignment2-systems/
     │   ├── part_b.sh            # Scripts with inline docs
     │   ├── part_c.sh
     │   └── README.md            # Single README
-    └── nsight_systems_profiler/
-        ├── profile_model.py
-        ├── profile_part_a.sh
+    ├── nsight_systems_profiler/
+    │   ├── profile_model.py
+    │   ├── profile_part_a.sh
+    │   └── README.md
+    └── mixed_precision/
+        ├── accumulation_comparison.py
+        ├── run_accumulation.sh
         └── README.md
 ```
 

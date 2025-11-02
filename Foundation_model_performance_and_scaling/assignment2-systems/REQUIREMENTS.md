@@ -55,3 +55,16 @@
 - Deliverable (c): note non-matmul CUDA kernels that contribute meaningful runtime (1–2 sentences).
 - Deliverable (d): profile full training step with AdamW; contrast matrix-multiplication share of runtime versus inference-only, and note shifts for other kernels (1–2 sentences).
 - Deliverable (e): compare softmax versus matrix multiplication runtimes within self-attention and relate differences to their FLOP counts (1–2 sentences).
+
+#### 1.1.5 Mixed Precision (mixed_precision_accumulation, benchmarking_mixed_precision; 3 pts)
+- Context: FP16/BF16 Tensor Cores accelerate matmuls versus FP32 but require careful handling to avoid underflow/overflow; use `torch.autocast(device="cuda", dtype=...)` to apply mixed precision selectively while retaining FP32 accumulations where needed.
+- Autocast usage: enclose forward computations in the autocast context; prefer keeping accumulations in FP32 even when operands are downcast.
+
+- Deliverable (mixed_precision_accumulation, 1 pt):
+  - Run the provided accumulation loops comparing FP32 and FP16 accumulation strategies.
+  - Explain observed accuracy differences across the four accumulation variants in 2–3 sentences.
+
+- Deliverable (benchmarking_mixed_precision, 2 pts):
+  - (a) For the `ToyModel` defined in the prompt, assume FP32 parameters and FP16 autocast; report data types observed for: model parameters inside autocast, `fc1` output, `ln` output, predicted logits, loss, and gradients.
+  - (b) Describe (2–3 sentences) which layer normalization components are sensitive to mixed precision, and whether BF16 requires special handling compared to FP16, with justification.
+  - (c) Extend the benchmarking script with an optional BF16 mixed-precision mode (consider `contextlib.nullcontext` for no-op contexts). Benchmark forward/backward passes with and without mixed precision for each model size in §1.1.2, then summarize timings and trends over 2–3 sentences.
