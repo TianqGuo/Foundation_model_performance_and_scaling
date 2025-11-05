@@ -68,3 +68,11 @@
   - (a) For the `ToyModel` defined in the prompt, assume FP32 parameters and FP16 autocast; report data types observed for: model parameters inside autocast, `fc1` output, `ln` output, predicted logits, loss, and gradients.
   - (b) Describe (2–3 sentences) which layer normalization components are sensitive to mixed precision, and whether BF16 requires special handling compared to FP16, with justification.
   - (c) Extend the benchmarking script with an optional BF16 mixed-precision mode (consider `contextlib.nullcontext` for no-op contexts). Benchmark forward/backward passes with and without mixed precision for each model size in §1.1.2, then summarize timings and trends over 2–3 sentences.
+
+#### 1.1.6 Memory Profiling (memory_profiling; 4 pts)
+- Extend the profiling script with a flag that wraps runs in `torch.cuda.memory._record_memory_history(max_entries=1_000_000)`, dumps to `memory_snapshot.pickle` via `_dump_snapshot`, and stops recording with `_record_memory_history(enabled=None)` after either a forward-only run or a complete training step (forward+backward+optimizer). Reuse existing options for model selection, context length, and mixed precision so the 2.7B model at context lengths 128/256/512 can be profiled consistently. Analyze snapshots using https://pytorch.org/memory_viz.
+- Deliverable (a): capture two “Active memory timeline” screenshots for the 2.7B model—one forward-only, one full training step—and add a 2–3 sentence explanation of how timeline peaks align with the execution stages.
+- Deliverable (b): tabulate the peak GPU memory for each context length {128, 256, 512}, reporting separate values for forward-only and full training runs.
+- Deliverable (c): repeat peak-memory measurements with mixed precision enabled for the 2.7B model (forward and full training); provide a 2–3 sentence discussion of the observed memory deltas.
+- Deliverable (d): compute the single-precision size (in MB, using 1024² bytes) of one Transformer residual-stream activation tensor under the reference hyperparameters, and show the 1–2 sentence derivation and result.
+- Deliverable (e): inspect the forward-pass snapshot at reduced “Detail” levels to identify the largest allocations, report their sizes, and name the originating code path per the stack trace in 1–2 sentences.
