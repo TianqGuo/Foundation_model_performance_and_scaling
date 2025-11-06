@@ -78,9 +78,9 @@ echo "Running Part (d): Activation Tensor Size Analysis"
 echo "=============================================================================="
 echo ""
 python -m cs336_systems.memory_profiling.analyze_activation_size > \
-    results/memory_profiling/activation_size_analysis.txt
+    ../../results/memory_profiling/activation_size_analysis.txt
 
-cat results/memory_profiling/activation_size_analysis.txt
+cat ../../results/memory_profiling/activation_size_analysis.txt
 
 END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))

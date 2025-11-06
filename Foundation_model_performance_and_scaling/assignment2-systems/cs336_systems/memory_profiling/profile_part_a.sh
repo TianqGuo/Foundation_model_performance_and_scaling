@@ -67,7 +67,7 @@ python -m cs336_systems.memory_profiling.profile_memory \
     --warmup-steps ${WARMUP_STEPS} \
     --measure-steps ${MEASURE_STEPS} \
     --profile-type forward \
-    --output "results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_forward_snapshot.pickle"
+    --output "../../results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_forward_snapshot.pickle"
 
 echo ""
 echo "✓ Forward pass profiling complete"
@@ -86,7 +86,7 @@ python -m cs336_systems.memory_profiling.profile_memory \
     --warmup-steps ${WARMUP_STEPS} \
     --measure-steps ${MEASURE_STEPS} \
     --profile-type training \
-    --output "results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_training_snapshot.pickle"
+    --output "../../results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_training_snapshot.pickle"
 
 echo ""
 echo "✓ Full training step profiling complete"

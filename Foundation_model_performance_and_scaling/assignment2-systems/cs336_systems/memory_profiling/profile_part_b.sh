@@ -35,7 +35,7 @@ BATCH_SIZE=4
 WARMUP_STEPS=5
 MEASURE_STEPS=10
 
-SUMMARY_FILE="results/memory_profiling/peak_memory_summary.txt"
+SUMMARY_FILE="../../results/memory_profiling/peak_memory_summary.txt"
 
 echo "=============================================================================="
 echo "Memory Profiling - Part (b): Peak Memory Usage"
@@ -53,7 +53,7 @@ if ! python -c "import torch; assert torch.cuda.is_available()" 2>/dev/null; the
 fi
 
 # Create output directory
-mkdir -p results/memory_profiling
+mkdir -p ../../results/memory_profiling
 
 # Initialize summary file
 cat > "${SUMMARY_FILE}" << 'EOF'
@@ -88,7 +88,7 @@ for CTX_LEN in "${CONTEXT_LENGTHS[@]}"; do
         --warmup-steps ${WARMUP_STEPS} \
         --measure-steps ${MEASURE_STEPS} \
         --profile-type forward \
-        --output "results/memory_profiling/${MODEL_SIZE}_ctx${CTX_LEN}_forward_snapshot.pickle" 2>&1)
+        --output "../../results/memory_profiling/${MODEL_SIZE}_ctx${CTX_LEN}_forward_snapshot.pickle" 2>&1)
 
     # Extract peak memory from output
     FWD_PEAK=$(echo "$OUTPUT" | grep "Peak memory:" | awk '{print $3}')
@@ -108,7 +108,7 @@ for CTX_LEN in "${CONTEXT_LENGTHS[@]}"; do
         --warmup-steps ${WARMUP_STEPS} \
         --measure-steps ${MEASURE_STEPS} \
         --profile-type training \
-        --output "results/memory_profiling/${MODEL_SIZE}_ctx${CTX_LEN}_training_snapshot.pickle" 2>&1)
+        --output "../../results/memory_profiling/${MODEL_SIZE}_ctx${CTX_LEN}_training_snapshot.pickle" 2>&1)
 
     # Extract peak memory from output
     TRAIN_PEAK=$(echo "$OUTPUT" | grep "Peak memory:" | awk '{print $3}')

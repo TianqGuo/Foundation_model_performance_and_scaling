@@ -34,7 +34,7 @@ BATCH_SIZE=4
 WARMUP_STEPS=5
 MEASURE_STEPS=10
 
-SUMMARY_FILE="results/memory_profiling/mixed_precision_memory_summary.txt"
+SUMMARY_FILE="../../results/memory_profiling/mixed_precision_memory_summary.txt"
 
 echo "=============================================================================="
 echo "Memory Profiling - Part (c): Mixed Precision Memory Usage"
@@ -62,7 +62,7 @@ fi
 echo ""
 
 # Create output directory
-mkdir -p results/memory_profiling
+mkdir -p ../../results/memory_profiling
 
 # Initialize summary file
 cat > "${SUMMARY_FILE}" << EOF
@@ -95,7 +95,7 @@ OUTPUT_FP32_FWD=$(python -m cs336_systems.memory_profiling.profile_memory \
     --warmup-steps ${WARMUP_STEPS} \
     --measure-steps ${MEASURE_STEPS} \
     --profile-type forward \
-    --output "results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_forward_fp32_snapshot.pickle" 2>&1)
+    --output "../../results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_forward_fp32_snapshot.pickle" 2>&1)
 
 FP32_FWD_PEAK=$(echo "$OUTPUT_FP32_FWD" | grep "Peak memory:" | awk '{print $3}')
 echo "FP32 forward pass peak memory: ${FP32_FWD_PEAK} MB"
@@ -117,7 +117,7 @@ OUTPUT_MP_FWD=$(python -m cs336_systems.memory_profiling.profile_memory \
     --profile-type forward \
     --use-mixed-precision \
     --dtype "${DTYPE}" \
-    --output "results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_forward_${DTYPE}_snapshot.pickle" 2>&1)
+    --output "../../results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_forward_${DTYPE}_snapshot.pickle" 2>&1)
 
 MP_FWD_PEAK=$(echo "$OUTPUT_MP_FWD" | grep "Peak memory:" | awk '{print $3}')
 FWD_SAVINGS=$(python -c "print(f'{(1 - ${MP_FWD_PEAK}/${FP32_FWD_PEAK}) * 100:.1f}%')")
@@ -139,7 +139,7 @@ OUTPUT_FP32_TRAIN=$(python -m cs336_systems.memory_profiling.profile_memory \
     --warmup-steps ${WARMUP_STEPS} \
     --measure-steps ${MEASURE_STEPS} \
     --profile-type training \
-    --output "results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_training_fp32_snapshot.pickle" 2>&1)
+    --output "../../results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_training_fp32_snapshot.pickle" 2>&1)
 
 FP32_TRAIN_PEAK=$(echo "$OUTPUT_FP32_TRAIN" | grep "Peak memory:" | awk '{print $3}')
 echo "FP32 training step peak memory: ${FP32_TRAIN_PEAK} MB"
@@ -161,7 +161,7 @@ OUTPUT_MP_TRAIN=$(python -m cs336_systems.memory_profiling.profile_memory \
     --profile-type training \
     --use-mixed-precision \
     --dtype "${DTYPE}" \
-    --output "results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_training_${DTYPE}_snapshot.pickle" 2>&1)
+    --output "../../results/memory_profiling/${MODEL_SIZE}_ctx${CONTEXT_LENGTH}_training_${DTYPE}_snapshot.pickle" 2>&1)
 
 MP_TRAIN_PEAK=$(echo "$OUTPUT_MP_TRAIN" | grep "Peak memory:" | awk '{print $3}')
 TRAIN_SAVINGS=$(python -c "print(f'{(1 - ${MP_TRAIN_PEAK}/${FP32_TRAIN_PEAK}) * 100:.1f}%')")
