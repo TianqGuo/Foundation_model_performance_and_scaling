@@ -1,0 +1,79 @@
+================================================================================
+Activation Tensor Size Analysis - Part (d)
+================================================================================
+
+Model: 2.7B
+Reference hyperparameters:
+  Batch size: 4
+  Context length: 512
+  d_model: 2560
+
+--------------------------------------------------------------------------------
+Single-Precision (FP32) Activation Tensor Size
+--------------------------------------------------------------------------------
+Tensor shape: (4, 512, 2560)
+  = (batch_size, context_length, d_model)
+  = (4, 512, 2560)
+
+Number of elements: 5,242,880
+Bytes per element (FP32): 4
+
+Total size:
+  20,971,520 bytes
+  20.0000 MB
+
+--------------------------------------------------------------------------------
+Derivation:
+--------------------------------------------------------------------------------
+
+A single activation tensor in the Transformer residual stream has shape:
+  (B, T, d_model) = (4, 512, 2560)
+
+Number of elements:
+  B × T × d_model = 4 × 512 × 2560
+                  = 5,242,880 elements
+
+Size in bytes (single precision = 4 bytes per float):
+  5,242,880 × 4 bytes = 20,971,520 bytes
+
+Size in MB (dividing by 1024²):
+  20,971,520 / (1024²) = 20.0000 MB
+
+--------------------------------------------------------------------------------
+For comparison: Mixed Precision (BF16/FP16)
+--------------------------------------------------------------------------------
+
+BF16/FP16 activation size: 10.0000 MB
+Memory savings vs FP32: 50.0%
+
+--------------------------------------------------------------------------------
+Context:
+--------------------------------------------------------------------------------
+
+The 2.7B model has 32 layers.
+
+During the forward pass, we need to store activations at each layer
+for use in the backward pass. This means storing approximately:
+  32 layers × 20.0000 MB/layer
+  ≈ 640.00 MB for residual stream activations
+
+Additional memory is needed for:
+  - Attention intermediate values (Q, K, V, attention scores)
+  - Feed-forward intermediate activations
+  - Gradients (same size as activations)
+  - Model parameters
+  - Optimizer states
+
+This explains why the peak memory from part (b) is much larger than
+just the activation sizes.
+
+================================================================================
+ANSWER FOR WRITEUP (Part d):
+================================================================================
+
+At the reference hyperparameters (batch size 4, context length 512),
+a single activation tensor in the Transformer residual stream has shape
+(4, 512, 2560) with 5,242,880 elements.
+In single precision (FP32), this requires 20,971,520 bytes,
+which equals 20.0000 MB (dividing by 1024²).
+

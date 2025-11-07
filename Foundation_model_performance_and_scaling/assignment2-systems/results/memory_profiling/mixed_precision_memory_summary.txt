@@ -1,0 +1,35 @@
+================================================================================
+Mixed Precision Memory Usage Summary - Part (c)
+================================================================================
+
+Model: 2.7B
+Context length: 512
+Batch size: 4
+Mixed precision dtype: BF16
+
+================================================================================
+
+Configuration        | Peak Memory (MB) | Memory Savings vs FP32
+---------------------|------------------|------------------------
+FP32 Forward         | 14010.65         | baseline              
+BF16 Forward         | 19973.40         | -42.6%                
+FP32 Training        | 69459.53         | baseline              
+BF16 Training        | 66524.90         | 4.2%                  
+
+================================================================================
+Analysis Notes:
+================================================================================
+
+Memory usage breakdown:
+- Model parameters: Store in FP32 for stability (not affected by mixed precision)
+- Activations: Stored in lower precision (BF16/FP16) - reduces memory
+- Gradients: Computed in lower precision then cast back - reduces memory
+- Optimizer states: Stored in FP32 (not affected by mixed precision)
+
+Key observations:
+- Mixed precision reduces activation/gradient memory
+- Optimizer state memory (AdamW ~2x params) remains in FP32
+- Memory savings are less pronounced in training vs inference
+- Larger context lengths see more benefit from mixed precision
+
+================================================================================

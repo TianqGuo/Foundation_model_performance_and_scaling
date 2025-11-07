@@ -1,0 +1,19 @@
+================================================================================
+Peak Memory Usage Summary - Part (b)
+================================================================================
+
+Model: 2.7B
+Batch size: 4
+
+Context Length | Forward Pass (MB) | Full Training Step (MB)
+---------------|-------------------|-------------------------
+128            | 13287.89          | 65577.08               
+256            | 13457.46          | 65408.06               
+512            | 14010.65          | 69459.53               
+
+================================================================================
+Notes:
+- Peak memory includes model parameters, activations, and gradients
+- Training step memory includes optimizer states (AdamW has ~2x parameter memory)
+- Memory usage scales with context length due to activation growth
+================================================================================

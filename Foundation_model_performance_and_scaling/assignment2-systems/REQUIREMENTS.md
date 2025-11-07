@@ -76,3 +76,10 @@
 - Deliverable (c): repeat peak-memory measurements with mixed precision enabled for the 2.7B model (forward and full training); provide a 2–3 sentence discussion of the observed memory deltas.
 - Deliverable (d): compute the single-precision size (in MB, using 1024² bytes) of one Transformer residual-stream activation tensor under the reference hyperparameters, and show the 1–2 sentence derivation and result.
 - Deliverable (e): inspect the forward-pass snapshot at reduced “Detail” levels to identify the largest allocations, report their sizes, and name the originating code path per the stack trace in 1–2 sentences.
+
+### 1.2 Optimizing Attention with FlashAttention-2
+
+#### 1.2.1 Benchmarking PyTorch Attention (pytorch_attention; 2 pts)
+- Implement a standalone benchmarking script for a single-head attention module (batch size fixed to 8, no explicit head dimension). For each combination of head dimension `d_model ∈ {16, 32, 64, 128}` and sequence length `seq_len ∈ {256, 1024, 4096, 8192, 16384}`, allocate random `Q/K/V` tensors, run warm-ups, then measure 100 forward passes and 100 backward passes, calling `torch.cuda.synchronize()` after each iteration. Record timing per configuration and capture peak memory in use right before backward begins (e.g., via `torch.cuda.max_memory_allocated()` or equivalent). Handle out-of-memory cases and note them explicitly.
+- For the smallest configuration that OOMs, compute the theoretical memory footprint of naïve attention (scores + softmax intermediates + gradients) using the Assignment 1 formulas, and explain how much memory is reclaimed during backward when sequence length changes; discuss mitigation strategies to remove this `seq_len²` storage cost (e.g., tiled/streaming attention such as FlashAttention-2).
+- Deliverable: a table covering every `(d_model, seq_len)` pair with forward/backward timings or “OOM”, the detailed memory accounting for the selected failing case, and a 1–2 paragraph write-up answering the OOM threshold, backward-memory scaling with `seq_len`, and the proposed approach to eliminate the memory overhead.
