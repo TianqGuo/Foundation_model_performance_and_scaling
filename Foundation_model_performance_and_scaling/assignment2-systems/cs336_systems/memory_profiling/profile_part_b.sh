@@ -118,6 +118,10 @@ for CTX_LEN in "${CONTEXT_LENGTHS[@]}"; do
 
     # Add to summary
     printf "%-14s | %-17s | %-23s\n" "${CTX_LEN}" "${FWD_PEAK}" "${TRAIN_PEAK}" >> "${SUMMARY_FILE}"
+
+    # Brief pause to ensure GPU memory is fully released before next context length
+    echo "Waiting for GPU memory to clear..."
+    sleep 2
 done
 
 # Finalize summary

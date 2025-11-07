@@ -279,6 +279,11 @@ def main():
         print("ERROR: CUDA not available. This script requires a GPU.")
         return
 
+    # Clear GPU cache to ensure clean state
+    if args.device == "cuda":
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+
     # Get model config
     config = MODEL_CONFIGS[args.model_size]
 
@@ -368,6 +373,13 @@ def main():
         print(f"Total time ({stats['num_steps']} steps): {stats['total_time_s']:.2f} s")
         print("=" * 80)
         print()
+
+        # Clean up GPU memory
+        del model
+        if args.profile_type == "training":
+            del optimizer
+        del input_ids
+        torch.cuda.empty_cache()
 
     except RuntimeError as e:
         if "out of memory" in str(e).lower():

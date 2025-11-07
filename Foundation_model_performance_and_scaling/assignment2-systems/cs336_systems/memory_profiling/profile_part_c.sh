@@ -102,6 +102,10 @@ echo "FP32 forward pass peak memory: ${FP32_FWD_PEAK} MB"
 printf "%-20s | %-16s | %-22s\n" "FP32 Forward" "${FP32_FWD_PEAK}" "baseline" >> "${SUMMARY_FILE}"
 echo ""
 
+# Wait for GPU memory to clear
+echo "Waiting for GPU memory to clear..."
+sleep 2
+
 # Profile BF16 forward pass
 echo "=============================================================================="
 echo "2. ${DTYPE^^} Forward Pass (Mixed Precision)"
@@ -126,6 +130,10 @@ echo "Memory savings: ${FWD_SAVINGS}"
 printf "%-20s | %-16s | %-22s\n" "${DTYPE^^} Forward" "${MP_FWD_PEAK}" "${FWD_SAVINGS}" >> "${SUMMARY_FILE}"
 echo ""
 
+# Wait for GPU memory to clear
+echo "Waiting for GPU memory to clear..."
+sleep 2
+
 # Profile FP32 training step
 echo "=============================================================================="
 echo "3. FP32 Full Training Step"
@@ -145,6 +153,10 @@ FP32_TRAIN_PEAK=$(echo "$OUTPUT_FP32_TRAIN" | grep "Peak memory:" | awk '{print 
 echo "FP32 training step peak memory: ${FP32_TRAIN_PEAK} MB"
 printf "%-20s | %-16s | %-22s\n" "FP32 Training" "${FP32_TRAIN_PEAK}" "baseline" >> "${SUMMARY_FILE}"
 echo ""
+
+# Wait for GPU memory to clear
+echo "Waiting for GPU memory to clear..."
+sleep 2
 
 # Profile BF16 training step
 echo "=============================================================================="
