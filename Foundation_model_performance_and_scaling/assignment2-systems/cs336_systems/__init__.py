@@ -1,7 +1,10 @@
 import importlib.metadata
 
-__version__ = importlib.metadata.version("cs336-systems")
+try:
+    __version__ = importlib.metadata.version("cs336-systems")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "0.1.0"
 
-from . import profiling_benchmarking
+from . import profiling_benchmarking, attention_benchmarking
 
-__all__ = ["profiling_benchmarking"]
+__all__ = ["profiling_benchmarking", "attention_benchmarking"]
