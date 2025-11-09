@@ -1,0 +1,95 @@
+================================================================================
+PyTorch Attention Benchmarking
+================================================================================
+Batch size: 8
+d_model values: [16, 32, 64, 128]
+seq_len values: [256, 1024, 4096, 8192, 16384]
+Warmup iterations: 10
+Measurement iterations: 100
+
+Testing d_model=16, seq_len=256... ✓ (fwd: 0.17ms, bwd: 0.42ms, mem: 24.9MB)
+Testing d_model=16, seq_len=1024... ✓ (fwd: 0.56ms, bwd: 1.35ms, mem: 146.8MB)
+Testing d_model=16, seq_len=4096... ✓ (fwd: 10.18ms, bwd: 18.78ms, mem: 2074.3MB)
+Testing d_model=16, seq_len=8192... ✓ (fwd: 36.58ms, bwd: 70.37ms, mem: 8228.3MB)
+Testing d_model=16, seq_len=16384... OOM
+Testing d_model=32, seq_len=256... ✓ (fwd: 0.46ms, bwd: 0.98ms, mem: 25.5MB)
+Testing d_model=32, seq_len=1024... ✓ (fwd: 0.51ms, bwd: 1.07ms, mem: 149.3MB)
+Testing d_model=32, seq_len=4096... ✓ (fwd: 10.60ms, bwd: 17.66ms, mem: 2084.3MB)
+Testing d_model=32, seq_len=8192... ✓ (fwd: 36.24ms, bwd: 71.77ms, mem: 8248.3MB)
+Testing d_model=32, seq_len=16384... OOM
+Testing d_model=64, seq_len=256... ✓ (fwd: 0.50ms, bwd: 0.99ms, mem: 26.8MB)
+Testing d_model=64, seq_len=1024... ✓ (fwd: 0.54ms, bwd: 1.17ms, mem: 154.3MB)
+Testing d_model=64, seq_len=4096... ✓ (fwd: 11.80ms, bwd: 19.21ms, mem: 2104.3MB)
+Testing d_model=64, seq_len=8192... ✓ (fwd: 40.59ms, bwd: 73.70ms, mem: 8288.3MB)
+Testing d_model=64, seq_len=16384... OOM
+Testing d_model=128, seq_len=256... ✓ (fwd: 0.56ms, bwd: 1.04ms, mem: 29.3MB)
+Testing d_model=128, seq_len=1024... ✓ (fwd: 0.60ms, bwd: 1.29ms, mem: 164.3MB)
+Testing d_model=128, seq_len=4096... ✓ (fwd: 13.86ms, bwd: 21.00ms, mem: 2144.3MB)
+Testing d_model=128, seq_len=8192... ✓ (fwd: 45.47ms, bwd: 79.32ms, mem: 8368.3MB)
+Testing d_model=128, seq_len=16384... OOM
+
+Results saved to: ../../results/attention_benchmarking/pytorch_attention_benchmark.csv
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+
+forward_mean_ms:
+--------------------------------------------------------------------------------
+seq_len      256       1024       4096       8192
+d_model                                          
+16       0.165715  0.560062  10.177127  36.583464
+32       0.459283  0.514130  10.601365  36.241932
+64       0.500342  0.544674  11.801575  40.591142
+128      0.561631  0.601325  13.857751  45.474486
+
+
+backward_mean_ms:
+--------------------------------------------------------------------------------
+seq_len      256       1024       4096       8192
+d_model                                          
+16       0.418739  1.346952  18.778037  70.372996
+32       0.982113  1.069505  17.655152  71.774010
+64       0.990339  1.165974  19.205789  73.701108
+128      1.039281  1.294001  20.999020  79.323455
+
+
+peak_memory_mb:
+--------------------------------------------------------------------------------
+seq_len       256         1024         4096         8192
+d_model                                                 
+16       24.875977  146.750977  2074.250977  8228.250977
+32       25.500977  149.250977  2084.250977  8248.250977
+64       26.750977  154.250977  2104.250977  8288.250977
+128      29.250977  164.250977  2144.250977  8368.250977
+
+
+status:
+--------------------------------------------------------------------------------
+seq_len    256      1024     4096     8192  16384
+d_model                                          
+16       success  success  success  success   OOM
+32       success  success  success  success   OOM
+64       success  success  success  success   OOM
+128      success  success  success  success   OOM
+
+
+================================================================================
+OUT OF MEMORY CONFIGURATIONS
+================================================================================
+
+ d_model  seq_len status
+      16    16384    OOM
+      32    16384    OOM
+      64    16384    OOM
+     128    16384    OOM
+
+Smallest OOM configuration:
+  d_model = 16
+  seq_len = 16384
+
+Run memory accounting analysis for this configuration:
+  python -m cs336_systems.attention_benchmarking.memory_accounting \
+    --d-model 16 \
+    --seq-len 16384

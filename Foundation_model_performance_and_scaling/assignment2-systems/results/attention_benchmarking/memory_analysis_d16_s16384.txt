@@ -1,0 +1,93 @@
+
+================================================================================
+DETAILED MEMORY ACCOUNTING
+================================================================================
+Configuration:
+  batch_size = 8
+  seq_len = 16384
+  d_model = 16
+  dtype = FP32 (4 bytes)
+
+Forward Pass Memory:
+--------------------------------------------------------------------------------
+  Inputs (Q, K, V):             24.00 MB
+    = 3 × 8 × 16384 × 16 × 4
+    = 25,165,824 bytes
+
+  Attention Scores (QK^T):    8192.00 MB
+    = 8 × 16384 × 16384 × 4
+    = 8,589,934,592 bytes
+
+  Attention Weights:          8192.00 MB
+    = 8 × 16384 × 16384 × 4
+    = 8,589,934,592 bytes
+
+  Output:                        8.00 MB
+    = 8 × 16384 × 16 × 4
+    = 8,388,608 bytes
+
+  Forward Total:             16416.00 MB
+
+Backward Pass Additional Memory:
+--------------------------------------------------------------------------------
+  Gradients (dQ, dK, dV):       24.00 MB
+    = 3 × 8 × 16384 × 16 × 4
+    = 25,165,824 bytes
+
+  Saved for backward:        16384.00 MB
+    (scores + attn_weights for gradient computation)
+
+  Backward Total:            16408.00 MB
+
+Total Memory Requirement:
+--------------------------------------------------------------------------------
+  TOTAL:                     32824.00 MB
+                           34,418,458,624 bytes
+
+Memory Breakdown:
+--------------------------------------------------------------------------------
+  seq_len² components:      49.9% (scores + attn_weights)
+  Other components:         50.1% (inputs + outputs + gradients)
+
+
+================================================================================
+MEMORY SCALING WITH SEQUENCE LENGTH
+================================================================================
+batch_size=8, d_model=16
+
+ seq_len |  Scores (MB) |   Total (MB) |  Scores / Total
+------------------------------------------------------------
+     256 |         2.00 |         8.88 |           22.5%
+    1024 |        32.00 |       131.50 |           24.3%
+    4096 |       512.00 |      2062.00 |           24.8%
+    8192 |      2048.00 |      8220.00 |           24.9%
+   16384 |      8192.00 |     32824.00 |           25.0%
+
+Observation: The seq_len² attention scores dominate memory for long sequences.
+
+================================================================================
+MITIGATION STRATEGIES TO ELIMINATE seq_len² MEMORY COST
+================================================================================
+
+1. FlashAttention-2 (Tiled/Streaming Attention):
+   - Compute attention in tiles, never materializing full seq_len² matrix
+   - Store only O(seq_len) instead of O(seq_len²)
+   - Recompute attention scores during backward (time vs memory tradeoff)
+
+2. Memory-Efficient Attention:
+   - Similar tiling approach
+   - Break computation into blocks that fit in SRAM
+
+3. Gradient Checkpointing:
+   - Don't store activations, recompute during backward
+   - Reduces memory at cost of 1 extra forward pass
+
+4. Sparse Attention Patterns:
+   - Only compute attention for subset of positions
+   - Reduces from O(seq_len²) to O(seq_len × pattern_size)
+
+Benefits of FlashAttention-2:
+  Current memory: 32824.00 MB
+  With FlashAttention-2: ~16440.00 MB
+  Memory savings: ~16384.00 MB (49.9%)
+

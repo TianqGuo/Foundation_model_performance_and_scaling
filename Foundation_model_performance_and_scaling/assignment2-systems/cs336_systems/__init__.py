@@ -5,6 +5,6 @@ try:
 except importlib.metadata.PackageNotFoundError:
     __version__ = "0.1.0"
 
-from . import profiling_benchmarking, attention_benchmarking
+from . import profiling_benchmarking, attention_benchmarking, torch_compile_benchmarking
 
-__all__ = ["profiling_benchmarking", "attention_benchmarking"]
+__all__ = ["profiling_benchmarking", "attention_benchmarking", "torch_compile_benchmarking"]
