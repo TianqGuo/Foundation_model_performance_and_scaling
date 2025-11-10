@@ -13,8 +13,8 @@
 #   results/torch_compile_benchmarking/compiled_transformer_benchmark.csv
 #
 # NOTES:
-#   - This will take 20-40 minutes depending on GPU
-#   - Tests small, medium, and large models
+#   - This will take 60-120 minutes depending on GPU and model sizes
+#   - Tests all model sizes: small, medium, large, xl, 2.7B
 #   - Compares forward-only, forward+backward, and full training step
 #
 # ==============================================================================
@@ -33,8 +33,8 @@ echo "==========================================================================
 echo ""
 echo "This will benchmark Transformer models comparing vanilla vs torch.compile"
 echo ""
-echo "Model sizes: small, medium, large"
-echo "Context lengths: 512, 1024"
+echo "Model sizes: small, medium, large, xl, 2.7B"
+echo "Context lengths: 128, 256, 512, 1024"
 echo "Pass types: forward-only, forward+backward, full training step"
 echo ""
 

@@ -58,8 +58,8 @@ Tests BOTH vanilla and compiled versions for each configuration.
 
 ### Part (b): Transformer Benchmarking
 
-- **Model sizes**: small, medium, large (configurable)
-- **Context lengths**: 512, 1024 (configurable)
+- **Model sizes**: small, medium, large, xl, 2.7B (all from §1.1.2)
+- **Context lengths**: 128, 256, 512, 1024 (same as §1.1.3)
 - **Batch size**: 4
 - **Warmup iterations**: 5
 - **Measurement iterations**: 10

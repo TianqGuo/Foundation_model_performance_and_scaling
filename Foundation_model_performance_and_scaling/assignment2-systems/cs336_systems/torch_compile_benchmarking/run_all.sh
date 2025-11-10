@@ -13,9 +13,10 @@
 #   All benchmarking results in results/torch_compile_benchmarking/
 #
 # NOTES:
-#   - This will take 30-60 minutes to complete all benchmarks
+#   - This will take 90-180 minutes to complete all benchmarks
+#   - Part (a) takes ~30 min, Part (b) takes ~60-120 min depending on GPU
 #   - Requires PyTorch 2.0+ for torch.compile support
-#   - Requires GPU with sufficient memory
+#   - Requires GPU with sufficient memory (H100 recommended for all model sizes)
 #
 # ==============================================================================
 
@@ -29,10 +30,10 @@ echo "Torch.compile Benchmarking - Running All Parts (1.3.1)"
 echo "=============================================================================="
 echo ""
 echo "This script will run all torch.compile benchmarking tasks:"
-echo "  Part (a): Compiled vs vanilla attention"
-echo "  Part (b): Compiled vs vanilla Transformer models"
+echo "  Part (a): Compiled vs vanilla attention (all d_model × seq_len configs)"
+echo "  Part (b): Compiled vs vanilla Transformer (all 5 model sizes × 4 context lengths)"
 echo ""
-echo "⚠️  This will take 30-60 minutes to complete."
+echo "⚠️  This will take 90-180 minutes to complete (depending on GPU)."
 echo ""
 
 # Ask for confirmation

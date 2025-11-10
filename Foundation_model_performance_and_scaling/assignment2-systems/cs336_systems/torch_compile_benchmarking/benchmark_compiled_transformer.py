@@ -138,21 +138,7 @@ def benchmark_compiled_vs_vanilla_transformer(
         # Get config
         config = MODEL_CONFIGS[model_size]
 
-        # Create vanilla model
-        print(f"\nCreating vanilla model ({model_size}, ctx={context_length})...")
-        model_vanilla = create_model(config, context_length, device="cuda")
-        num_params = sum(p.numel() for p in model_vanilla.parameters())
-
-        # Create compiled model (fresh instance)
-        print(f"Creating compiled model...")
-        model_compiled = create_model(config, context_length, device="cuda")
-        model_compiled = torch.compile(model_compiled)
-
-        # Create optimizers for full step benchmarking
-        optimizer_vanilla = torch.optim.AdamW(model_vanilla.parameters(), lr=1e-4)
-        optimizer_compiled = torch.optim.AdamW(model_compiled.parameters(), lr=1e-4)
-
-        # Generate input batch
+        # Generate input batch (same for both vanilla and compiled)
         input_ids = generate_random_batch(
             batch_size, context_length, config.vocab_size, device="cuda"
         )
@@ -161,21 +147,55 @@ def benchmark_compiled_vs_vanilla_transformer(
             "model_size": model_size,
             "context_length": context_length,
             "batch_size": batch_size,
-            "num_params": num_params,
-            "num_params_millions": num_params / 1e6,
             "d_model": config.d_model,
             "num_layers": config.num_layers,
         }
 
-        # Benchmark forward pass
-        print("  Benchmarking forward pass (vanilla)...")
+        # ============================================================
+        # VANILLA MODEL BENCHMARKING
+        # ============================================================
+        print(f"\n[VANILLA] Creating model ({model_size}, ctx={context_length})...")
+        model_vanilla = create_model(config, context_length, device="cuda")
+        num_params = sum(p.numel() for p in model_vanilla.parameters())
+        results["num_params"] = num_params
+        results["num_params_millions"] = num_params / 1e6
+
+        optimizer_vanilla = torch.optim.AdamW(model_vanilla.parameters(), lr=1e-4)
+
+        print("  [VANILLA] Benchmarking forward pass...")
         fwd_mean_v, fwd_std_v = benchmark_model_pass(
             model_vanilla, input_ids, "forward", warmup_steps, measure_steps
         )
         results["forward_vanilla_ms"] = fwd_mean_v * 1000
         results["forward_vanilla_std_ms"] = fwd_std_v * 1000
 
-        print("  Benchmarking forward pass (compiled)...")
+        print("  [VANILLA] Benchmarking forward+backward...")
+        fwdbwd_mean_v, fwdbwd_std_v = benchmark_model_pass(
+            model_vanilla, input_ids, "forward_backward", warmup_steps, measure_steps
+        )
+        results["fwd_bwd_vanilla_ms"] = fwdbwd_mean_v * 1000
+        results["fwd_bwd_vanilla_std_ms"] = fwdbwd_std_v * 1000
+
+        print("  [VANILLA] Benchmarking full step...")
+        full_mean_v, full_std_v = benchmark_model_pass(
+            model_vanilla, input_ids, "full_step", warmup_steps, measure_steps, optimizer_vanilla
+        )
+        results["full_step_vanilla_ms"] = full_mean_v * 1000
+        results["full_step_vanilla_std_ms"] = full_std_v * 1000
+
+        # Free vanilla model to save memory
+        del model_vanilla, optimizer_vanilla
+        torch.cuda.empty_cache()
+
+        # ============================================================
+        # COMPILED MODEL BENCHMARKING
+        # ============================================================
+        print(f"\n[COMPILED] Creating model ({model_size}, ctx={context_length})...")
+        model_compiled = create_model(config, context_length, device="cuda")
+        model_compiled = torch.compile(model_compiled)
+        optimizer_compiled = torch.optim.AdamW(model_compiled.parameters(), lr=1e-4)
+
+        print("  [COMPILED] Benchmarking forward pass...")
         fwd_mean_c, fwd_std_c = benchmark_model_pass(
             model_compiled, input_ids, "forward", warmup_steps, measure_steps
         )
@@ -183,15 +203,7 @@ def benchmark_compiled_vs_vanilla_transformer(
         results["forward_compiled_std_ms"] = fwd_std_c * 1000
         results["forward_speedup"] = fwd_mean_v / fwd_mean_c
 
-        # Benchmark forward+backward
-        print("  Benchmarking forward+backward (vanilla)...")
-        fwdbwd_mean_v, fwdbwd_std_v = benchmark_model_pass(
-            model_vanilla, input_ids, "forward_backward", warmup_steps, measure_steps
-        )
-        results["fwd_bwd_vanilla_ms"] = fwdbwd_mean_v * 1000
-        results["fwd_bwd_vanilla_std_ms"] = fwdbwd_std_v * 1000
-
-        print("  Benchmarking forward+backward (compiled)...")
+        print("  [COMPILED] Benchmarking forward+backward...")
         fwdbwd_mean_c, fwdbwd_std_c = benchmark_model_pass(
             model_compiled, input_ids, "forward_backward", warmup_steps, measure_steps
         )
@@ -199,15 +211,7 @@ def benchmark_compiled_vs_vanilla_transformer(
         results["fwd_bwd_compiled_std_ms"] = fwdbwd_std_c * 1000
         results["fwd_bwd_speedup"] = fwdbwd_mean_v / fwdbwd_mean_c
 
-        # Benchmark full step (forward+backward+optimizer)
-        print("  Benchmarking full step (vanilla)...")
-        full_mean_v, full_std_v = benchmark_model_pass(
-            model_vanilla, input_ids, "full_step", warmup_steps, measure_steps, optimizer_vanilla
-        )
-        results["full_step_vanilla_ms"] = full_mean_v * 1000
-        results["full_step_vanilla_std_ms"] = full_std_v * 1000
-
-        print("  Benchmarking full step (compiled)...")
+        print("  [COMPILED] Benchmarking full step...")
         full_mean_c, full_std_c = benchmark_model_pass(
             model_compiled, input_ids, "full_step", warmup_steps, measure_steps, optimizer_compiled
         )
@@ -215,12 +219,16 @@ def benchmark_compiled_vs_vanilla_transformer(
         results["full_step_compiled_std_ms"] = full_std_c * 1000
         results["full_step_speedup"] = full_mean_v / full_mean_c
 
+        # Free compiled model
+        del model_compiled, optimizer_compiled
+        torch.cuda.empty_cache()
+
         results["status"] = "success"
 
-        print(f"  ✓ Complete")
-        print(f"    Forward: {fwd_mean_v*1000:.2f}ms → {fwd_mean_c*1000:.2f}ms (speedup: {results['forward_speedup']:.2f}x)")
-        print(f"    Fwd+Bwd: {fwdbwd_mean_v*1000:.2f}ms → {fwdbwd_mean_c*1000:.2f}ms (speedup: {results['fwd_bwd_speedup']:.2f}x)")
-        print(f"    Full step: {full_mean_v*1000:.2f}ms → {full_mean_c*1000:.2f}ms (speedup: {results['full_step_speedup']:.2f}x)")
+        print(f"\n  ✓ Complete - {model_size} @ ctx={context_length}")
+        print(f"    Forward:   {fwd_mean_v*1000:7.2f}ms → {fwd_mean_c*1000:7.2f}ms (speedup: {results['forward_speedup']:.2f}x)")
+        print(f"    Fwd+Bwd:   {fwdbwd_mean_v*1000:7.2f}ms → {fwdbwd_mean_c*1000:7.2f}ms (speedup: {results['fwd_bwd_speedup']:.2f}x)")
+        print(f"    Full step: {full_mean_v*1000:7.2f}ms → {full_mean_c*1000:7.2f}ms (speedup: {results['full_step_speedup']:.2f}x)")
 
         return results
 
