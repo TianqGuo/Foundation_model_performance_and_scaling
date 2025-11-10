@@ -1,0 +1,76 @@
+================================================================================
+PyTorch Attention Benchmarking
+================================================================================
+Batch size: 8
+d_model values: [16, 32, 64, 128]
+seq_len values: [256, 1024, 4096, 8192, 16384]
+Warmup iterations: 10
+Measurement iterations: 100
+
+Testing d_model=16, seq_len=256... ✓ (fwd: 0.08ms, bwd: 0.30ms, mem: 72.6MB)
+Testing d_model=16, seq_len=1024... ✓ (fwd: 0.15ms, bwd: 0.35ms, mem: 194.5MB)
+Testing d_model=16, seq_len=4096... ✓ (fwd: 1.40ms, bwd: 2.67ms, mem: 2122.0MB)
+Testing d_model=16, seq_len=8192... ✓ (fwd: 4.97ms, bwd: 10.12ms, mem: 8276.0MB)
+Testing d_model=16, seq_len=16384... ✓ (fwd: 22.61ms, bwd: 39.70ms, mem: 32872.0MB)
+Testing d_model=32, seq_len=256... ✓ (fwd: 0.07ms, bwd: 0.28ms, mem: 73.3MB)
+Testing d_model=32, seq_len=1024... ✓ (fwd: 0.15ms, bwd: 0.37ms, mem: 197.0MB)
+Testing d_model=32, seq_len=4096... ✓ (fwd: 1.48ms, bwd: 2.76ms, mem: 2132.0MB)
+Testing d_model=32, seq_len=8192... ✓ (fwd: 5.30ms, bwd: 10.45ms, mem: 8296.0MB)
+Testing d_model=32, seq_len=16384... ✓ (fwd: 23.72ms, bwd: 40.75ms, mem: 32912.0MB)
+Testing d_model=64, seq_len=256... ✓ (fwd: 0.07ms, bwd: 0.22ms, mem: 74.5MB)
+Testing d_model=64, seq_len=1024... ✓ (fwd: 0.17ms, bwd: 0.38ms, mem: 202.0MB)
+Testing d_model=64, seq_len=4096... ✓ (fwd: 1.78ms, bwd: 3.30ms, mem: 2152.0MB)
+Testing d_model=64, seq_len=8192... ✓ (fwd: 6.52ms, bwd: 12.75ms, mem: 8336.0MB)
+Testing d_model=64, seq_len=16384... ✓ (fwd: 28.95ms, bwd: 50.48ms, mem: 32992.0MB)
+Testing d_model=128, seq_len=256... ✓ (fwd: 0.07ms, bwd: 0.23ms, mem: 77.0MB)
+Testing d_model=128, seq_len=1024... ✓ (fwd: 0.21ms, bwd: 0.47ms, mem: 212.0MB)
+Testing d_model=128, seq_len=4096... ✓ (fwd: 2.34ms, bwd: 4.51ms, mem: 2192.0MB)
+Testing d_model=128, seq_len=8192... ✓ (fwd: 8.79ms, bwd: 17.18ms, mem: 8416.0MB)
+Testing d_model=128, seq_len=16384... ✓ (fwd: 37.62ms, bwd: 67.88ms, mem: 33152.0MB)
+
+Results saved to: ../../results/attention_benchmarking/pytorch_attention_benchmark.csv
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+
+forward_mean_ms:
+--------------------------------------------------------------------------------
+seq_len     256       1024      4096      8192       16384
+d_model                                                   
+16       0.075711  0.149378  1.396234  4.973695  22.614317
+32       0.073662  0.150017  1.483044  5.300980  23.715059
+64       0.073185  0.171259  1.783305  6.515163  28.950667
+128      0.071014  0.208627  2.339895  8.789648  37.619106
+
+
+backward_mean_ms:
+--------------------------------------------------------------------------------
+seq_len     256       1024      4096       8192       16384
+d_model                                                    
+16       0.302116  0.350346  2.666741  10.122528  39.701038
+32       0.277447  0.368139  2.764247  10.454727  40.752307
+64       0.217167  0.378626  3.297022  12.745778  50.475471
+128      0.231101  0.472950  4.507766  17.176653  67.876668
+
+
+peak_memory_mb:
+--------------------------------------------------------------------------------
+seq_len      256         1024         4096         8192          16384
+d_model                                                               
+16       72.625977  194.500977  2122.000977  8276.000977  32872.000977
+32       73.250977  197.000977  2132.000977  8296.000977  32912.000977
+64       74.500977  202.000977  2152.000977  8336.000977  32992.000977
+128      77.000977  212.000977  2192.000977  8416.000977  33152.000977
+
+
+status:
+--------------------------------------------------------------------------------
+seq_len    256      1024     4096     8192     16384
+d_model                                             
+16       success  success  success  success  success
+32       success  success  success  success  success
+64       success  success  success  success  success
+128      success  success  success  success  success
+
