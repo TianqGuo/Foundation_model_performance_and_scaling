@@ -53,6 +53,10 @@ def naive_attention(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor) -> torch.
     return output
 
 
+# For torch.compile experiments (Section 1.3.1a)
+naive_attention_compiled = None  # Will be set if --use-compiled flag is used
+
+
 def benchmark_attention(
     batch_size: int,
     seq_len: int,

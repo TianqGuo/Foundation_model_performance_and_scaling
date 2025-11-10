@@ -254,9 +254,13 @@ def run_all_configurations(
     Returns:
         DataFrame with all results
     """
-    # Test configurations
-    model_sizes = ["small", "medium", "large"]  # Start with smaller models
-    context_lengths = [512, 1024]  # Start with smaller context lengths
+    # Test all model sizes from §1.1.2 as required by §1.3.1(b)
+    # "same model/context configurations you benchmarked previously"
+    model_sizes = ["small", "medium", "large", "xl", "2.7B"]
+
+    # Use same context lengths as §1.1.3
+    # Adjust based on what you actually benchmarked in §1.1.3
+    context_lengths = [128, 256, 512, 1024]
 
     print("=" * 80)
     print("Torch.compile Transformer Benchmarking - Section 1.3.1(b)")
