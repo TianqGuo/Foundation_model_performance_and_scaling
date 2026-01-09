@@ -86,7 +86,145 @@
 
 ### 1.3 Benchmarking JIT-Compiled Attention
 
+Since PyTorch 2.0, the framework includes a JIT compiler (`torch.compile`) that automatically optimizes PyTorch functions by analyzing computation graphs and generating fused Triton kernels. Usage is simple: `compiled_layer = torch.compile(layer)`. The compiled layer behaves identically to the original (forward/backward) but with potential performance improvements.
+
 #### 1.3.1 torch.compile Experiments (torch_compile; 2 pts)
 - Augment the attention benchmarking script from §1.2.1 with an option to wrap the attention module in `torch.compile(...)`. For every `(d_model, seq_len)` configuration in that grid, rerun the 100 forward and 100 backward pass measurements for both the vanilla and compiled versions (same warm-ups and `torch.cuda.synchronize()` calls). Record timing pairs side-by-side to show the compiler’s impact.
 - Integrate `torch.compile` into the end-to-end Transformer benchmarking script (the one used for §1.1.3) so entire models can run either vanilla or compiled. Measure average runtimes for forward-only and full training steps (forward+backward+optimizer) on the same model/context configurations you benchmarked previously, keeping warm-up counts identical. Compare compiled versus uncompiled timings in a concise table.
 - Deliverables: (a) table comparing forward/backward timings for compiled vs. baseline attention across the §1.2.1 configuration grid; (b) table comparing forward-only and full training runtimes of the vanilla versus compiled Transformer; accompany tables with brief text noting observed performance changes.
+
+Despite torch.compile optimizations, current implementations suffer from poor memory access patterns at long sequence lengths due to the quadratic attention matrix. This motivates implementing FlashAttention-2 in Triton for explicit control over memory access patterns and computation scheduling.
+
+#### 1.3.2 FlashAttention-2 Forward Pass (flash_forward; 15 pts)
+
+Replace PyTorch attention with a Triton implementation following FlashAttention-2 [Dao, 2023]. FlashAttention-2 computes attention in tiles for efficient memory access and avoids materializing the full attention matrix in global memory.
+
+**Recommended reading**: FlashAttention papers [Dao et al., 2022; Dao, 2023], [Milakov and Gimelshein, 2018] for online softmax, and He [2022] for GPU execution intuition.
+
+**Understanding inefficiencies in vanilla attention**: The forward pass for attention is:
+```
+S = QK⊤/√d                    (4)
+P_ij = softmax_j(S)_ij        (5)
+O = PV                         (6)
+```
+
+Standard backward pass:
+```
+dV = P⊤dO                                              (7)
+dP = dOV⊤                                              (8)
+dS_i = dsoftmax(dP_i) = (diag(P_i) - P_iP_i⊤) dP_i  (9)
+dQ = dSK/√d                                            (10)
+dK = dS⊤Q/√d                                           (11)
+```
+
+The backward pass requires large activations from forward pass (e.g., P with shape `(batch_size, n_heads, seq_len, seq_len)`—quadratic in sequence length). Vanilla attention incurs high memory IO costs transferring P and other activations between SRAM and HBM.
+
+**FlashAttention techniques** to avoid reading/writing attention matrix to/from HBM:
+
+1. **Tiling**: Split input into tiles and perform softmax reduction incrementally across tiles without accessing the whole input.
+2. **Recomputation**: Avoid storing large intermediate attention matrices in HBM; save "activation checkpoints" (including logsumexp L) and recompute parts of forward pass during backward. Memory IO and peak usage no longer depend on `seq_len²`.
+   ```
+   L_i = log(Σ_j exp(S_ij))   (12)
+   ```
+3. **Operator fusion**: Perform all operations in a single kernel to avoid repeated memory IO for attention matrix and intermediates.
+
+**Backward pass with recomputation**: Using L and pre-computed `D = rowsum(O ◦ dO)` (equal to `rowsum(P ◦ dP)`), the backward pass becomes:
+```
+S = QK⊤/√d                     (13)
+P_ij = exp(S_ij - L_i)        (14)
+dV = P⊤dO                      (15)
+dP = dOV⊤                      (16)
+dS_ij = P_ij ◦ (dP_ij - D_i)  (17)
+dQ = dSK/√d                    (18)
+dK = dS⊤Q/√d                   (19)
+```
+
+This avoids storing P in HBM—recompute from Q, K, L in (13)-(14).
+
+**Forward pass details**: Use online softmax to compute P in tiles (query tiles of size B_q, key tiles B_k). Maintain running values per query tile:
+- `m_i^(j)` ∈ R^(B_q): running row-wise maximum for numerically stable softmax
+- `l_i^(j)` ∈ R^(B_q): running proxy for softmax denominator
+- Update with each key tile j; unnormalized softmax: `P̃_i^(j) = exp(S_ij - m_i^(j))`
+- Final normalization uses `l_i^(T_k)` after processing all key tiles
+
+**Algorithm 1 - FlashAttention-2 forward pass**:
+```
+Input: Q ∈ R^(N_q×d), K, V ∈ R^(N_k×d), tile sizes B_q, B_k
+Split Q into T_q = ⌈N_q/B_q⌉ tiles Q_1,...,Q_Tq of size B_q×d
+Split K,V into T_k = ⌈N_k/B_k⌉ tiles K^(1),...,K^(Tk) and V^(1),...,V^(Tk) of size B_k×d
+
+for i = 1,...,T_q do
+  Load Q_i from global memory
+  Initialize O_i^(0) = 0 ∈ R^(B_q×d), l_i^(0) = 0 ∈ R^(B_q), m_i^(0) = -∞ ∈ R^(B_q)
+
+  for j = 1,...,T_k do
+    Load K^(j), V^(j) from global memory
+    Compute S_i^(j) = Q_i(K^(j))⊤/√d ∈ R^(B_q×B_k)
+    Compute m_i^(j) = max(m_i^(j-1), rowmax(S_i^(j))) ∈ R^(B_q)
+    Compute P̃_i^(j) = exp(S_i^(j) - m_i^(j)) ∈ R^(B_q×B_k)
+    Compute l_i^(j) = exp(m_i^(j-1) - m_i^(j)) l_i^(j-1) + rowsum(P̃_i^(j)) ∈ R^(B_q)
+    Compute O_i^(j) = diag(exp(m_i^(j-1) - m_i^(j))) O_i^(j-1) + P̃_i^(j) V^(j)
+  end for
+
+  Compute O_i = diag(l_i^(T_k))^(-1) O_i^(T_k)
+  Compute L_i = m_i^(T_k) + log(l_i^(T_k))
+  Write O_i, L_i to global memory as i-th tiles
+end for
+
+Return output O and logsumexp L
+```
+
+**Triton Tips**:
+- Debug with `tl.device_print` (https://triton-lang.org/main/python-api/generated/triton.language.device_print.html)
+- `TRITON_INTERPRET=1` runs interpreter on CPU (may be buggy)
+- Block pointers: verify correct offsets; multiply block offsets by tile sizes
+- Launch grid: `kernel_fn[(grid_d1, grid_d2, ...)](...args...)`
+- Matrix multiply: `tl.dot`
+- Advance block pointers: `*_block_ptr = *_block_ptr.advance(...)`
+
+**Deliverables**:
+
+(a) **(5 pts)** Pure PyTorch (no Triton) `autograd.Function` implementing FlashAttention-2 forward pass. Takes Q, K, V and `is_causal` flag; produces O and logsumexp L. Ignore `is_causal` for now. Interface: `def forward(ctx, Q, K, V, is_causal=False)`. Save L, Q, K, V, O for backward; return O. Implement `backward` to raise `NotImplementedError`. Use tile sizes ≥16×16; assume dimensions are clean powers of 2 and ≥16 (no bounds checking needed). Compare against Equations 4-6 and 12.
+   - Implement `adapters.get_flashattention_autograd_function_pytorch`
+   - Test: `uv run pytest -k test_flash_forward_pass_pytorch`
+
+(b) **(8 pts)** Triton kernel for FlashAttention-2 forward pass following Algorithm 1, wrapped in `torch.autograd.Function`.
+   - Launch grid: `(T_q, batch_size)`—each program instance handles one batch index and one query tile
+   - Single loop iterating key tiles 1≤j≤T_k; advance block pointers at loop end
+   - Function declaration:
+     ```python
+     @triton.jit
+     def flash_fwd_kernel(
+         Q_ptr, K_ptr, V_ptr, O_ptr, L_ptr,
+         stride_qb, stride_qq, stride_qd,
+         stride_kb, stride_kk, stride_kd,
+         stride_vb, stride_vk, stride_vd,
+         stride_ob, stride_oq, stride_od,
+         stride_lb, stride_lq,
+         N_QUERIES, N_KEYS, scale,
+         D: tl.constexpr,
+         Q_TILE_SIZE: tl.constexpr,
+         K_TILE_SIZE: tl.constexpr,
+     ):
+         query_tile_index = tl.program_id(0)
+         batch_index = tl.program_id(1)
+         Q_block_ptr = tl.make_block_ptr(
+             Q_ptr + batch_index * stride_qb,
+             shape=(N_QUERIES, D),
+             strides=(stride_qq, stride_qd),
+             offsets=(query_tile_index * Q_TILE_SIZE, 0),
+             block_shape=(Q_TILE_SIZE, D),
+             order=(1, 0),
+         )
+         ...
+     ```
+     where `scale = 1/√d`, `Q_TILE_SIZE = B_q`, `K_TILE_SIZE = B_k` (tunable).
+   - Precision guidelines:
+     - On-chip buffers (O_i, l, m): dtype `tl.float32`; accumulate with `acc` argument: `tl.dot(..., acc=acc)`
+     - Cast `P̃_i^(j)` to dtype of `V^(j)` before multiply; cast O_i before writing to global memory
+     - Use `tensor.to`, `tensor.dtype`, `*_block_ptr.type.element_ty`
+   - Debug: compare each Triton operation result against part (a) PyTorch tiled implementation
+   - Implement `adapters.get_flash_autograd_function_triton`
+   - Test: `uv run pytest -k test_flash_forward_pass_triton`
+
+(c) **(2 pts)** Add `is_causal` boolean flag (last argument) for causal masking. In Triton kernel, add parameter `is_causal: tl.constexpr`. Construct query/key index vectors and compare to form B_q×B_k mask; add `-1e6` to masked elements of `S_i^(j)`. Save via `ctx.is_causal = is_causal`. Default `False` to preserve previous tests.
