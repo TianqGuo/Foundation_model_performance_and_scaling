@@ -169,3 +169,108 @@ Implement FlashAttention-2 [Dao, 2023] in Triton to replace PyTorch attention wi
      - Randomly generate inputs before benchmarking
      - Adjust tile sizes depending on input sizes as needed
    - Deliverable: Table of results comparing FlashAttention-2 vs PyTorch attention, reporting forward, backward, and end-to-end latencies for all parameter combinations
+
+#### 1.3.3 FlashAttention-2 Leaderboard (Optional Challenge)
+
+Assignment 2's leaderboard tests the speed of FlashAttention-2 implementation (forward and backward passes). Challenge: further improve performance using any optimization tricks while maintaining correctness.
+
+**Restrictions**:
+- Cannot change input/outputs of the function
+- Must use Triton (no CUDA)
+- Must pass same tests as regular implementation
+- Implementation must be your own (no pre-existing implementations)
+
+**Test Configuration**:
+- Timing measured on H100
+- Batch size: 1
+- Sequence length: 16,384
+- d_model: 1024 (16 heads × 64 d_head)
+- Precision: BF16 with causal masking
+
+**Test Code**:
+```python
+def test_timing_flash_forward_backward():
+    n_heads = 16
+    d_head = 64
+    sequence_length = 16384
+    q, k, v = torch.randn(
+        3, n_heads, sequence_length, d_head,
+        device='cuda', dtype=torch.bfloat16, requires_grad=True
+    )
+
+    flash = torch.compile(FlashAttention2.apply)
+
+    def flash_forward_backward():
+        o = flash(q, k, v, True)
+        loss = o.sum()
+        loss.backward()
+
+    results = triton.testing.do_bench(flash_forward_backward, rep=10000, warmup=1000)
+    print(results)
+```
+
+**Optimization Ideas**:
+- Tune tile sizes using Triton autotune
+- Tune additional Triton config parameters
+- Implement backward pass in Triton (see §1.3.4)
+- Use two passes for backward: one for dQ, another for dK/dV (avoids atomics/synchronization)
+- Stop program instances early with causal masking (skip all-zero tiles)
+- Separate non-masked tiles from diagonal tiles (compute first without index comparisons)
+- Use TMA (Tensor Memory Accelerator) on H100 following [Triton TMA tutorial](https://triton-lang.org/main/getting-started/tutorials/09-persistent-matmul.html)
+
+**Submission**: Submit best times to [github.com/stanford-cs336/assignment2-systems-leaderboard](https://github.com/stanford-cs336/assignment2-systems-leaderboard)
+
+**Verification**: Top 5-10 submissions verified for correctness and performance
+
+#### 1.3.4 OPTIONAL: Triton Backward Pass (flash_backward_triton)
+
+Implement tiled FlashAttention-2 backward pass in Triton for better performance and leaderboard submission.
+
+**Key Optimization**: Compute P twice (once for dQ, once for dK/dV) to skip synchronization across thread blocks.
+
+**Algorithm 2: Tiled FlashAttention-2 Backward Pass**
+
+```
+Input: Q, O, dO ∈ R^(N_q×d), K, V ∈ R^(N_k×d), L ∈ R^(N_q), tile sizes B_q, B_k
+
+Compute D = rowsum(dO ◦ O) ∈ R^(N_q)
+Split Q, O, dO into T_q = ⌈N_q/B_q⌉ tiles Q_1,...,Q_Tq, O_1,...,O_Tq, dO_1,...,dO_Tq (size B_q×d)
+Split K, V into T_k = ⌈N_k/B_k⌉ tiles K^(1),...,K^(Tk), V^(1),...,V^(Tk) (size B_k×d)
+Split L, D into T_q tiles L_1,...,L_Tq, D_1,...,D_Tq (size B_q)
+
+for j = 1,...,T_k do                          ← Outer loop: key tiles
+  Load K^(j), V^(j) from global memory
+  Initialize dK^(j) = dV^(j) = 0 ∈ R^(B_k×d)
+
+  for i = 1,...,T_q do                        ← Inner loop: query tiles
+    Load Q_i, O_i, dO_i, dQ_i from global memory
+
+    Compute S_i^(j) = Q_i(K^(j))⊤/√d ∈ R^(B_q×B_k)
+    Compute P_i^(j) = exp(S_i^(j) - L_i) ∈ R^(B_q×B_k)
+
+    Compute dV^(j) += (P_i^(j))⊤ @ dO_i ∈ R^(B_k×d)
+    Compute dP_i^(j) = dO_i @ V_j⊤ ∈ R^(B_q×B_k)
+    Compute dS_i^(j) = P_i^(j) ◦ (dP_i^(j) - D_i) / √d ∈ R^(B_q×B_k)
+
+    Load dQ_i from global memory
+    Update dQ_i += dS_i^(j) @ K^(j) ∈ R^(B_q×d)
+    Write dQ_i to global memory (MUST BE ATOMIC for correctness!)
+
+    Compute dK^(j) += (dS_i^(j))⊤ @ Q_i ∈ R^(B_k×d)
+  end for
+
+  Write dK^(j) and dV^(j) to global memory as j-th tiles of dK and dV
+end for
+
+Return dQ, dK, dV
+```
+
+**Implementation Notes**:
+- Launch grid: `(T_k, batch_size)` - each program handles one key tile for one batch
+- Outer loop over key tiles, inner loop over query tiles
+- Atomic operations required for dQ updates (multiple key tiles write to same query tile)
+- dK and dV can be accumulated locally without atomics
+- Use `tl.atomic_add` for dQ updates
+- Pre-compute D before kernel launch (can be separate kernel or CPU)
+
+**Deliverable**: Implement Triton backward kernel and integrate into `FlashAttentionTritonFunc.backward()`

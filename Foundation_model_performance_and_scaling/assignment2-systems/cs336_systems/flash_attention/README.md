@@ -13,9 +13,12 @@ See `../../FLASHATTENTION2_BACKGROUND.md` for detailed algorithm explanations.
 
 ## Files
 
-- `flash_attention_pytorch.py` - Pure PyTorch implementation using tiled computation
-- `flash_attention_triton.py` - Optimized Triton kernel implementation
+- `flash_attention_pytorch.py` - Pure PyTorch tiled implementation (forward + backward)
+- `flash_attention_triton.py` - Triton kernel implementation (forward in Triton, backward in PyTorch)
+- `benchmark_flash_attention.py` - Benchmarking script comparing FlashAttention-2 vs PyTorch attention
+- `run_benchmarks.sh` - Shell wrapper for running benchmarks
 - `__init__.py` - Module exports
+- `IMPLEMENTATION_NOTES.md` - Detailed implementation notes and test results
 
 ## Usage
 
@@ -50,12 +53,48 @@ O = FlashAttentionTritonFunc.apply(Q, K, V, True)
 Run the official tests:
 
 ```bash
-# Test PyTorch implementation
-uv run pytest -k test_flash_forward_pass_pytorch
+# From repository root
+cd /path/to/assignment2-systems
 
-# Test Triton implementation
-uv run pytest -k test_flash_forward_pass_triton
+# Test PyTorch forward pass
+uv run pytest -k test_flash_forward_pass_pytorch -v
+
+# Test Triton forward pass
+uv run pytest -k test_flash_forward_pass_triton -v
+
+# Test PyTorch backward pass
+uv run pytest -k test_flash_backward_pytorch -v
+
+# Test Triton backward pass
+uv run pytest -k test_flash_backward_triton -v
+
+# Test all FlashAttention tests
+uv run pytest tests/test_attention.py -k "flash" -v
 ```
+
+## Benchmarking
+
+Compare FlashAttention-2 performance against standard PyTorch attention:
+
+```bash
+# From this directory
+cd cs336_systems/flash_attention
+
+# Run full benchmark suite (30-60 minutes on H100)
+./run_benchmarks.sh
+
+# Or run directly with custom output path
+uv run python benchmark_flash_attention.py --output /path/to/output.csv
+```
+
+**Benchmark Configuration**:
+- Sequence lengths: 128 to 65536 (powers of 2)
+- Embedding dimensions: 16 to 128 (powers of 2)
+- Precisions: bfloat16 and float32
+- Batch size: 1, causal masking enabled
+- Total: 80 configurations
+
+**Output**: CSV file with forward, backward, and end-to-end latencies, plus speedup ratios
 
 ## Implementation Details
 
@@ -80,10 +119,12 @@ uv run pytest -k test_flash_forward_pass_triton
 - Key tiles: size B_k
 - No need to materialize full attention matrix
 
-### Recomputation
-- Saves only logsumexp L (linear memory)
-- Recomputes attention scores P in backward pass
-- Eliminates quadratic memory dependency
+### Recomputation (Backward Pass)
+- Backward pass uses `torch.compile` for efficient gradient computation
+- Saves only Q, K, V, O, and logsumexp L (linear memory)
+- Recomputes attention scores P in backward pass from Q, K, L
+- Eliminates need to store full attention matrix P (quadratic memory)
+- Implements equations 13-19 from FlashAttention-2 paper
 
 ### Operator Fusion
 - Single kernel performs all attention operations
