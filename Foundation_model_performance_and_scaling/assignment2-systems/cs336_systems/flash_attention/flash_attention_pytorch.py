@@ -10,6 +10,71 @@ import torch
 import math
 
 
+def flash_attention_backward_compiled(Q, K, V, O, L, grad_output, is_causal=False):
+    """
+    Compiled backward pass for FlashAttention-2 using recomputation.
+
+    Implements equations 13-19 from FlashAttention-2 paper.
+    This function is compiled with torch.compile for efficiency.
+
+    Args:
+        Q: Query tensor (batch_size, N_q, d)
+        K: Key tensor (batch_size, N_k, d)
+        V: Value tensor (batch_size, N_k, d)
+        O: Output from forward pass (batch_size, N_q, d)
+        L: Logsumexp from forward pass (batch_size, N_q)
+        grad_output: Gradient w.r.t. output (batch_size, N_q, d)
+        is_causal: Whether to apply causal masking
+
+    Returns:
+        grad_Q, grad_K, grad_V: Gradients w.r.t. inputs
+    """
+    batch_size, N_q, d = Q.shape
+    _, N_k, _ = K.shape
+
+    # Scale factor
+    scale = 1.0 / math.sqrt(d)
+
+    # Pre-compute D = rowsum(O ◦ dO) - Equation before (13)
+    # D has shape (batch_size, N_q)
+    D = torch.sum(O * grad_output, dim=-1)
+
+    # Compute attention scores: S = QK⊤/√d - Equation (13)
+    S = torch.matmul(Q, K.transpose(-2, -1)) * scale  # (batch_size, N_q, N_k)
+
+    # Apply causal masking if needed
+    if is_causal:
+        # Create causal mask: query_idx >= key_idx
+        mask = torch.triu(torch.ones(N_q, N_k, device=Q.device, dtype=torch.bool), diagonal=1)
+        S = S.masked_fill(mask, -1e6)
+
+    # Recompute P from S and L: P = exp(S - L) - Equation (14)
+    # L has shape (batch_size, N_q), need to broadcast
+    P = torch.exp(S - L.unsqueeze(-1))  # (batch_size, N_q, N_k)
+
+    # Compute dV = P⊤ @ dO - Equation (15)
+    grad_V = torch.matmul(P.transpose(-2, -1), grad_output)  # (batch_size, N_k, d)
+
+    # Compute dP = dO @ V⊤ - Equation (16)
+    dP = torch.matmul(grad_output, V.transpose(-2, -1))  # (batch_size, N_q, N_k)
+
+    # Compute dS = P ◦ (dP - D) - Equation (17)
+    # D has shape (batch_size, N_q), need to broadcast
+    dS = P * (dP - D.unsqueeze(-1))  # (batch_size, N_q, N_k)
+
+    # Compute dQ = dS @ K / √d - Equation (18)
+    grad_Q = torch.matmul(dS, K) * scale  # (batch_size, N_q, d)
+
+    # Compute dK = dS⊤ @ Q / √d - Equation (19)
+    grad_K = torch.matmul(dS.transpose(-2, -1), Q) * scale  # (batch_size, N_k, d)
+
+    return grad_Q, grad_K, grad_V
+
+
+# Compile the backward function for efficiency
+flash_attention_backward = torch.compile(flash_attention_backward_compiled)
+
+
 class FlashAttentionPyTorchFunc(torch.autograd.Function):
     """
     Pure PyTorch implementation of FlashAttention-2.
@@ -117,8 +182,23 @@ class FlashAttentionPyTorchFunc(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output):
         """
-        Backward pass - not implemented yet.
+        Backward pass using recomputation.
 
-        This will be implemented in a later section of the assignment.
+        Uses torch.compile for efficient computation of gradients.
+        Follows equations 13-19 from FlashAttention-2 paper.
+
+        Args:
+            ctx: Context with saved tensors
+            grad_output: Gradient w.r.t. output (batch_size, N_q, d)
+
+        Returns:
+            grad_Q, grad_K, grad_V, None (for is_causal flag)
         """
-        raise NotImplementedError("Backward pass not yet implemented")
+        Q, K, V, O, L = ctx.saved_tensors
+        is_causal = ctx.is_causal
+
+        # Call compiled backward function
+        grad_Q, grad_K, grad_V = flash_attention_backward(Q, K, V, O, L, grad_output, is_causal)
+
+        # Return gradients for Q, K, V, and None for is_causal (no gradient needed)
+        return grad_Q, grad_K, grad_V, None
