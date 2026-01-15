@@ -145,3 +145,27 @@ Implement FlashAttention-2 [Dao, 2023] in Triton to replace PyTorch attention wi
    - Test: `uv run pytest -k test_flash_forward_pass_triton`
 
 (c) **(2 pts)** Add `is_causal` boolean flag (last argument) for causal masking. In Triton kernel, add parameter `is_causal: tl.constexpr`. Construct query/key index vectors and compare to form B_q×B_k mask; add `-1e6` to masked elements of `S_i^(j)`. Save via `ctx.is_causal = is_causal`. Default `False` to preserve previous tests.
+
+**Implementing the backward pass with recomputation**: Unlike the standard backward pass in Equations 7-11, recomputation can avoid the softmax operation in the backward pass shown in Equations 13-19. This means the backward pass can be computed using a trivial kernel without online tricks. For this part, implement backward by calling `torch.compile` on a regular PyTorch function (not Triton).
+
+(d) **(5 pts) flash_backward** - Implement the backward pass for FlashAttention-2 `autograd.Function` using PyTorch (not Triton) and `torch.compile`.
+   - Implementation should take Q, K, V, O, dO, and L tensors as input and return dQ, dK, and dV
+   - Remember to compute and use the D vector
+   - Follow computations in Equations 13-19
+   - Implement `adapters.get_flash_autograd_function_triton` (if not already done in part b)
+   - Test: `uv run pytest -k test_flash_backward`
+
+(e) **(5 pts) flash_benchmarking** - Compare performance of (partially) Triton FlashAttention-2 implementation with regular PyTorch attention.
+   - Write benchmarking script using `triton.testing.do_bench`
+   - Compare forward, backward, and end-to-end forward-backward passes
+   - Report table with latencies for both Triton and PyTorch implementations
+   - Benchmark settings:
+     - Single H100 GPU
+     - Batch size: 1
+     - Causal masking: enabled
+     - Sequence lengths: powers of 2 from 128 to 65536
+     - Embedding dimensions: powers of 2 from 16 to 128
+     - Precisions: `torch.bfloat16` and `torch.float32`
+     - Randomly generate inputs before benchmarking
+     - Adjust tile sizes depending on input sizes as needed
+   - Deliverable: Table of results comparing FlashAttention-2 vs PyTorch attention, reporting forward, backward, and end-to-end latencies for all parameter combinations
