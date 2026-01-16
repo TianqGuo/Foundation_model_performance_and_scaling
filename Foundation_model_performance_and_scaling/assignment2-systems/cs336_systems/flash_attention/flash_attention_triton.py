@@ -486,7 +486,8 @@ class FlashAttentionTritonFunc(torch.autograd.Function):
         D = torch.sum(O * grad_output, dim=-1)  # (batch_size, N_q)
 
         # Allocate gradient tensors
-        grad_Q = torch.zeros_like(Q)
+        # Use float32 for grad_Q to support atomic_add operations (more stable and compatible)
+        grad_Q_fp32 = torch.zeros(batch_size, N_q, d, device=Q.device, dtype=torch.float32)
         grad_K = torch.empty_like(K)
         grad_V = torch.empty_like(V)
 
@@ -499,7 +500,7 @@ class FlashAttentionTritonFunc(torch.autograd.Function):
         # Launch backward kernel
         flash_bwd_kernel[grid](
             Q, K, V, O, L, D,
-            grad_output, grad_Q, grad_K, grad_V,
+            grad_output, grad_Q_fp32, grad_K, grad_V,
             Q.stride(0), Q.stride(1), Q.stride(2),
             K.stride(0), K.stride(1), K.stride(2),
             V.stride(0), V.stride(1), V.stride(2),
@@ -507,7 +508,7 @@ class FlashAttentionTritonFunc(torch.autograd.Function):
             L.stride(0), L.stride(1),
             D.stride(0), D.stride(1),
             grad_output.stride(0), grad_output.stride(1), grad_output.stride(2),
-            grad_Q.stride(0), grad_Q.stride(1), grad_Q.stride(2),
+            grad_Q_fp32.stride(0), grad_Q_fp32.stride(1), grad_Q_fp32.stride(2),
             grad_K.stride(0), grad_K.stride(1), grad_K.stride(2),
             grad_V.stride(0), grad_V.stride(1), grad_V.stride(2),
             N_q, N_k, scale,
@@ -516,6 +517,9 @@ class FlashAttentionTritonFunc(torch.autograd.Function):
             K_TILE_SIZE=K_TILE_SIZE,
             is_causal=is_causal,
         )
+
+        # Convert grad_Q back to original dtype
+        grad_Q = grad_Q_fp32.to(Q.dtype)
 
         # Return gradients for Q, K, V, and None for is_causal (no gradient needed)
         return grad_Q, grad_K, grad_V, None
