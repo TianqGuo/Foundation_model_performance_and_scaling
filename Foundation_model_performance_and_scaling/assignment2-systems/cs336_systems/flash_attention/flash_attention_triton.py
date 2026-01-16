@@ -325,7 +325,10 @@ def flash_bwd_kernel(
         dS_tile_casted = dS_tile.to(K_dtype)
 
         # Compute dQ: dQ += dS @ K
-        dQ_tile = tl.dot(dS_tile_casted, K_tile)  # (Q_TILE_SIZE, D)
+        dQ_tile_fp32 = tl.dot(dS_tile_casted, K_tile)  # (Q_TILE_SIZE, D)
+
+        # Convert to float32 for atomic add (more stable and widely supported)
+        dQ_tile = dQ_tile_fp32.to(tl.float32)
 
         # Atomic add dQ to global memory (multiple key tiles contribute to same query)
         # Need to use atomic operations for correctness
@@ -341,7 +344,7 @@ def flash_bwd_kernel(
         d_mask = tl.arange(0, D)[None, :] < D
         mask = q_mask & d_mask
 
-        # Atomic add for dQ
+        # Atomic add for dQ (use float32 for atomic operations)
         tl.atomic_add(dQ_ptrs, dQ_tile, mask=mask)
 
         # Compute dK: dK += dS^T @ Q
