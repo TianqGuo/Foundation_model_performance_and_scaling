@@ -413,90 +413,91 @@ def flash_bwd_dkdv_kernel(
 
     # Loop over query tiles
     for i in range(num_query_tiles):
-        # Early termination: skip query tiles that don't affect this key tile
+        # Determine if we should process this tile (early termination for causal)
+        should_process = not is_causal  # Always process in non-causal case
         if is_causal:
-            query_start = i * Q_TILE_SIZE
-            # If all queries in this tile are before all keys, skip
-            if query_start + Q_TILE_SIZE <= key_start:
-                continue
+            query_start_check = i * Q_TILE_SIZE
+            # Only process if this query tile affects the current key tile
+            should_process = query_start_check + Q_TILE_SIZE > key_start
 
-        # Setup Q, O, dO, L, D block pointers
-        Q_block_ptr = tl.make_block_ptr(
-            Q_ptr + batch_index * stride_qb,
-            shape=(N_QUERIES, D),
-            strides=(stride_qq, stride_qd),
-            offsets=(i * Q_TILE_SIZE, 0),
-            block_shape=(Q_TILE_SIZE, D),
-            order=(1, 0),
-        )
+        if should_process:
+            # Setup Q, O, dO, L, D block pointers
+            Q_block_ptr = tl.make_block_ptr(
+                Q_ptr + batch_index * stride_qb,
+                shape=(N_QUERIES, D),
+                strides=(stride_qq, stride_qd),
+                offsets=(i * Q_TILE_SIZE, 0),
+                block_shape=(Q_TILE_SIZE, D),
+                order=(1, 0),
+            )
 
-        O_block_ptr = tl.make_block_ptr(
-            O_ptr + batch_index * stride_ob,
-            shape=(N_QUERIES, D),
-            strides=(stride_oq, stride_od),
-            offsets=(i * Q_TILE_SIZE, 0),
-            block_shape=(Q_TILE_SIZE, D),
-            order=(1, 0),
-        )
+            O_block_ptr = tl.make_block_ptr(
+                O_ptr + batch_index * stride_ob,
+                shape=(N_QUERIES, D),
+                strides=(stride_oq, stride_od),
+                offsets=(i * Q_TILE_SIZE, 0),
+                block_shape=(Q_TILE_SIZE, D),
+                order=(1, 0),
+            )
 
-        dO_block_ptr = tl.make_block_ptr(
-            dO_ptr + batch_index * stride_dob,
-            shape=(N_QUERIES, D),
-            strides=(stride_doq, stride_dod),
-            offsets=(i * Q_TILE_SIZE, 0),
-            block_shape=(Q_TILE_SIZE, D),
-            order=(1, 0),
-        )
+            dO_block_ptr = tl.make_block_ptr(
+                dO_ptr + batch_index * stride_dob,
+                shape=(N_QUERIES, D),
+                strides=(stride_doq, stride_dod),
+                offsets=(i * Q_TILE_SIZE, 0),
+                block_shape=(Q_TILE_SIZE, D),
+                order=(1, 0),
+            )
 
-        L_block_ptr = tl.make_block_ptr(
-            L_ptr + batch_index * stride_lb,
-            shape=(N_QUERIES,),
-            strides=(stride_lq,),
-            offsets=(i * Q_TILE_SIZE,),
-            block_shape=(Q_TILE_SIZE,),
-            order=(0,),
-        )
+            L_block_ptr = tl.make_block_ptr(
+                L_ptr + batch_index * stride_lb,
+                shape=(N_QUERIES,),
+                strides=(stride_lq,),
+                offsets=(i * Q_TILE_SIZE,),
+                block_shape=(Q_TILE_SIZE,),
+                order=(0,),
+            )
 
-        D_block_ptr = tl.make_block_ptr(
-            D_ptr + batch_index * stride_db,
-            shape=(N_QUERIES,),
-            strides=(stride_dq,),
-            offsets=(i * Q_TILE_SIZE,),
-            block_shape=(Q_TILE_SIZE,),
-            order=(0,),
-        )
+            D_block_ptr = tl.make_block_ptr(
+                D_ptr + batch_index * stride_db,
+                shape=(N_QUERIES,),
+                strides=(stride_dq,),
+                offsets=(i * Q_TILE_SIZE,),
+                block_shape=(Q_TILE_SIZE,),
+                order=(0,),
+            )
 
-        # Load tiles
-        Q_tile = tl.load(Q_block_ptr, boundary_check=(0, 1), padding_option="zero")
-        O_tile = tl.load(O_block_ptr, boundary_check=(0, 1), padding_option="zero")
-        dO_tile = tl.load(dO_block_ptr, boundary_check=(0, 1), padding_option="zero")
-        L_tile = tl.load(L_block_ptr, boundary_check=(0,), padding_option="zero")
-        D_tile = tl.load(D_block_ptr, boundary_check=(0,), padding_option="zero")
+            # Load tiles
+            Q_tile = tl.load(Q_block_ptr, boundary_check=(0, 1), padding_option="zero")
+            O_tile = tl.load(O_block_ptr, boundary_check=(0, 1), padding_option="zero")
+            dO_tile = tl.load(dO_block_ptr, boundary_check=(0, 1), padding_option="zero")
+            L_tile = tl.load(L_block_ptr, boundary_check=(0,), padding_option="zero")
+            D_tile = tl.load(D_block_ptr, boundary_check=(0,), padding_option="zero")
 
-        # Recompute S and P
-        S_tile = tl.dot(Q_tile, tl.trans(K_tile)) * scale
+            # Recompute S and P
+            S_tile = tl.dot(Q_tile, tl.trans(K_tile)) * scale
 
-        if is_causal:
-            query_start = i * Q_TILE_SIZE
-            query_indices = query_start + tl.arange(0, Q_TILE_SIZE)
-            mask = query_indices[:, None] >= key_indices[None, :]
-            S_tile = tl.where(mask, S_tile, -1e6)
+            if is_causal:
+                query_start = i * Q_TILE_SIZE
+                query_indices = query_start + tl.arange(0, Q_TILE_SIZE)
+                mask = query_indices[:, None] >= key_indices[None, :]
+                S_tile = tl.where(mask, S_tile, -1e6)
 
-        P_tile = tl.exp(S_tile - L_tile[:, None])
+            P_tile = tl.exp(S_tile - L_tile[:, None])
 
-        # Compute dV
-        dO_dtype = dO_block_ptr.type.element_ty
-        P_tile_casted = P_tile.to(dO_dtype)
-        dV_tile = tl.dot(tl.trans(P_tile_casted), dO_tile, acc=dV_tile)
+            # Compute dV
+            dO_dtype = dO_block_ptr.type.element_ty
+            P_tile_casted = P_tile.to(dO_dtype)
+            dV_tile = tl.dot(tl.trans(P_tile_casted), dO_tile, acc=dV_tile)
 
-        # Compute dP and dS
-        dP_tile = tl.dot(dO_tile, tl.trans(V_tile))
-        dS_tile = P_tile * (dP_tile - D_tile[:, None]) * scale
+            # Compute dP and dS
+            dP_tile = tl.dot(dO_tile, tl.trans(V_tile))
+            dS_tile = P_tile * (dP_tile - D_tile[:, None]) * scale
 
-        # Compute dK
-        K_dtype = K_block_ptr.type.element_ty
-        dS_tile_casted = dS_tile.to(K_dtype)
-        dK_tile = tl.dot(tl.trans(dS_tile_casted), Q_tile, acc=dK_tile)
+            # Compute dK
+            K_dtype = K_block_ptr.type.element_ty
+            dS_tile_casted = dS_tile.to(K_dtype)
+            dK_tile = tl.dot(tl.trans(dS_tile_casted), Q_tile, acc=dK_tile)
 
     # Write dK and dV
     dK_block_ptr = tl.make_block_ptr(
