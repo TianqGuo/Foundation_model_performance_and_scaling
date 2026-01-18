@@ -518,8 +518,13 @@ class FlashAttentionTritonOptimizedFunc(torch.autograd.Function):
         L = torch.empty(batch_size, N_q, device=Q.device, dtype=torch.float32)
 
         # Use autotuned kernel (tile sizes determined by autotune)
-        T_q = math.ceil(N_q / 64)  # Default, will be overridden by autotune
-        grid = (T_q, batch_size)
+        # Grid must depend on the tile size that autotune picks, otherwise
+        # we would launch too few programs when the tuner selects a smaller
+        # tile (observed previously with 16-wide tiles).
+        grid = lambda META: (
+            triton.cdiv(N_q, META['Q_TILE_SIZE']),
+            batch_size,
+        )
 
         flash_fwd_kernel_optimized[grid](
             Q, K, V,
