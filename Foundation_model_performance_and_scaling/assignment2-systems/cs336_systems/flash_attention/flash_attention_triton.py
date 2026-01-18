@@ -15,6 +15,39 @@ import triton.language as tl
 import math
 
 
+def compute_tile_sizes(d_model):
+    """
+    Compute tile sizes based on d_model to fit in shared memory.
+
+    Shared memory constraint for forward pass:
+    - Q_tile: Q_TILE_SIZE × d_model × 2 bytes (bfloat16)
+    - K_tile: K_TILE_SIZE × d_model × 2 bytes
+    - V_tile: K_TILE_SIZE × d_model × 2 bytes
+    - O_i: Q_TILE_SIZE × d_model × 4 bytes (float32)
+    - S_ij: Q_TILE_SIZE × K_TILE_SIZE × 4 bytes
+    - m_i, l_i: Q_TILE_SIZE × 4 bytes each
+
+    H100 shared memory per block: ~230 KB
+
+    Returns:
+        (forward_q_tile, forward_k_tile, backward_q_tile, backward_k_tile)
+    """
+    if d_model >= 512:
+        # Large d_model: use small tiles
+        # For d=1024: 16×1024×2 + 32×1024×2×2 + 16×1024×4 + 16×32×4 = 32+128+64+2 = 226 KB
+        return (16, 32, 16, 16)
+    elif d_model >= 256:
+        # Medium-large d_model
+        # For d=512: 32×512×2 + 64×512×2×2 + 32×512×4 + 32×64×4 = 32+128+64+8 = 232 KB
+        return (32, 64, 16, 32)
+    elif d_model >= 128:
+        # Medium d_model
+        return (64, 64, 32, 32)
+    else:
+        # Small d_model: can use larger tiles
+        return (64, 64, 32, 32)
+
+
 @triton.jit
 def flash_fwd_kernel(
     Q_ptr, K_ptr, V_ptr,
@@ -410,9 +443,10 @@ class FlashAttentionTritonFunc(torch.autograd.Function):
         batch_size, N_q, d = Q.shape
         _, N_k, _ = K.shape
 
-        # Tile sizes (tunable hyperparameters)
-        Q_TILE_SIZE = 64
-        K_TILE_SIZE = 64
+        # Adaptive tile sizes based on d_model to fit in shared memory
+        fwd_q_tile, fwd_k_tile, _, _ = compute_tile_sizes(d)
+        Q_TILE_SIZE = fwd_q_tile
+        K_TILE_SIZE = fwd_k_tile
 
         # Scale factor
         scale = 1.0 / math.sqrt(d)
@@ -474,10 +508,11 @@ class FlashAttentionTritonFunc(torch.autograd.Function):
         batch_size, N_q, d = Q.shape
         _, N_k, _ = K.shape
 
-        # Tile sizes (smaller than forward due to more on-chip buffers in backward)
-        # Backward needs to store: K_tile, V_tile, dK_tile, dV_tile, Q_tile, O_tile, dO_tile, etc.
-        Q_TILE_SIZE = 32
-        K_TILE_SIZE = 32
+        # Adaptive tile sizes based on d_model to fit in shared memory
+        # Backward needs more on-chip buffers than forward
+        _, _, bwd_q_tile, bwd_k_tile = compute_tile_sizes(d)
+        Q_TILE_SIZE = bwd_q_tile
+        K_TILE_SIZE = bwd_k_tile
 
         # Scale factor
         scale = 1.0 / math.sqrt(d)
