@@ -274,3 +274,62 @@ Return dQ, dK, dV
 - Pre-compute D before kernel launch (can be separate kernel or CPU)
 
 **Deliverable**: Implement Triton backward kernel and integrate into `FlashAttentionTritonFunc.backward()`
+
+## 2 Distributed Data Parallel Training
+
+Focus on using multiple GPUs to train language models through data parallelism. Begin with PyTorch distributed communication primitives, then study and improve distributed data parallel training implementations for better communication efficiency.
+
+### 2.1 Single-Node Distributed Communication in PyTorch
+
+#### 2.1.1 PyTorch Distributed Basics
+
+**Core Concepts**:
+- **Process groups**: Multiple worker processes coordinating via shared master (rank 0)
+- **Collective operations**: All-reduce, all-gather, etc. operating on all processes in group
+- **Backends**:
+  - `gloo`: CPU-only machines, local development
+  - `nccl`: GPU training, better performance for CUDA tensors
+- **Process spawning**: Use `mp.spawn(fn, args, nprocs)` where `fn(rank, *args)` receives rank as first argument
+
+**Key setup patterns**:
+```python
+def setup(rank, world_size):
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "29500"
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    # For multi-GPU: torch.cuda.set_device(rank)
+    # Or use device = f"cuda:{rank}" explicitly
+```
+
+**Terminology**:
+- **node**: A machine on the network
+- **worker/process**: Instance of program participating in distributed training (used interchangeably for single-process workers)
+- **world size**: Total number of workers in process group
+- **global rank**: Integer ID (0 to world_size-1) uniquely identifying a worker
+- **local world size**: Number of workers on a given node (equals world size for single-node)
+- **local rank**: Integer ID (0 to local_world_size-1) for worker on local machine (equals global rank for single-node)
+
+#### 2.1.2 Best Practices for Benchmarking Distributed Applications
+
+- Run benchmarks on same machine for controlled comparisons
+- Perform warm-up steps before timing (5 iterations generally sufficient, especially for NCCL)
+- Call `torch.cuda.synchronize()` when benchmarking GPUs (necessary even with `async_op=False`, which only queues operations)
+- Aggregate measurements across ranks (use `dist.all_gather_object` for collecting results)
+- Debug locally with Gloo on CPU, benchmark with NCCL on GPU (switch via `init_process_group` and device casts)
+
+#### 2.1.3 Benchmarking All-Reduce (distributed_communication_single_node; 5 pts)
+
+Write a script to benchmark all-reduce operation runtime in single-node multi-process setup.
+
+**Experiment variations**:
+- **Backend + device**: Gloo + CPU, NCCL + GPU
+- **Data size**: float32 tensors of 1MB, 10MB, 100MB, 1GB
+- **Number of processes**: 2, 4, or 6 processes
+
+**Resource requirements**:
+- Up to 6 GPUs
+- Each benchmarking run <5 minutes
+
+**Deliverable**:
+- Plot(s) and/or table(s) comparing the various settings
+- 2-3 sentences of commentary about results and how the various factors (backend, data size, process count) interact
