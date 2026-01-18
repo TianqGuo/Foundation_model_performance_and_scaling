@@ -170,19 +170,6 @@ def flash_fwd_kernel_optimized(
     tl.store(L_block_ptr, L_i, boundary_check=(0,))
 
 
-@triton.autotune(
-    configs=[
-        # Small tiles for large d_model
-        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 16}, num_warps=2),
-        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 16}, num_warps=4),
-        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 32}, num_warps=4),
-        triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 16}, num_warps=4),
-        # Medium tiles for smaller d_model
-        triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 32}, num_warps=4),
-        triton.Config({'Q_TILE_SIZE': 64, 'K_TILE_SIZE': 32}, num_warps=4),
-    ],
-    key=['N_QUERIES', 'N_KEYS', 'D'],
-)
 @triton.jit
 def flash_bwd_dq_kernel(
     Q_ptr, K_ptr, V_ptr, O_ptr, L_ptr, D_ptr,
@@ -342,15 +329,6 @@ def flash_bwd_dq_kernel(
     tl.store(dQ_block_ptr, dQ_tile, boundary_check=(0, 1))
 
 
-@triton.autotune(
-    configs=[
-        triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 32}, num_warps=4),
-        triton.Config({'Q_TILE_SIZE': 64, 'K_TILE_SIZE': 32}, num_warps=4),
-        triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 64}, num_warps=4),
-        triton.Config({'Q_TILE_SIZE': 64, 'K_TILE_SIZE': 64}, num_warps=8),
-    ],
-    key=['N_QUERIES', 'N_KEYS', 'D'],
-)
 @triton.jit
 def flash_bwd_dkdv_kernel(
     Q_ptr, K_ptr, V_ptr, O_ptr, L_ptr, D_ptr,
@@ -586,8 +564,13 @@ class FlashAttentionTritonOptimizedFunc(torch.autograd.Function):
         grad_K = torch.empty_like(K)
         grad_V = torch.empty_like(V)
 
+        # Use small fixed tile sizes for backward (no autotune to avoid compiler issues)
+        # These work well for d_model=1024
+        Q_TILE_BWD = 16
+        K_TILE_BWD = 16
+
         # Pass 1: Compute dQ (launch over query tiles)
-        T_q = math.ceil(N_q / 64)
+        T_q = math.ceil(N_q / Q_TILE_BWD)
         grid_q = (T_q, batch_size)
 
         flash_bwd_dq_kernel[grid_q](
@@ -603,11 +586,14 @@ class FlashAttentionTritonOptimizedFunc(torch.autograd.Function):
             grad_Q.stride(0), grad_Q.stride(1), grad_Q.stride(2),
             N_q, N_k, scale,
             D=d,
+            Q_TILE_SIZE=Q_TILE_BWD,
+            K_TILE_SIZE=K_TILE_BWD,
             is_causal=is_causal,
+            num_warps=4,
         )
 
         # Pass 2: Compute dK and dV (launch over key tiles)
-        T_k = math.ceil(N_k / 64)
+        T_k = math.ceil(N_k / K_TILE_BWD)
         grid_k = (T_k, batch_size)
 
         flash_bwd_dkdv_kernel[grid_k](
@@ -624,7 +610,10 @@ class FlashAttentionTritonOptimizedFunc(torch.autograd.Function):
             grad_V.stride(0), grad_V.stride(1), grad_V.stride(2),
             N_q, N_k, scale,
             D=d,
+            Q_TILE_SIZE=Q_TILE_BWD,
+            K_TILE_SIZE=K_TILE_BWD,
             is_causal=is_causal,
+            num_warps=4,
         )
 
         return grad_Q, grad_K, grad_V, None
