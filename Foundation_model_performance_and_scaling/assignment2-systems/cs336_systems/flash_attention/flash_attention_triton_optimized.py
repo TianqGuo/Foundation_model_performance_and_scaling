@@ -404,19 +404,15 @@ def flash_bwd_dkdv_kernel(
     dK_tile = tl.zeros((K_TILE_SIZE, D), dtype=tl.float32)
     dV_tile = tl.zeros((K_TILE_SIZE, D), dtype=tl.float32)
 
-    # Determine query tile range to process
-    num_query_tiles = tl.cdiv(N_QUERIES, Q_TILE_SIZE)
-    start_query_tile = 0
-
-    # Early termination for causal: only process query tiles that can affect this key tile
-    # Query at position q can attend to keys 0..q, so we need queries >= key_start
+    # Key indices for causal masking
     if is_causal:
         key_start = key_tile_index * K_TILE_SIZE
-        start_query_tile = key_start // Q_TILE_SIZE
         key_indices = key_start + tl.arange(0, K_TILE_SIZE)
 
-    # Loop over query tiles
-    for i in range(start_query_tile, num_query_tiles):
+    num_query_tiles = tl.cdiv(N_QUERIES, Q_TILE_SIZE)
+
+    # Loop over all query tiles (causal masking will handle skipping irrelevant tiles)
+    for i in range(num_query_tiles):
         # Setup Q, O, dO, L, D block pointers
         Q_block_ptr = tl.make_block_ptr(
             Q_ptr + batch_index * stride_qb,
