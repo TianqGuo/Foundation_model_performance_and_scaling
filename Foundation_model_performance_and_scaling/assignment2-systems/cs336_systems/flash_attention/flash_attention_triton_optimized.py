@@ -16,11 +16,15 @@ import math
 
 @triton.autotune(
     configs=[
+        # Small tiles for large d_model (like 1024)
+        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 16}, num_warps=2),
+        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 16}, num_warps=4),
+        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 32}, num_warps=4),
+        triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 16}, num_warps=4),
+        triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 32}, num_warps=4),
+        # Medium tiles for medium d_model
         triton.Config({'Q_TILE_SIZE': 64, 'K_TILE_SIZE': 64}, num_warps=4),
         triton.Config({'Q_TILE_SIZE': 64, 'K_TILE_SIZE': 64}, num_warps=8),
-        triton.Config({'Q_TILE_SIZE': 128, 'K_TILE_SIZE': 64}, num_warps=8),
-        triton.Config({'Q_TILE_SIZE': 64, 'K_TILE_SIZE': 128}, num_warps=8),
-        triton.Config({'Q_TILE_SIZE': 128, 'K_TILE_SIZE': 128}, num_warps=8),
     ],
     key=['N_QUERIES', 'N_KEYS', 'D'],
 )
@@ -168,10 +172,14 @@ def flash_fwd_kernel_optimized(
 
 @triton.autotune(
     configs=[
+        # Small tiles for large d_model
+        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 16}, num_warps=2),
+        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 16}, num_warps=4),
+        triton.Config({'Q_TILE_SIZE': 16, 'K_TILE_SIZE': 32}, num_warps=4),
+        triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 16}, num_warps=4),
+        # Medium tiles for smaller d_model
         triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 32}, num_warps=4),
         triton.Config({'Q_TILE_SIZE': 64, 'K_TILE_SIZE': 32}, num_warps=4),
-        triton.Config({'Q_TILE_SIZE': 32, 'K_TILE_SIZE': 64}, num_warps=4),
-        triton.Config({'Q_TILE_SIZE': 64, 'K_TILE_SIZE': 64}, num_warps=8),
     ],
     key=['N_QUERIES', 'N_KEYS', 'D'],
 )
