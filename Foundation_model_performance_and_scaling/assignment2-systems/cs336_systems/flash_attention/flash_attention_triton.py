@@ -26,19 +26,23 @@ def compute_tile_sizes(d_model):
     - O_i: Q_TILE_SIZE × d_model × 4 bytes (float32)
     - S_ij: Q_TILE_SIZE × K_TILE_SIZE × 4 bytes
     - m_i, l_i: Q_TILE_SIZE × 4 bytes each
+    - Intermediate buffers and Triton overhead: ~30% extra
 
     H100 shared memory per block: ~230 KB
 
     Returns:
         (forward_q_tile, forward_k_tile, backward_q_tile, backward_k_tile)
     """
-    if d_model >= 512:
+    if d_model >= 1024:
+        # Very large d_model: use very small tiles
+        # For d=1024 with 16×16: 16×1024×2 + 16×1024×2×2 + 16×1024×4 + 16×16×4 = 32+64+64+1 = 161 KB
+        return (16, 16, 16, 16)
+    elif d_model >= 512:
         # Large d_model: use small tiles
-        # For d=1024: 16×1024×2 + 32×1024×2×2 + 16×1024×4 + 16×32×4 = 32+128+64+2 = 226 KB
+        # For d=512 with 16×32: 16×512×2 + 32×512×2×2 + 16×512×4 + 16×32×4 = 16+64+32+2 = 114 KB
         return (16, 32, 16, 16)
     elif d_model >= 256:
         # Medium-large d_model
-        # For d=512: 32×512×2 + 64×512×2×2 + 32×512×4 + 32×64×4 = 32+128+64+8 = 232 KB
         return (32, 64, 16, 32)
     elif d_model >= 128:
         # Medium d_model
