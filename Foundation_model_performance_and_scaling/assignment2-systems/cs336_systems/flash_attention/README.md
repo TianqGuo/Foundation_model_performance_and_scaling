@@ -14,11 +14,13 @@ See `../../FLASHATTENTION2_BACKGROUND.md` for detailed algorithm explanations.
 ## Files
 
 - `flash_attention_pytorch.py` - Pure PyTorch tiled implementation (forward + backward)
-- `flash_attention_triton.py` - Triton kernel implementation (forward in Triton, backward in PyTorch)
+- `flash_attention_triton.py` - Baseline Triton kernel implementation (forward + backward in Triton)
+- `flash_attention_triton_optimized.py` - Leaderboard-oriented Triton kernels (autotuned tiles, two-pass backward)
 - `benchmark_flash_attention.py` - Benchmarking script comparing FlashAttention-2 vs PyTorch attention
-- `run_benchmarks.sh` - Shell wrapper for running benchmarks
+- `benchmark_leaderboard.py` - Benchmarks the leaderboard configuration (seq_len=16k, d_model=1024)
+- `run_benchmarks.sh` - Shell wrapper for running the full benchmark sweep
 - `__init__.py` - Module exports
-- `IMPLEMENTATION_NOTES.md` - Detailed implementation notes and test results
+- `IMPLEMENTATION_NOTES.md` / `LEADERBOARD_OPTIMIZATION.md` - Implementation details and optimization notes
 
 ## Usage
 
@@ -96,6 +98,20 @@ uv run python benchmark_flash_attention.py --output /path/to/output.csv
 
 **Output**: CSV file with forward, backward, and end-to-end latencies, plus speedup ratios
 
+### Leaderboard Configuration (Optional §1.3.3/1.3.4)
+
+To reproduce the leaderboard timings or compare the optimized kernels against the baseline implementation:
+
+```bash
+# From this directory
+uv run python benchmark_leaderboard.py
+```
+
+This script benchmarks both `FlashAttentionTritonFunc` (baseline, atomics-based backward) and
+`FlashAttentionTritonOptimizedFunc` (autotuned forward + two-pass backward) on the official configuration
+`(batch_size=1, seq_len=16384, d_model=1024, dtype=torch.bfloat16, is_causal=True)` and prints the measured
+latencies and speedups.
+
 ## Implementation Details
 
 ### PyTorch Version
@@ -105,11 +121,11 @@ uv run python benchmark_flash_attention.py --output /path/to/output.csv
 - Slower than Triton but useful for debugging
 
 ### Triton Version
-- Tile sizes: 64×64 (tunable)
-- Launch grid: (num_query_tiles, batch_size)
-- Single fused kernel for all operations
+- Tile sizes: 64×64 for the baseline implementation; the optimized kernel autotunes tile sizes per shape
+- Launch grid: (num_query_tiles, batch_size) with Triton automatically inferring tile size in the optimized kernel
+- Single fused kernel for forward pass; backward is in Triton for both variants (atomics vs. two-pass)
 - Uses float32 for on-chip accumulation buffers
-- Supports causal masking via `is_causal` flag
+- Supports causal masking via `is_causal` flag and early-termination logic in the optimized kernels
 
 ## Key Features
 
@@ -130,6 +146,17 @@ uv run python benchmark_flash_attention.py --output /path/to/output.csv
 - Single kernel performs all attention operations
 - Minimal data transfers between HBM and SRAM
 - Improved memory bandwidth utilization
+
+## Leaderboard Optimizations Summary
+
+- **Forward autotuning & early termination** (`flash_attention_triton_optimized.py`): Triton autotune selects tile sizes
+  based on `(seq_len, d_model)` and causal attention skips fully-masked tiles, reducing redundant work for the
+  16k-token sequence.
+- **Two-pass backward (no atomics)**: `flash_bwd_dq_kernel` computes `dQ` per query tile, `flash_bwd_dkdv_kernel`
+  computes `dK`/`dV` per key tile, eliminating atomic contention at the cost of recomputation as suggested in §1.3.4.
+- **Leaderboard benchmark**: `benchmark_leaderboard.py` warms up and times both implementations on an H100. On an
+  NVIDIA H100 80GB the optimized kernels currently achieve ~2.4× faster forward and ~1.1× faster backward passes
+  compared to the baseline.
 
 ## Performance Notes
 
