@@ -1,0 +1,1 @@
+"""Naïve Distributed Data Parallel (DDP) training implementation."""
