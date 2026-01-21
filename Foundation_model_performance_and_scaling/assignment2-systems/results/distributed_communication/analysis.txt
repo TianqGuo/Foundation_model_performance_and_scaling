@@ -1,0 +1,53 @@
+================================================================================
+All-Reduce Benchmark Analysis
+================================================================================
+
+## Overall Statistics
+
+Total configurations tested: 24
+Backends: gloo, nccl
+Devices: cpu, cuda
+Process counts: 2, 4, 6
+Data sizes: 1.0, 10.0, 100.0, 1000.0 MB
+
+## Backend Comparison
+
+- gloo+cpu:
+  - Average time: 479.478 ms
+  - Average bandwidth: 0.61 GB/s
+- nccl+cuda:
+  - Average time: 1.196 ms
+  - Average bandwidth: 127.27 GB/s
+
+## Impact of Data Size
+
+- gloo+cpu:
+  - 1.0 MB: 2.697 ms
+  - 10.0 MB: 14.341 ms
+  - 100.0 MB: 149.007 ms
+  - 1000.0 MB: 1751.866 ms
+- nccl+cuda:
+  - 1.0 MB: 0.138 ms
+  - 10.0 MB: 0.207 ms
+  - 100.0 MB: 0.525 ms
+  - 1000.0 MB: 3.916 ms
+
+## Impact of Process Count
+
+- gloo+cpu:
+  - 2 processes: 303.068 ms
+  - 4 processes: 390.473 ms
+  - 6 processes: 744.894 ms
+- nccl+cuda:
+  - 2 processes: 0.938 ms
+  - 4 processes: 1.367 ms
+  - 6 processes: 1.284 ms
+
+## Key Observations
+
+1. Fastest configuration: nccl+cuda with 2 processes and 1.0 MB data (0.039 ms)
+2. Highest bandwidth: nccl+cuda with 2 processes and 1000.0 MB data (309.54 GB/s)
+3. gloo+cpu scaling (1000.0 MB data): 2.57x time increase from 2 to 6 processes
+3. nccl+cuda scaling (1000.0 MB data): 1.32x time increase from 2 to 6 processes
+
+================================================================================
