@@ -195,18 +195,30 @@ def train_ddp_worker(
             # Training step
             step_info = trainer.train_step(local_inputs, local_targets)
 
+        # Synchronize all ranks before reporting results
+        dist.barrier()
+
         # Only rank 0 reports results
         if rank == 0:
             # Get final model state
-            # IMPORTANT: .detach().cpu().clone() creates fully independent CPU copy
-            # - .detach() removes from autograd graph
-            # - .cpu() moves to CPU memory
-            # - .clone() creates independent copy (not just a view)
-            final_state = {name: param.detach().cpu().clone() for name, param in model.named_parameters()}
+            # IMPORTANT: Convert to numpy to avoid PyTorch multiprocessing serialization issues
+            # PyTorch's file descriptor sharing can fail when process exits
+            import numpy as np
+            final_state = {
+                name: param.detach().cpu().numpy()
+                for name, param in model.named_parameters()
+            }
             results_queue.put({
                 "final_state": final_state,
                 "final_loss": step_info["loss"],
             })
+
+            # Small delay to ensure queue.put() completes before cleanup
+            import time
+            time.sleep(0.5)
+
+        # Barrier again to ensure rank 0 finishes putting results
+        dist.barrier()
 
         cleanup_distributed()
 
@@ -221,20 +233,26 @@ def compare_model_states(state1: dict, state2: dict, tolerance: float = 1e-6) ->
     """Compare two model state dicts.
 
     Args:
-        state1: First model state
-        state2: Second model state
+        state1: First model state (PyTorch tensors)
+        state2: Second model state (can be PyTorch tensors or numpy arrays)
         tolerance: Maximum allowed difference
 
     Returns:
         Tuple of (states_match, max_difference)
     """
+    import numpy as np
+
     max_diff = 0.0
 
     for name in state1.keys():
         if name not in state2:
             return False, float('inf')
 
-        diff = torch.abs(state1[name] - state2[name]).max().item()
+        # Convert both to numpy for comparison
+        val1 = state1[name].detach().cpu().numpy() if isinstance(state1[name], torch.Tensor) else state1[name]
+        val2 = state2[name] if isinstance(state2[name], np.ndarray) else state2[name].detach().cpu().numpy()
+
+        diff = np.abs(val1 - val2).max()
         max_diff = max(max_diff, diff)
 
     states_match = max_diff < tolerance
