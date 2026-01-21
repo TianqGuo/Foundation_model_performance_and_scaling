@@ -333,3 +333,89 @@ Write a script to benchmark all-reduce operation runtime in single-node multi-pr
 **Deliverable**:
 - Plot(s) and/or table(s) comparing the various settings
 - 2-3 sentences of commentary about results and how the various factors (backend, data size, process count) interact
+
+### 2.2 A Naïve Implementation of Distributed Data Parallel Training
+
+Build a minimal implementation of vanilla distributed data parallel (DDP) training using collective communication operations.
+
+#### 2.2.1 Data Parallelism Overview
+
+**Concept**: Split batches across multiple devices (e.g., GPUs) to enable training on large batch sizes that don't fit on a single device.
+
+**Example**: 4 devices × 32 max batch size per device → 128 effective batch size
+
+**Vanilla DDP Algorithm**:
+
+1. **Initialization**:
+   - Each device constructs a randomly-initialized model
+   - Use broadcast collective to send model parameters from rank 0 to all other ranks
+   - Each device holds identical copy of model parameters and optimizer states
+
+2. **Training iteration**:
+   - **Step 1**: Given batch with `n` examples, shard across `d` devices → each device gets `n/d` disjoint examples
+     - Note: `n` should divide `d` (training bottlenecked by slowest process)
+
+   - **Step 2**: Each device runs:
+     - Forward pass on its `n/d` examples using local model copy
+     - Backward pass to calculate gradients
+     - Result: Each device holds gradients from its `n/d` examples
+
+   - **Step 3**: Use all-reduce collective to average gradients across devices
+     - Result: Each device holds gradients averaged across all `n` examples
+
+   - **Step 4**: Each device runs optimizer step to update local parameters
+     - Parameters and optimizer states stay synchronized because:
+       - All start from same initialization
+       - All use same averaged gradients each iteration
+
+   - **Repeat**: Iteration complete, continue to next batch
+
+**Key properties of vanilla DDP**:
+- Full model replication: Each device holds complete copy of parameters
+- Full optimizer replication: Each device holds complete optimizer states
+- Only gradients communicated: All-reduce after backward pass
+- Memory inefficient: No sharding of parameters or optimizer states
+
+#### 2.2.2 Naïve DDP Implementation (naive_ddp; 5 pts)
+
+Write a script to perform distributed data parallel training by all-reducing individual parameter gradients after the backward pass.
+
+**Implementation requirements**:
+- Naïve approach: All-reduce each parameter's gradient individually
+- Use collective communication operations (all-reduce)
+- Synchronize parameters across all devices after gradient averaging
+
+**Testing for correctness**:
+- Train a small toy model on randomly-generated data
+- Compare with single-process training
+- Verify that DDP weights match single-process weights
+- See `tests/test_ddp_individual_parameters.py` for reference
+
+**Deliverable**:
+- Script implementing naïve DDP training
+- Correctness verification showing DDP matches single-process training
+
+#### 2.2.3 Naïve DDP Benchmarking (naive_ddp_benchmarking; 3 pts)
+
+Benchmark the naïve DDP implementation to understand overhead of data parallel training.
+
+**Benchmarking setup**:
+- Model: XL model size from §1.1.2 (d_model=1600, d_ff=6400, num_layers=48, num_heads=25)
+- Configuration: Single-node, 2 GPUs (1 node × 2 GPUs)
+- Naive implementation: Individual parameter gradients all-reduced after backward pass
+
+**Measurements required**:
+1. Total time per training step
+2. Proportion of time spent on communicating gradients
+3. Breakdown showing communication overhead
+
+**Analysis**:
+- Identify communication bottleneck in naïve approach
+- Understand why individual parameter all-reduces are inefficient
+- Motivate need for optimized DDP implementations
+
+**Deliverable**:
+- Description of benchmarking setup
+- Measured time per training iteration for each setting
+- Measured time spent communicating gradients
+- Analysis of communication overhead (1-2 paragraphs)
