@@ -198,8 +198,11 @@ def train_ddp_worker(
         # Only rank 0 reports results
         if rank == 0:
             # Get final model state
-            # IMPORTANT: detach() removes from autograd graph so it can be serialized
-            final_state = {name: param.detach().cpu() for name, param in model.named_parameters()}
+            # IMPORTANT: .detach().cpu().clone() creates fully independent CPU copy
+            # - .detach() removes from autograd graph
+            # - .cpu() moves to CPU memory
+            # - .clone() creates independent copy (not just a view)
+            final_state = {name: param.detach().cpu().clone() for name, param in model.named_parameters()}
             results_queue.put({
                 "final_state": final_state,
                 "final_loss": step_info["loss"],
@@ -341,7 +344,7 @@ def main():
         device="cuda:0",
     )
 
-    single_state = {name: param.cpu() for name, param in single_model.named_parameters()}
+    single_state = {name: param.detach().cpu().clone() for name, param in single_model.named_parameters()}
     print(f"✓ Single-process training complete")
     print(f"  Final loss: {single_info['final_loss']:.6f}")
     print()
