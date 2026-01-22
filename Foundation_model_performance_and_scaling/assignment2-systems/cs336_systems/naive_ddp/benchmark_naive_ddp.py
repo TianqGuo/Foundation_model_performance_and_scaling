@@ -36,6 +36,13 @@ import torch.nn as nn
 from naive_ddp_trainer import NaiveDDPTrainer, setup_distributed, cleanup_distributed, shard_batch
 
 
+# Ensure Assignment 1 package is importable without installation
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CS336_BASICS_DIR = PROJECT_ROOT / "cs336-basics"
+if CS336_BASICS_DIR.exists() and str(CS336_BASICS_DIR) not in sys.path:
+    sys.path.append(str(CS336_BASICS_DIR))
+
+
 # Model configurations from Section 1.1.2
 MODEL_CONFIGS = {
     "small": {"d_model": 768, "d_ff": 3072, "num_layers": 12, "num_heads": 12},
