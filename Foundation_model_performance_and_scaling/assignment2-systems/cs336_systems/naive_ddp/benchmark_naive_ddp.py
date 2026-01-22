@@ -163,8 +163,20 @@ def benchmark_ddp_worker(
         # Create trainer
         trainer = NaiveDDPTrainer(model, optimizer, rank, world_size, device=device)
 
-        # Loss function
-        loss_fn = nn.CrossEntropyLoss()
+        # Loss function (flatten sequence tokens for cross-entropy)
+        class SequenceCrossEntropyLoss(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.loss_fn = nn.CrossEntropyLoss()
+
+            def forward(self, logits, targets):
+                vocab_size = logits.shape[-1]
+                return self.loss_fn(
+                    logits.view(-1, vocab_size),
+                    targets.view(-1),
+                )
+
+        loss_fn = SequenceCrossEntropyLoss()
 
         # Generate random data (same on all ranks for reproducibility)
         torch.manual_seed(42)
