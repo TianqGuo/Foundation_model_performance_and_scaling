@@ -419,3 +419,230 @@ Benchmark the naïve DDP implementation to understand overhead of data parallel 
 - Measured time per training iteration for each setting
 - Measured time spent communicating gradients
 - Analysis of communication overhead (1-2 paragraphs)
+
+### 2.3 Improving Upon the Minimal DDP Implementation
+
+The minimal DDP implementation from §2.2 has two key limitations:
+
+1. **Multiple communication calls**: Conducts a separate all-reduce operation for every parameter tensor. Each communication call incurs overhead, so batching communication calls may minimize this overhead.
+
+2. **No overlap of computation and communication**: Waits for the backward pass to finish before communicating gradients. However, the backward pass is incrementally computed—when a parameter gradient is ready, it can immediately be communicated without waiting for other parameters. This allows overlapping communication of gradients with computation of the backward pass, reducing distributed training overhead.
+
+This section addresses each limitation and measures the impact on training speed.
+
+#### 2.3.1 Reducing the Number of Communication Calls (minimal_ddp_flat_benchmarking; 2 pts)
+
+Rather than issuing a communication call for each parameter tensor, improve performance by batching the all-reduce.
+
+**Implementation approach**:
+- Take all gradients to all-reduce
+- Concatenate them into a single tensor
+- All-reduce the combined gradients across all ranks
+- Helper utilities: `torch._utils._flatten_dense_tensors` and `torch._utils._unflatten_dense_tensors`
+
+**Benchmarking setup**:
+- Model: XL model size from §1.1.2
+- Configuration: Single-node, 2 GPUs (1 node × 2 GPUs)
+- Compare: Batched all-reduce vs. individual parameter all-reduces
+
+**Deliverable**:
+- Measured time per training iteration with single batched all-reduce call
+- Measured time spent communicating gradients
+- 1-2 sentences comparing results when batching vs. individually communicating gradients
+
+#### 2.3.2 Overlapping Computation with Communication of Individual Parameter Gradients
+
+Overlap backward pass computation with gradient communication by all-reducing parameter gradients as soon as they're ready, rather than waiting for the entire backward pass to complete.
+
+**Implementation approach**:
+
+1. **Backward hooks**: Use `register_post_accumulate_grad_hook()` to automatically call a function on a parameter after its gradient has been accumulated in the backward pass
+   - See: `pytorch.org/docs/stable/generated/torch.Tensor.register_post_accumulate_grad_hook.html`
+
+2. **Asynchronous communication**: PyTorch collective operations support both synchronous and asynchronous execution:
+   - `async_op=False` (default): Blocks until operation is queued on GPU
+   - `async_op=True`: Returns immediately with a distributed request handle
+   - Call `handle.wait()` on returned handle to wait for operation to be queued on GPU
+
+**Example synchronous vs. asynchronous all-reduce**:
+```python
+tensors = [torch.rand(5) for _ in range(10)]
+
+# Synchronous - block until operation is queued on GPU
+for tensor in tensors:
+    dist.all_reduce(tensor, async_op=False)
+
+# Asynchronous - return immediately after each call
+handles = []
+for tensor in tensors:
+    handle = dist.all_reduce(tensor, async_op=True)
+    handles.append(handle)
+
+# ... possibly execute other commands that don't rely on all_reduce results ...
+
+# Ensure all-reduce calls were queued
+for handle in handles:
+    handle.wait()
+handles.clear()
+```
+
+**Problem (ddp_overlap_individual_parameters; 5 pts)**:
+
+Implement a Python class to handle distributed data parallel training that overlaps backward computation with gradient communication.
+
+**Required interface**:
+```python
+class DDP:
+    def __init__(self, module: torch.nn.Module):
+        """Construct DDP container to handle gradient synchronization across ranks.
+
+        Args:
+            module: PyTorch nn.Module to be parallelized
+        """
+        pass
+
+    def forward(self, *inputs, **kwargs):
+        """Call wrapped module's forward() with provided arguments."""
+        pass
+
+    def finish_gradient_synchronization(self):
+        """Wait for asynchronous communication calls to be queued on GPU."""
+        pass
+```
+
+**Usage pattern**:
+```python
+model = ToyModel().to(device)
+ddp_model = DDP(model)
+
+for _ in range(train_steps):
+    x, y = get_batch()
+    logits = ddp_model(x)
+    loss = loss_fn(logits, y)
+    loss.backward()
+    ddp_model.finish_gradient_synchronization()  # Wait before optimizer.step()
+    optimizer.step()
+```
+
+**Deliverable**:
+- DDP container class implementation overlapping gradient communication with backward computation
+- Implement adapters:
+  - `adapters.get_ddp_individual_parameters`
+  - `adapters.ddp_individual_parameters_on_after_backward` (optional, may not be needed)
+- Test: `uv run pytest tests/test_ddp_individual_parameters.py`
+- Run tests multiple times (e.g., 5) to ensure reliable passing
+
+**Problem (ddp_overlap_individual_parameters_benchmarking; 1 pt)**:
+
+(a) **Performance benchmarking**: Benchmark the DDP implementation overlapping backward pass with communication of individual parameter gradients.
+
+**Comparison settings**:
+- Setup: 1 node, 2 GPUs, XL model size (§1.1.2)
+- Compare against:
+  - Minimal DDP with individual parameter all-reduces
+  - Minimal DDP with single batched all-reduce
+
+**Deliverable**:
+- Measured time per training iteration when overlapping backward with communication
+- 1-2 sentences comparing results
+
+(b) **Profiler visualization**: Use Nsight profiler to visually demonstrate compute/communication overlap.
+
+**Setup**:
+- Configuration: 1 node, 2 GPUs, XL model size
+- Compare:
+  - Initial DDP implementation (no overlap)
+  - This DDP implementation (with overlap)
+
+**Deliverable**:
+- 2 screenshots from profiler:
+  1. Initial DDP implementation showing no overlap
+  2. This DDP implementation showing compute/communication overlap
+- Visual demonstration that one implementation overlaps compute with communication while the other doesn't
+
+#### 2.3.3 Overlapping Computation with Communication of Bucketed Parameter Gradients
+
+Combine the benefits of batching (§2.3.1) and overlapping (§2.3.2) by organizing parameters into buckets and all-reducing buckets when each of their constituent tensors are ready.
+
+**Motivation**:
+- Batching communication reduces overhead of many small all-reduces
+- But batching all parameters requires waiting for entire backward pass
+- **Solution**: Bucket parameters and all-reduce buckets as they become ready
+
+**Problem (ddp_overlap_bucketed; 8 pts)**:
+
+Implement a Python class to handle distributed data parallel training using gradient bucketing to improve communication efficiency.
+
+**Required interface**:
+```python
+class DDP:
+    def __init__(self, module: torch.nn.Module, bucket_size_mb: float):
+        """Construct DDP container with gradient bucketing.
+
+        Args:
+            module: PyTorch nn.Module to be parallelized
+            bucket_size_mb: Maximum size (MB) of parameters per bucket
+        """
+        pass
+
+    def forward(self, *inputs, **kwargs):
+        """Call wrapped module's forward() with provided arguments."""
+        pass
+
+    def finish_gradient_synchronization(self):
+        """Wait for asynchronous communication calls to be queued on GPU."""
+        pass
+```
+
+**Implementation guidance**:
+- Allocate parameters to buckets using **reverse order** of `model.parameters()`
+  - Gradients become ready in approximately reverse order during backward pass
+- Each bucket holds at most `bucket_size_mb` MB of parameters
+- All-reduce each bucket when all its constituent parameter gradients are ready
+
+**Deliverable**:
+- DDP container class with gradient bucketing that overlaps communication with backward computation
+- Implement adapters:
+  - `adapters.get_ddp_bucketed`
+  - `adapters.ddp_bucketed_on_after_backward` (optional)
+  - `adapters.ddp_bucketed_on_train_batch_start` (optional)
+- Test: `uv run pytest tests/test_ddp.py`
+- Run tests multiple times (e.g., 5) to ensure reliable passing
+
+**Problem (ddp_bucketed_benchmarking; 3 pts)**:
+
+(a) **Bucket size impact**: Benchmark bucketed DDP implementation with varying bucket sizes.
+
+**Benchmarking setup**:
+- Configuration: 1 node, 2 GPUs, XL model size
+- Bucket sizes: 1, 10, 100, 1000 MB
+- Compare results to previous experiments without bucketing
+
+**Analysis questions**:
+- Do results align with expectations?
+- If not aligned, why not?
+- What changes in experimental setup would yield results aligned with expectations?
+- May need PyTorch profiler to understand communication call ordering/execution
+
+**Deliverable**:
+- Measured time per training iteration for various bucket sizes
+- 3-4 sentence commentary about:
+  - Results
+  - Expectations
+  - Potential reasons for any mismatch
+
+(b) **Mathematical modeling**: Model DDP communication overhead mathematically.
+
+**Assumption**: Time to compute gradients for a bucket equals time to communicate gradient buckets.
+
+**Task 1**: Write equation modeling communication overhead of DDP as function of:
+- `s`: Total size (bytes) of model parameters
+- `w`: All-reduce algorithm bandwidth (bytes per second, computed as data size / time to finish all-reduce)
+- `o`: Overhead (seconds) associated with each communication call
+- `nb`: Number of buckets
+
+**Task 2**: From the overhead equation, derive equation for optimal bucket size that minimizes DDP overhead.
+
+**Deliverable**:
+- Equation modeling DDP overhead
+- Equation for optimal bucket size
