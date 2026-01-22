@@ -20,6 +20,7 @@
 # ==============================================================================
 
 import argparse
+import queue
 import sys
 from pathlib import Path
 
@@ -152,7 +153,11 @@ def train_ddp_worker(
     """
     try:
         # Setup distributed
+        print(f"[Rank {rank}] Starting distributed setup...")
+        sys.stdout.flush()
         setup_distributed(rank, world_size, backend="nccl")
+        print(f"[Rank {rank}] Distributed setup complete")
+        sys.stdout.flush()
 
         device = f"cuda:{rank}"
 
@@ -402,22 +407,27 @@ def main():
         p.start()
         processes.append(p)
 
+    # Fetch results before joining so workers don't block on queue.put()
+    ddp_results = None
+    try:
+        ddp_results = results_queue.get(timeout=300)
+    except queue.Empty:
+        print("✗ Error: Timed out waiting for DDP results")
+
     # Wait for completion
     for p in processes:
         p.join()
 
-    # Get results
-    if not results_queue.empty():
-        ddp_results = results_queue.get()
-        ddp_state = ddp_results["final_state"]
-        ddp_loss = ddp_results["final_loss"]
-
-        print(f"✓ Naïve DDP training complete")
-        print(f"  Final loss: {ddp_loss:.6f}")
-        print()
-    else:
+    if ddp_results is None:
         print("✗ Error: No results from DDP training")
         return 1
+
+    ddp_state = ddp_results["final_state"]
+    ddp_loss = ddp_results["final_loss"]
+
+    print(f"✓ Naïve DDP training complete")
+    print(f"  Final loss: {ddp_loss:.6f}")
+    print()
 
     # ========================================================================
     # Compare results
