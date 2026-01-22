@@ -37,7 +37,7 @@ from naive_ddp_trainer import NaiveDDPTrainer, setup_distributed, cleanup_distri
 
 
 # Ensure Assignment 1 package is importable without installation
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CS336_BASICS_DIR = PROJECT_ROOT / "cs336-basics"
 if CS336_BASICS_DIR.exists() and str(CS336_BASICS_DIR) not in sys.path:
     sys.path.append(str(CS336_BASICS_DIR))
