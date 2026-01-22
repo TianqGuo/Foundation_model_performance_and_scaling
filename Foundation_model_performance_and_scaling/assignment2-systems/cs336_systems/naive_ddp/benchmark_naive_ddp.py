@@ -32,15 +32,16 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.nn as nn
+from cs336_basics.transformer_training.model import TransformerLM
 
 from naive_ddp_trainer import NaiveDDPTrainer, setup_distributed, cleanup_distributed, shard_batch
 
 
-# Ensure Assignment 1 package is importable without installation
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-CS336_BASICS_DIR = PROJECT_ROOT / "cs336-basics"
-if CS336_BASICS_DIR.exists() and str(CS336_BASICS_DIR) not in sys.path:
-    sys.path.append(str(CS336_BASICS_DIR))
+# # Ensure Assignment 1 package is importable without installation
+# PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# CS336_BASICS_DIR = PROJECT_ROOT / "cs336-basics"
+# if CS336_BASICS_DIR.exists() and str(CS336_BASICS_DIR) not in sys.path:
+#     sys.path.append(str(CS336_BASICS_DIR))
 
 
 # Model configurations from Section 1.1.2
@@ -78,8 +79,8 @@ def create_transformer_model(
         Transformer model
     """
     try:
-        # Try to import from cs336_basics (Assignment 1)
-        from cs336_basics.model import TransformerLM
+        # # Try to import from cs336_basics (Assignment 1)
+        # from cs336_basics.model import TransformerLM
 
         model = TransformerLM(
             vocab_size=vocab_size,
