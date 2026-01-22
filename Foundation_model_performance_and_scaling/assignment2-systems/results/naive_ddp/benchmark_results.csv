@@ -1,0 +1,2 @@
+model_size,d_model,num_layers,batch_size,context_length,world_size,num_parameters,total_time_ms,compute_time_ms,comm_time_ms,comm_fraction,num_comm_ops
+xl,1600,48,4,512,2,1998235200,773.4265815466642,668.4177275747061,43.44100132584572,0.056166936025103156,5655
