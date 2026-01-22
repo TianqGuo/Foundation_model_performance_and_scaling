@@ -91,9 +91,13 @@ def create_transformer_model(
             attn_pdrop=0.0,
             residual_pdrop=0.0,
         )
-    except ImportError:
+    except Exception as exc:  # noqa: BLE001
         # Fallback: create simple transformer for benchmarking
-        print("Warning: cs336_basics not found, using simple transformer")
+        print(
+            "Warning: cs336_basics import failed (",
+            exc,
+            ") using simple transformer",
+        )
 
         model = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(
