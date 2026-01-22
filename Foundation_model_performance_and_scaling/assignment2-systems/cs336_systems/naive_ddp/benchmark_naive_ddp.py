@@ -89,8 +89,6 @@ def create_transformer_model(
             num_layers=num_layers,
             num_heads=num_heads,
             d_ff=d_ff,
-            attn_pdrop=0.0,
-            residual_pdrop=0.0,
         )
     except Exception as exc:  # noqa: BLE001
         # Fallback: create simple transformer for benchmarking
