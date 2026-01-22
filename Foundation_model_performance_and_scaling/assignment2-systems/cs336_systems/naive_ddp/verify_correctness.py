@@ -20,6 +20,7 @@
 # ==============================================================================
 
 import argparse
+import queue
 import sys
 from pathlib import Path
 
@@ -197,8 +198,11 @@ def train_ddp_worker(
 
         # Only rank 0 reports results
         if rank == 0:
-            # Get final model state
-            final_state = {name: param.cpu() for name, param in model.named_parameters()}
+            # Detach tensors before putting them on the queue
+            final_state = {
+                name: param.detach().cpu().clone()
+                for name, param in model.named_parameters()
+            }
             results_queue.put({
                 "final_state": final_state,
                 "final_loss": step_info["loss"],
@@ -340,7 +344,10 @@ def main():
         device="cuda:0",
     )
 
-    single_state = {name: param.cpu() for name, param in single_model.named_parameters()}
+    single_state = {
+        name: param.detach().cpu().clone()
+        for name, param in single_model.named_parameters()
+    }
     print(f"✓ Single-process training complete")
     print(f"  Final loss: {single_info['final_loss']:.6f}")
     print()
@@ -380,22 +387,27 @@ def main():
         p.start()
         processes.append(p)
 
+    # Fetch result before joining to avoid blocking worker queue.put
+    ddp_results = None
+    try:
+        ddp_results = results_queue.get(timeout=300)
+    except queue.Empty:
+        print("✗ Error: Timed out waiting for DDP results")
+
     # Wait for completion
     for p in processes:
         p.join()
 
-    # Get results
-    if not results_queue.empty():
-        ddp_results = results_queue.get()
-        ddp_state = ddp_results["final_state"]
-        ddp_loss = ddp_results["final_loss"]
-
-        print(f"✓ Naïve DDP training complete")
-        print(f"  Final loss: {ddp_loss:.6f}")
-        print()
-    else:
+    if ddp_results is None:
         print("✗ Error: No results from DDP training")
         return 1
+
+    ddp_state = ddp_results["final_state"]
+    ddp_loss = ddp_results["final_loss"]
+
+    print(f"✓ Naïve DDP training complete")
+    print(f"  Final loss: {ddp_loss:.6f}")
+    print()
 
     # ========================================================================
     # Compare results
