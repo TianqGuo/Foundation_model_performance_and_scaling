@@ -63,24 +63,21 @@ def create_model(model_size: str):
 
     # Try to import from cs336_basics
     try:
-        from cs336_basics.transformer_training.model import BasicsTransformer, BasicsTransformerConfig
+        from cs336_basics.transformer_training.model import TransformerLM
 
-        transformer_config = BasicsTransformerConfig(
+        model = TransformerLM(
             vocab_size=10000,
             context_length=512,
             d_model=config["d_model"],
             num_layers=config["num_layers"],
             num_heads=config["num_heads"],
             d_ff=config["d_ff"],
-            attn_pdrop=0.1,
-            residual_pdrop=0.1,
         )
-        model = BasicsTransformer(transformer_config)
         return model
 
-    except ImportError:
+    except Exception as exc:
         # Fallback to simple model
-        print("Warning: cs336_basics not found, using fallback model")
+        print(f"Warning: cs336_basics import failed ({exc}), using fallback model")
 
         class FallbackTransformer(nn.Module):
             def __init__(self, config):
