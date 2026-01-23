@@ -1,0 +1,1 @@
+"""Flat DDP - Batched Gradient Communication (Section 2.3.1)"""

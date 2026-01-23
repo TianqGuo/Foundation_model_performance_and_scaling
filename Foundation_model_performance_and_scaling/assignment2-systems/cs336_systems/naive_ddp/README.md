@@ -19,7 +19,7 @@ This implementation serves as a baseline to understand communication bottlenecks
 
 ## Files
 
-- `naive_ddp_trainer.py` - Core naïve DDP implementation
+- `naive_ddp_trainer.py` - Core naïve DDP implementation (individual parameter all-reduces)
 - `verify_correctness.py` - Verify DDP matches single-process training
 - `benchmark_naive_ddp.py` - Benchmark communication overhead
 - `run_verification.sh` - Run correctness verification
@@ -168,7 +168,7 @@ Number of all-reduce ops: ~NNNN (one per parameter)
 ```
 
 The high communication overhead (typically 20-40%) motivates:
-- Gradient bucketing (PyTorch DDP)
+- Gradient bucketing (Section 2.3 - see `../flat_ddp/` folder)
 - Optimizer state sharding (ZeRO-2)
 - Parameter sharding (ZeRO-3 / FSDP)
 
@@ -290,7 +290,7 @@ uv run python benchmark_naive_ddp.py --model-size medium
 
 ## Requirements
 
-See Assignment 2 Section 2.2:
+**Section 2.2 (8 pts total)**:
 - **naive_ddp (5 pts)**: Implement and verify correctness
 - **naive_ddp_benchmarking (3 pts)**: Benchmark XL model on 2 GPUs, measure communication overhead
 
