@@ -111,12 +111,14 @@ class FlatDDPTrainer:
         self,
         inputs: torch.Tensor,
         targets: torch.Tensor,
+        loss_fn: Optional[nn.Module] = None,
     ) -> dict:
         """Execute one training step.
 
         Args:
             inputs: Input tensor [batch_size, seq_len]
-            targets: Target tensor [batch_size]
+            targets: Target tensor [batch_size] or [batch_size, seq_len]
+            loss_fn: Optional loss function (default: CrossEntropyLoss)
 
         Returns:
             Dictionary with step statistics:
@@ -124,6 +126,9 @@ class FlatDDPTrainer:
                 - comm_time: Time spent on gradient communication
                 - total_time: Total time for the step
         """
+        if loss_fn is None:
+            loss_fn = self.loss_fn
+
         step_start = time.perf_counter()
 
         # Move to device
@@ -133,7 +138,7 @@ class FlatDDPTrainer:
         # Forward pass
         self.optimizer.zero_grad()
         outputs = self.model(inputs)
-        loss = self.loss_fn(outputs, targets)
+        loss = loss_fn(outputs, targets)
 
         # Backward pass
         loss.backward()
