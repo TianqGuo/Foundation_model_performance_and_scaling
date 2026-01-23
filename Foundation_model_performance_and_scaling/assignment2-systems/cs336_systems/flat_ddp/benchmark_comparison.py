@@ -145,13 +145,28 @@ def benchmark_worker(
         else:
             raise ValueError(f"Unknown implementation: {implementation}")
 
+        # Loss function (flatten sequence tokens for cross-entropy)
+        class SequenceCrossEntropyLoss(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.loss_fn = nn.CrossEntropyLoss()
+
+            def forward(self, logits, targets):
+                vocab_size = logits.shape[-1]
+                return self.loss_fn(
+                    logits.view(-1, vocab_size),
+                    targets.view(-1),
+                )
+
+        loss_fn = SequenceCrossEntropyLoss()
+
         # Generate synthetic data
         torch.manual_seed(42 + rank)
         seq_len = 512
         num_samples = (warmup_steps + num_steps) * batch_size
 
         inputs = torch.randint(0, 10000, (num_samples, seq_len))
-        targets = torch.randint(0, 10000, (num_samples,))
+        targets = torch.randint(0, 10000, (num_samples, seq_len))
 
         # Warm-up steps
         for step in range(warmup_steps):
@@ -161,7 +176,7 @@ def benchmark_worker(
             batch_inputs = inputs[start_idx:end_idx]
             batch_targets = targets[start_idx:end_idx]
 
-            trainer.train_step(batch_inputs, batch_targets)
+            trainer.train_step(batch_inputs, batch_targets, loss_fn)
 
         # Measured steps
         step_times = []
@@ -174,7 +189,7 @@ def benchmark_worker(
             batch_inputs = inputs[start_idx:end_idx]
             batch_targets = targets[start_idx:end_idx]
 
-            step_info = trainer.train_step(batch_inputs, batch_targets)
+            step_info = trainer.train_step(batch_inputs, batch_targets, loss_fn)
 
             step_times.append(step_info["total_time"])
             comm_times.append(step_info["comm_time"])
