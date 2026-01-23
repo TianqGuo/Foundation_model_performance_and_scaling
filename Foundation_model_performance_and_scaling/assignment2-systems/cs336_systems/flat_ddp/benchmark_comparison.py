@@ -22,6 +22,7 @@
 # ==============================================================================
 
 import argparse
+import csv
 import sys
 from pathlib import Path
 
@@ -408,6 +409,65 @@ def main():
     else:
         print(f"Batching shows minimal benefit (speedup: {speedup:.2f}x), likely due to")
         print(f"efficient pipelining in NCCL or small model size where overhead is negligible.")
+    print()
+
+    # Save results to CSV
+    results_dir = Path(__file__).parent.parent.parent / "results" / "flat_ddp"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = results_dir / "comparison_results.csv"
+
+    model_config = MODEL_CONFIGS[args.model_size]
+
+    # Write CSV with both naive and flat results
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=[
+            "implementation",
+            "model_size",
+            "d_model",
+            "num_layers",
+            "world_size",
+            "avg_step_time_ms",
+            "avg_comm_time_ms",
+            "comm_overhead_pct",
+            "num_comm_ops",
+            "speedup_vs_naive",
+            "comm_speedup_vs_naive",
+        ])
+        writer.writeheader()
+
+        # Write naive results
+        writer.writerow({
+            "implementation": "naive",
+            "model_size": args.model_size,
+            "d_model": model_config["d_model"],
+            "num_layers": model_config["num_layers"],
+            "world_size": args.world_size,
+            "avg_step_time_ms": f"{naive_time * 1000:.2f}",
+            "avg_comm_time_ms": f"{naive_comm * 1000:.2f}",
+            "comm_overhead_pct": f"{naive_comm_pct:.1f}",
+            "num_comm_ops": naive_results["num_comm_ops"],
+            "speedup_vs_naive": "1.00",
+            "comm_speedup_vs_naive": "1.00",
+        })
+
+        # Write flat results
+        writer.writerow({
+            "implementation": "flat",
+            "model_size": args.model_size,
+            "d_model": model_config["d_model"],
+            "num_layers": model_config["num_layers"],
+            "world_size": args.world_size,
+            "avg_step_time_ms": f"{flat_time * 1000:.2f}",
+            "avg_comm_time_ms": f"{flat_comm * 1000:.2f}",
+            "comm_overhead_pct": f"{flat_comm_pct:.1f}",
+            "num_comm_ops": flat_results["num_comm_ops"],
+            "speedup_vs_naive": f"{speedup:.2f}",
+            "comm_speedup_vs_naive": f"{comm_speedup:.2f}",
+        })
+
+    print("=" * 80)
+    print(f"✓ Results saved to: {csv_path}")
+    print("=" * 80)
 
     return 0
 

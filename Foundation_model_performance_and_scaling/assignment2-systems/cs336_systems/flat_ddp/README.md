@@ -42,6 +42,7 @@ This will:
 - Measure total time per step and communication time
 - Show speedup from batching communication calls
 - Display number of all-reduce operations for each approach
+- Save results to `../../results/flat_ddp/comparison_results.csv`
 
 **Requirements**: 2+ GPUs (40GB+ recommended for XL), ~10-15 minutes runtime
 
@@ -192,6 +193,24 @@ uv run python benchmark_comparison.py --world-size 4
 # More measured steps for stable results
 uv run python benchmark_comparison.py --num-steps 20
 ```
+
+## Output Files
+
+Results saved to `../../results/flat_ddp/`:
+
+- `comparison_results.csv` - Comparison benchmark results
+
+CSV columns:
+- `implementation`: "naive" or "flat"
+- `model_size`: Model configuration name
+- `d_model`, `num_layers`: Model dimensions
+- `world_size`: Number of GPUs used
+- `avg_step_time_ms`: Average time per training step (ms)
+- `avg_comm_time_ms`: Average gradient communication time (ms)
+- `comm_overhead_pct`: Communication overhead (% of total time)
+- `num_comm_ops`: Number of all-reduce operations
+- `speedup_vs_naive`: Overall speedup compared to naive DDP
+- `comm_speedup_vs_naive`: Communication speedup compared to naive DDP
 
 ## Comparison: Naive vs. Flat DDP
 
