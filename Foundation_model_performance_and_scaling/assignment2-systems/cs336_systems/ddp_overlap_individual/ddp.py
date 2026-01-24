@@ -64,6 +64,10 @@ class DDP(nn.Module):
         # Track async communication handles
         self.comm_handles = []
 
+        # Track which gradient storages we've already communicated
+        # (important for tied weights where multiple params share same gradient)
+        self.communicated_grad_storages = set()
+
         # Broadcast parameters from rank 0 to ensure same initial state
         self._broadcast_parameters()
 
@@ -108,16 +112,24 @@ class DDP(nn.Module):
                 None (in-place modification)
             """
             if grad is not None:
-                # Launch asynchronous all-reduce
-                # This returns immediately without blocking
-                handle = dist.all_reduce(
-                    grad.data,
-                    op=dist.ReduceOp.SUM,
-                    async_op=True  # KEY: Asynchronous operation
-                )
+                # Get unique identifier for this gradient's storage
+                # This handles tied weights where multiple params share gradients
+                grad_ptr = grad.data_ptr()
 
-                # Store handle to wait on later
-                self.comm_handles.append((handle, grad))
+                # Only communicate each unique gradient once
+                if grad_ptr not in self.communicated_grad_storages:
+                    self.communicated_grad_storages.add(grad_ptr)
+
+                    # Launch asynchronous all-reduce
+                    # This returns immediately without blocking
+                    handle = dist.all_reduce(
+                        grad.data,
+                        op=dist.ReduceOp.SUM,
+                        async_op=True  # KEY: Asynchronous operation
+                    )
+
+                    # Store handle to wait on later
+                    self.comm_handles.append((handle, grad))
 
             return None  # In-place modification
 
@@ -136,8 +148,9 @@ class DDP(nn.Module):
             # Average the gradient (all-reduce gives sum)
             grad.data /= self.world_size
 
-        # Clear handles for next iteration
+        # Clear handles and storage tracking for next iteration
         self.comm_handles.clear()
+        self.communicated_grad_storages.clear()
 
     def forward(self, *inputs, **kwargs):
         """Call wrapped module's forward() with provided arguments.
