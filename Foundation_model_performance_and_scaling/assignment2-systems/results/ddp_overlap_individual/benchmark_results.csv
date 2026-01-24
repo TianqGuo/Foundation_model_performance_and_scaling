@@ -1,0 +1,4 @@
+implementation,model_size,d_model,num_layers,world_size,avg_step_time_ms,speedup_vs_naive
+naive,xl,1600,48,2,849.79,1.00
+flat,xl,1600,48,2,873.65,0.97
+overlap_individual,xl,1600,48,2,857.44,0.99
