@@ -27,7 +27,7 @@
 #
 # ==============================================================================
 
-from typing import Any, Optional
+from typing import Optional
 
 import torch
 import torch.distributed as dist
@@ -106,32 +106,39 @@ class DDP(nn.Module):
             """Hook called when gradient is accumulated.
 
             Args:
-                grad: The gradient tensor
+                grad: Gradient tensor provided by autograd
 
             Returns:
-                None (in-place modification)
+                None (communication happens in-place)
             """
-            if grad is not None:
-                # Get unique identifier for this gradient's storage
-                # This handles tied weights where multiple params share gradients
-                grad_ptr = grad.data_ptr()
+            if grad is None:
+                return None
 
-                # Only communicate each unique gradient once
-                if grad_ptr not in self.communicated_grad_storages:
-                    self.communicated_grad_storages.add(grad_ptr)
+            # Autograd sometimes passes a different tensor than param.grad. Make
+            # sure we operate on the actual optimizer gradient so that the
+            # upcoming optimizer step observes the synchronized values.
+            grad_tensor = param.grad if param.grad is not None else grad
 
-                    # Launch asynchronous all-reduce
-                    # This returns immediately without blocking
-                    handle = dist.all_reduce(
-                        grad.data,
-                        op=dist.ReduceOp.SUM,
-                        async_op=True  # KEY: Asynchronous operation
-                    )
+            # Get unique identifier for this gradient's storage. This handles
+            # tied weights that share the same grad buffer.
+            grad_ptr = grad_tensor.data_ptr()
 
-                    # Store handle to wait on later
-                    self.comm_handles.append((handle, grad))
+            if grad_ptr in self.communicated_grad_storages:
+                return None
 
-            return None  # In-place modification
+            self.communicated_grad_storages.add(grad_ptr)
+
+            # Launch asynchronous all-reduce. This queues the op immediately and
+            # allows the backward pass to continue executing.
+            handle = dist.all_reduce(
+                grad_tensor,
+                op=dist.ReduceOp.SUM,
+                async_op=True,
+            )
+
+            # Store handle (and tensor reference) so we can wait/average later.
+            self.comm_handles.append((handle, grad_tensor))
+            return None
 
         return hook
 
