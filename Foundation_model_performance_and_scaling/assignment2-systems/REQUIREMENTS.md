@@ -725,3 +725,148 @@ At what per-device batch size is this model compute bound? What is the overall b
 **Question**: In practice, we want the overall batch size to be as small as possible, and we also always use our compute effectively (in other words we want to never be communication bound). What other tricks can we employ to reduce the batch size of our model but retain high throughput?
 
 **Deliverable**: A one-paragraph response. Back up your claims with references and/or equations.
+
+---
+
+## 3 Optimizer State Sharding
+
+Distributed data parallel training is conceptually simple and often very effective, but requires each rank to hold a distinct copy of the model parameters and optimizer state. This redundancy can come with significant memory costs. For example, the **AdamW optimizer maintains two floats per parameter**, meaning that it consumes twice as much memory as the model weights.
+
+Rajbhandari et al. [2020] describe several methods for reducing this redundancy in data-parallel training by partitioning the:
+1. **Optimizer state**
+2. **Gradients**
+3. **Parameters**
+
+across ranks, communicating them between workers as necessary.
+
+In this part of the assignment, we'll reduce per-rank memory consumption by implementing a simplified version of optimizer state sharding. Rather than keeping the optimizer states for all parameters, each rank's optimizer instance will only handle a subset of the parameters (approximately `1 / world_size`). When each rank's optimizer takes an optimizer step, it'll only update the subset of model parameters in its shard. Then, each rank will broadcast its updated parameters to the other ranks to ensure that the model parameters remain synchronized after each optimizer step.
+
+---
+
+### Problem (optimizer_state_sharding): 15 points
+
+Implement a Python class to handle optimizer state sharding. The class should wrap an arbitrary input PyTorch `optim.Optimizer` and take care of synchronizing updated parameters after each optimizer step.
+
+**Recommended public interface**:
+
+```python
+class ShardedOptimizer(torch.optim.Optimizer):
+    def __init__(self, params, optimizer_cls: Type[Optimizer], **kwargs: Any):
+        """Initialize the sharded state optimizer.
+
+        Args:
+            params: Collection of parameters to be optimized (or parameter groups
+                   for different hyperparameters like learning rates)
+            optimizer_cls: Type of optimizer to wrap (e.g., optim.AdamW)
+            **kwargs: Remaining keyword arguments forwarded to optimizer_cls constructor
+
+        Note: Make sure to call the torch.optim.Optimizer super-class constructor.
+        """
+        pass
+
+    def step(self, closure=None, **kwargs):
+        """Call wrapped optimizer's step() method and synchronize with other ranks.
+
+        Args:
+            closure: Optional closure for computing loss
+            **kwargs: Keyword arguments forwarded to wrapped optimizer
+        """
+        pass
+
+    def add_param_group(self, param_group: dict[str, Any]):
+        """Add a parameter group to the sharded optimizer.
+
+        Called during construction by super-class constructor and may be called
+        during training (e.g., for gradually unfreezing layers). Should handle
+        assigning model parameters among ranks.
+
+        Args:
+            param_group: Dictionary containing 'params' key and optional hyperparameters
+        """
+        pass
+```
+
+**Implementation requirements**:
+- Each rank's optimizer handles approximately `1 / world_size` of parameters
+- Parameters are sharded across all ranks
+- After optimizer step, synchronize updated parameters via broadcast
+- Support parameter groups (for different hyperparameters per layer)
+- Handle dynamic parameter group addition (e.g., layer unfreezing)
+
+**Deliverable**:
+- Implement container class for optimizer state sharding
+- Implement adapter: `adapters.get_sharded_optimizer`
+- Test: `uv run pytest tests/test_sharded_optimizer.py`
+- Run tests multiple times (e.g., 5) to ensure reliable passing
+
+---
+
+### Problem (optimizer_state_sharding_accounting): 5 points
+
+Now that we've implemented optimizer state sharding, let's analyze its effect on peak memory usage during training and its runtime overhead.
+
+---
+
+**(a) Memory profiling (2 pts)**
+
+**Task**: Create a script to profile the peak memory usage when training language models with and without optimizer state sharding.
+
+**Configuration**: Standard setup (1 node, 2 GPUs, XL model size)
+
+**Measurements required**:
+Report peak memory usage at three key points:
+1. After model initialization
+2. Directly before the optimizer step
+3. Directly after the optimizer step
+
+**Analysis questions**:
+- Do the results align with your expectations?
+- Break down the memory usage in each setting:
+  - How much memory for parameters?
+  - How much for optimizer states?
+  - How much for gradients?
+  - How much for activations?
+
+**Deliverable**: 2-3 sentence response with:
+- Peak memory usage results at all three measurement points
+- Memory breakdown between different model and optimizer components
+- Whether results align with expectations
+
+---
+
+**(b) Training speed impact (2 pts)**
+
+**Question**: How does our implementation of optimizer state sharding affect training speed?
+
+**Task**: Measure time taken per iteration with and without optimizer state sharding.
+
+**Configuration**: Standard setup (1 node, 2 GPUs, XL model size)
+
+**Deliverable**: 2-3 sentence response with:
+- Timings for both configurations (with and without sharding)
+- Analysis of any performance differences
+- Potential reasons for observed overhead or speedup
+
+---
+
+**(c) Comparison with ZeRO Stage 1 (1 pt)**
+
+**Question**: How does our approach to optimizer state sharding differ from ZeRO stage 1 (described as ZeRO-DP Pos in Rajbhandari et al., 2020)?
+
+**Reference**: Rajbhandari et al. (2020) - "ZeRO: Memory Optimizations Toward Training Trillion Parameter Models"
+
+**Analysis focus**:
+- Differences in implementation approach
+- Memory usage differences
+- Communication volume differences
+- Any optimizations present in ZeRO Stage 1 but not in our implementation
+
+**Deliverable**: 2-3 sentence summary of any differences, especially those related to:
+- Memory efficiency
+- Communication volume
+- Implementation complexity
+
+---
+
+**References**:
+- Rajbhandari et al. (2020): "ZeRO: Memory Optimizations Toward Training Trillion Parameter Models"
