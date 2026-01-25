@@ -1,0 +1,3 @@
+implementation,model_size,d_model,num_layers,world_size,avg_step_time_ms,avg_comm_time_ms,comm_overhead_pct,num_comm_ops,speedup_vs_naive,comm_speedup_vs_naive
+naive,xl,1600,48,2,808.66,72.06,8.9,6525,1.00,1.00
+flat,xl,1600,48,2,790.91,43.11,5.5,15,1.02,1.67
