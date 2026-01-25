@@ -646,3 +646,82 @@ class DDP:
 **Deliverable**:
 - Equation modeling DDP overhead
 - Equation for optimal bucket size
+
+---
+
+### 2.4 4D Parallelism
+
+While much more complex in implementation, there are more axes along which we can parallelize our training process. Most commonly we discuss 5 methods of parallelism:
+
+- **Data parallelism (DP)** — Batches of data are split across multiple devices, and each device computes gradients for their own batch. These gradients must somehow be averaged across devices.
+
+- **Fully-Sharded Data Parallelism (FSDP)** — Optimizer states, gradients, and weights are split across devices. If we're using only DP and FSDP, every device needs to gather the weight shards from all other devices before we can perform our forward or backward pass.
+
+- **Tensor Parallelism (TP)** — Activations are sharded across a new dimension, and each device computes the output results for their own shard. With Tensor Parallel we can either shard along the inputs or the outputs the operation we are sharding. Tensor Parallelism can be used effectively together with FSDP if we shard the weights and the activations along corresponding dimensions.
+
+- **Pipeline Parallelism (PP)** — The model is split layerwise into multiple stages, where each stage is run on a different device.
+
+- **Expert Parallelism (EP)** — We separate experts (in Mixture-of-Experts models) onto different devices, and each device computes the output results for their own expert.
+
+Typically, we always combine FSDP and TP, so we can think of them as a single axis of parallelism. This leaves us with **4 axes of parallelism: DP, FSDP/TP, PP, and EP**. We will also focus on dense models (not MoEs) and so will not discuss EP further.
+
+When reasoning about distributed training, we often describe our cluster as a **mesh of devices**, where the axes of the mesh are the axes along which we define our parallelism. For instance, if we have 16 GPUs and a model that is much larger than we can fit on a single device, we might be inclined to organize our mesh into a 4 × 4 grid of GPUs, where the first dimension represents DP, and the second dimension represents combined FSDP and TP.
+
+**References**:
+- Overview: Part 5 of the TPU Scaling Book (Austin et al. [2025]) — details on how these methods work and how to derive their communication and memory costs
+- Pipeline parallelism: The Ultra-Scale Playbook Appendix (Nouamane Tazi [2025])
+
+---
+
+#### Problem (communication_accounting): 10 points
+
+Consider a new model config, **XXL**, with:
+- `d_model = 16384`
+- `d_ff = 53248`
+- `num_blocks = 126`
+
+**Simplifying assumptions** (because for very large models, the vast majority of FLOPs are in the feedforward networks):
+1. Omit attention, input embeddings, and output linear layers
+2. Each FFN is simply two linear layers (ignoring the activation function):
+   - First layer: input size `d_model`, output size `d_ff`
+   - Second layer: input size `d_ff`, output size `d_model`
+3. Your model consists of `num_blocks` blocks of these two linear layers
+4. Don't do any activation checkpointing
+5. Activations and gradient communications: **BF16**
+6. Accumulated gradients, master weights, and optimizer state: **FP32**
+
+---
+
+**(a) Memory for single device (3 pts)**
+
+**Question**: How much memory would it take to store the master model weights, accumulated gradients and optimizer states in FP32 on a single device? How much memory is saved for backward (these will be in BF16)? How many H100 80GB GPUs worth of memory is this?
+
+**Deliverable**: Your calculations and a one-sentence response.
+
+---
+
+**(b) Sharding across FSDP devices (2 pts)**
+
+**Question**: Now assume your master weights, optimizer state, gradients and half of your activations (in practice every second layer) are sharded across `N_FSDP` devices. Write an expression for how much memory this would take per device. What value does `N_FSDP` need to be for the total memory cost to be less than 1 v5p TPU (95GB per device)?
+
+**Deliverable**: Your calculations and a one-sentence response.
+
+---
+
+**(c) Compute-bound batch size analysis (3 pts)**
+
+**Question**: Consider only the forward pass. Use the communication bandwidth of `W_ici = 2 × 9 × 10^10` and FLOPS/s of `C = 4.6 × 10^14` for TPU v5p as given in the TPU Scaling Book. Following the notation of the Scaling Book, use `M_X = 2`, `M_Y = 1` (a 3D mesh), with:
+- `X = 16` being your FSDP dimension
+- `Y = 4` being your TP dimension
+
+At what per-device batch size is this model compute bound? What is the overall batch size in this setting?
+
+**Deliverable**: Your calculations and a one-sentence response.
+
+---
+
+**(d) Techniques to reduce batch size while retaining throughput (2 pts)**
+
+**Question**: In practice, we want the overall batch size to be as small as possible, and we also always use our compute effectively (in other words we want to never be communication bound). What other tricks can we employ to reduce the batch size of our model but retain high throughput?
+
+**Deliverable**: A one-paragraph response. Back up your claims with references and/or equations.
