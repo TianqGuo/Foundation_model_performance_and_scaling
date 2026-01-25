@@ -1,0 +1,5 @@
+bucket_size_mb,num_buckets,model_size,d_model,num_layers,world_size,avg_step_time_ms
+1.0,435,xl,1600,48,2,1099.47
+10.0,339,xl,1600,48,2,1047.34
+100.0,98,xl,1600,48,2,1052.15
+1000.0,8,xl,1600,48,2,1057.46
