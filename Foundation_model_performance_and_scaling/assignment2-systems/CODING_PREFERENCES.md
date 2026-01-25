@@ -191,15 +191,55 @@ cd "$(dirname "$0")"
 OUTPUT_DIR="../../results"
 ```
 
+### What Runs Where: Local vs Remote
+
+**Local Laptop (Single RTX 4090)**:
+- ✅ **Unit tests** - Correctness verification (e.g., `pytest tests/`)
+- ✅ **Code development** - Writing and debugging implementations
+- ✅ **Small-scale testing** - Verify scripts run without errors
+- ❌ **Multi-GPU benchmarks** - Requires 2+ GPUs (DDP, distributed training)
+- ❌ **Large model benchmarks** - XL/2.7B models may OOM on 16GB GPU
+- ❌ **Performance profiling** - WSL2 has limited nsys support
+
+**Remote Multi-GPU Instance (H100s on vast.ai/lambda.ai)**:
+- ✅ **Performance benchmarks** - Actual timing measurements for assignments
+- ✅ **Multi-GPU training** - DDP, FSDP, distributed implementations
+- ✅ **Large models** - XL/2.7B models with 80GB GPU memory
+- ✅ **Profiling** - Full nsys, nvprof access on native Linux
+
+**Quick Reference Table**:
+
+| Task Type | Local (RTX 4090) | Remote (H100s) |
+|-----------|------------------|----------------|
+| `pytest tests/` | ✅ YES | ✅ YES |
+| Single-GPU benchmarks (small/medium models) | ✅ YES | ✅ YES |
+| Multi-GPU benchmarks (2+ GPUs) | ❌ NO | ✅ YES |
+| Large model benchmarks (XL/2.7B) | ❌ NO (OOM) | ✅ YES |
+| Performance measurements for reports | ❌ NO | ✅ YES |
+| Nsys profiling | ❌ NO (WSL2) | ✅ YES |
+
+**Examples**:
+```bash
+# ✅ Local: Run unit tests (correctness only)
+uv run pytest tests/test_ddp.py -v
+
+# ❌ Local: Don't benchmark multi-GPU performance
+# This requires 2+ GPUs - run on remote instance instead!
+# uv run python benchmark_bucketed.py --world-size 2
+
+# ✅ Remote (H100 instance): Benchmark with 2 GPUs
+uv run python benchmark_bucketed.py --model-size xl --world-size 2 --bucket-sizes 1 10 100 1000
+```
+
 ### Testing Workflow
 
 **1. Test locally (WSL2/RTX 4090)**:
 ```bash
-# Test with small models only
-python benchmark.py --model-size small --context-length 512
+# Test correctness with unit tests
+uv run pytest tests/test_ddp.py -v
 
-# Verify script runs without errors
-./part_b.sh  # Should handle OOM gracefully for large models
+# Verify script runs without errors (small models only)
+python benchmark.py --model-size small --context-length 512
 ```
 
 **2. Deploy to H100**:
@@ -207,10 +247,10 @@ python benchmark.py --model-size small --context-length 512
 # Copy entire module folder
 scp -r cs336_systems/module_name/ h100:~/assignment2-systems/cs336_systems/
 
-# Run full suite on H100
+# Run full benchmark suite on H100
 ssh h100
 cd ~/assignment2-systems/cs336_systems/module_name
-./run_all.sh  # Runs all model sizes
+./run_benchmark.sh  # Runs with multiple GPUs and large models
 ```
 
 **3. Download results**:
