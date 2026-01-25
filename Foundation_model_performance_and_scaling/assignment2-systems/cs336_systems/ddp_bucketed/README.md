@@ -29,6 +29,7 @@ This module implements **DDP with bucketed gradients and computation/communicati
 - `benchmark_bucketed.py` - Benchmark with various bucket sizes
 - `benchmark_part_a.sh` - Main benchmark script for Section 2.3.3 Part (a)
 - `run_benchmark.sh` - Alias for benchmark_part_a.sh
+- `BENCHMARKING_COMMENTARY.md` - Part (a) analysis: benchmark results and commentary
 - `README.md` - This file
 
 ## Quick Start
