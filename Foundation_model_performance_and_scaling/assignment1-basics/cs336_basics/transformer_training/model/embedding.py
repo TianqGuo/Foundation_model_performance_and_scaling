@@ -69,8 +69,8 @@ class Embedding(nn.Module):
         # Perform embedding lookup by indexing into the weight matrix
         # This is equivalent to one-hot encoding followed by matrix multiplication
         # but much more efficient
-        print(token_ids.shape)
-        print(self.weight.shape)
+        # print(token_ids.shape)  # DEBUG: Commented out for benchmarking
+        # print(self.weight.shape)  # DEBUG: Commented out for benchmarking
         return self.weight[token_ids]
 
         # this is much less efficient—don’t use in real code.
