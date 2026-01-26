@@ -136,4 +136,5 @@ def get_sharded_optimizer(params, optimizer_cls: Type[torch.optim.Optimizer], **
     Returns:
         Instance of sharded optimizer.
     """
-    raise NotImplementedError
+    from cs336_systems.optimizer_sharding.optimizer import ShardedOptimizer
+    return ShardedOptimizer(params, optimizer_cls, **kwargs)
