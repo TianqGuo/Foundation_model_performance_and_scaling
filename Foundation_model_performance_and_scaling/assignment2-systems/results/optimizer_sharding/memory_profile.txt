@@ -1,0 +1,39 @@
+================================================================================
+MEMORY PROFILING RESULTS
+================================================================================
+Configuration: xl model, world_size=2, batch_size=2
+
+--------------------------------------------------------------------------------
+Measured Peak Memory (GPU):
+--------------------------------------------------------------------------------
+
+1. After Model Initialization:
+  Without sharding: 8.19 GB
+  With sharding:    8.26 GB
+  Savings:          -0.07 GB (-0.8%)
+
+2. Before Optimizer Step:
+  Without sharding: 24.38 GB
+  With sharding:    24.38 GB
+  Savings:          0.00 GB (0.0%)
+
+3. After Optimizer Step:
+  Without sharding: 40.73 GB
+  With sharding:    28.67 GB
+  Savings:          12.06 GB (29.6%)
+
+--------------------------------------------------------------------------------
+Component Breakdown (Estimated):
+--------------------------------------------------------------------------------
+
+Without Sharding - After Optimizer Step:
+  Parameters:       7.99 GB
+  Gradients:        7.99 GB
+  Optimizer states: 15.99 GB
+  Total (estimated): 31.97 GB
+
+With Sharding - After Optimizer Step:
+  Parameters:       7.99 GB
+  Gradients:        7.99 GB
+  Optimizer states: 7.99 GB
+  Total (estimated): 23.98 GB

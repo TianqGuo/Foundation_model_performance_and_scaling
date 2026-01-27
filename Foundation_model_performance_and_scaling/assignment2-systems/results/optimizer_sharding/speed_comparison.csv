@@ -1,0 +1,2 @@
+model_size,d_model,num_layers,world_size,batch_size,non_sharded_ms,sharded_ms,overhead_ms,overhead_pct
+xl,1600,48,2,2,783.53,836.05,52.52,+6.70
