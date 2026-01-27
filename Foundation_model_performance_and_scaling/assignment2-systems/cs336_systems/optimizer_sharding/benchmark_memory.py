@@ -11,16 +11,68 @@ Compares memory usage with and without optimizer state sharding.
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+import torch.nn as nn
 
-# Import model configs from cs336_basics
-import sys
-sys.path.append(str(Path(__file__).resolve().parents[2] / "assignment1-basics"))
-from cs336_basics.transformer_training.model import TRANSFORMER_CONFIG_PRESETS, TransformerLM
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Model size configurations (from §1.1.2)
+MODEL_CONFIGS = {
+    "small": {"d_model": 768, "d_ff": 3072, "num_layers": 12, "num_heads": 12},
+    "medium": {"d_model": 1024, "d_ff": 4096, "num_layers": 24, "num_heads": 16},
+    "large": {"d_model": 1280, "d_ff": 5120, "num_layers": 36, "num_heads": 20},
+    "xl": {"d_model": 1600, "d_ff": 6400, "num_layers": 48, "num_heads": 25},
+}
+
+
+def create_model(model_size: str):
+    """Create a Transformer model for benchmarking."""
+    config = MODEL_CONFIGS[model_size]
+
+    try:
+        from cs336_basics.transformer_training.model import TransformerLM
+
+        model = TransformerLM(
+            vocab_size=10000,
+            context_length=512,
+            d_model=config["d_model"],
+            num_layers=config["num_layers"],
+            num_heads=config["num_heads"],
+            d_ff=config["d_ff"],
+        )
+        return model
+
+    except Exception as exc:
+        print(f"Warning: cs336_basics import failed ({exc}), using fallback model")
+
+        class FallbackTransformer(nn.Module):
+            def __init__(self, config):
+                super().__init__()
+                self.embed = nn.Embedding(10000, config["d_model"])
+                self.layers = nn.ModuleList([
+                    nn.TransformerEncoderLayer(
+                        d_model=config["d_model"],
+                        nhead=config["num_heads"],
+                        dim_feedforward=config["d_ff"],
+                        batch_first=True,
+                    )
+                    for _ in range(config["num_layers"])
+                ])
+                self.head = nn.Linear(config["d_model"], 10000)
+
+            def forward(self, x):
+                x = self.embed(x)
+                for layer in self.layers:
+                    x = layer(x)
+                return self.head(x)
+
+        return FallbackTransformer(config)
 
 
 def get_memory_stats():
@@ -89,9 +141,6 @@ def profile_memory(rank, world_size, args):
     if torch.cuda.is_available():
         torch.cuda.set_device(rank)
 
-    # Get model config
-    config = TRANSFORMER_CONFIG_PRESETS[args.model_size]
-
     # Results storage
     results = {}
 
@@ -104,16 +153,7 @@ def profile_memory(rank, world_size, args):
         print("="*80)
 
     torch.manual_seed(42)
-    model = TransformerLM(
-        vocab_size=config.vocab_size,
-        context_length=config.context_length,
-        d_model=config.d_model,
-        num_layers=config.num_layers,
-        num_heads=config.num_heads,
-        d_ff=config.d_ff,
-        attn_pdrop=config.attn_pdrop,
-        residual_pdrop=config.residual_pdrop,
-    ).to(device)
+    model = create_model(args.model_size).to(device)
 
     # Point 1: After model initialization
     reset_peak_memory()
@@ -131,15 +171,15 @@ def profile_memory(rank, world_size, args):
     components_after_init = estimate_component_sizes(model, optimizer, has_gradients=False, is_sharded=False)
 
     # Run forward + backward to generate gradients
-    dummy_input = torch.randint(0, config.vocab_size, (args.batch_size, config.context_length)).to(device)
-    dummy_target = torch.randint(0, config.vocab_size, (args.batch_size, config.context_length)).to(device)
+    dummy_input = torch.randint(0, 10000, (args.batch_size, 512)).to(device)
+    dummy_target = torch.randint(0, 10000, (args.batch_size, 512)).to(device)
 
     model.train()
     optimizer.zero_grad()
 
     logits = model(dummy_input)
     loss = torch.nn.functional.cross_entropy(
-        logits.view(-1, config.vocab_size),
+        logits.view(-1, 10000),
         dummy_target.view(-1)
     )
     loss.backward()
@@ -179,16 +219,7 @@ def profile_memory(rank, world_size, args):
         print("="*80)
 
     torch.manual_seed(42)
-    model = TransformerLM(
-        vocab_size=config.vocab_size,
-        context_length=config.context_length,
-        d_model=config.d_model,
-        num_layers=config.num_layers,
-        num_heads=config.num_heads,
-        d_ff=config.d_ff,
-        attn_pdrop=config.attn_pdrop,
-        residual_pdrop=config.residual_pdrop,
-    ).to(device)
+    model = create_model(args.model_size).to(device)
 
     # Point 1: After model initialization
     reset_peak_memory()
@@ -213,7 +244,7 @@ def profile_memory(rank, world_size, args):
 
     logits = model(dummy_input)
     loss = torch.nn.functional.cross_entropy(
-        logits.view(-1, config.vocab_size),
+        logits.view(-1, 10000),
         dummy_target.view(-1)
     )
     loss.backward()
