@@ -9,7 +9,7 @@
 - Target prediction budget: 1e19 FLOPs
 - Batch size must be 128 or 256 for final prediction
 
-## Part 1: IsoFLOPs Method (5 points)
+## Part 1/2: IsoFLOPs Method (5 points)
 
 **Task**: Reproduce the Chinchilla IsoFLOPs scaling law fitting method.
 
