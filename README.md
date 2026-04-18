@@ -1,6 +1,6 @@
 # Foundation Model Systems — Performance, Profiling & Scaling
 
-End-to-end implementation of a language model training stack, from tokenizer and Transformer architecture through GPU kernel optimization, multi-GPU distributed training, empirical scaling law experiments, and web-scale data filtering. Based on the Stanford CS336 (Spring 2025) curriculum.
+End-to-end implementation of a language model training stack, from tokenizer and Transformer architecture through GPU kernel optimization, multi-GPU distributed training, empirical scaling law experiments, and web-scale data filtering.
 
 ---
 
@@ -24,16 +24,42 @@ End-to-end implementation of a language model training stack, from tokenizer and
 
 ## Overview
 
-| Assignment | Topic | Key Deliverables |
+| Part | Topic | Key Deliverables |
 |---|---|---|
-| [Assignment 1](#assignment-1-tokenizer--transformer-basics) | Tokenizer + Transformer Basics | Byte-level BPE tokenizer, full Transformer LM, AdamW, training loop, ablations |
-| [Assignment 2](#assignment-2-systems--gpu-optimization) | Systems & GPU Optimization | FlashAttention-2 (Triton), online softmax, tiling, BF16, `torch.compile`, DDP, ZeRO sharding, Nsight profiling |
-| [Assignment 3](#assignment-3-scaling-laws) | Scaling Laws | IsoFLOPs fitting, Chinchilla methodology, compute-optimal prediction at 10¹⁹ FLOPs |
-| [Assignment 4](#assignment-4-data-filtering--pipeline) | Data Filtering & Pipeline | Common Crawl pipeline, fastText classifiers, MinHash+LSH dedup, Gopher filters, Paloma evaluation |
+| [Part 1](#part-1-tokenizer--transformer) | Tokenizer + Transformer | Byte-level BPE tokenizer, full Transformer LM, AdamW, training loop, ablations |
+| [Part 2](#part-2-systems--gpu-optimization) | Systems & GPU Optimization | FlashAttention-2 (Triton), online softmax, tiling, BF16, `torch.compile`, DDP, ZeRO sharding, Nsight profiling |
+| [Part 3](#part-3-scaling-laws) | Scaling Laws | IsoFLOPs fitting, Chinchilla methodology, compute-optimal prediction at 10¹⁹ FLOPs |
+| [Part 4](#part-4-data-filtering--pipeline) | Data Filtering & Pipeline | Common Crawl pipeline, fastText classifiers, MinHash+LSH dedup, Gopher filters, Paloma evaluation |
 
 ---
 
-## Assignment 1: Tokenizer + Transformer Basics
+## Key Findings
+
+**GPU optimization (Part 2)**
+- Combined optimizations (FlashAttention-2 + BF16 + `torch.compile` + DDP) achieved **2× average / 6.35× peak** throughput improvement over the unoptimized FP32 baseline
+- BF16 provides 16× higher theoretical throughput than FP32 on H100 (312 vs 19.5 TFLOP/s); profiling confirmed attention and matmul as dominant kernels in the forward pass
+- FlashAttention-2 eliminates O(seq_len²) HBM reads by keeping Q/K/V tiles in SRAM — memory usage no longer grows quadratically with sequence length
+
+**Architectural ablations (Part 1, models 17M–124M parameters)**
+- Pre-norm converged more stably than post-norm — post-norm showed vanishing gradient symptoms in early training
+- RoPE consistently outperformed NoPE (no positional embeddings) on language modeling loss
+- SwiGLU outperformed SiLU feed-forward networks, consistent with findings in LLaMA/Qwen literature
+- Removing RMSNorm caused training instability / loss divergence
+
+**Scaling laws (Part 3)**
+- IsoFLOPs power-law fit on synthetic training data (9 compute budgets, 6×10¹⁸ to 3×10²¹ FLOPs):
+  - **N_opt = 1.163 × C^0.469** — model size scales slightly sub-linearly with compute (exponent ~0.5 matches Chinchilla)
+  - **D_opt = 0.143 × C^0.531** — tokens scale slightly super-linearly, meaning data-efficiency improves at larger budgets
+  - Extrapolated to 10²³ FLOPs: **N_opt ≈ 70B params, D_opt ≈ 238B tokens**
+  - Extrapolated to 10²⁴ FLOPs: **N_opt ≈ 206B params, D_opt ≈ 809B tokens**
+- Part 3b (live API experiments at 10¹⁹ FLOP target): full experiment design and fitting infrastructure implemented; not executed — requires Stanford cluster API access
+
+**Data filtering (Part 4)**
+- Pipeline architecture complete (WARC extraction, language ID, PII masking, quality filtering, MinHash+LSH deduplication); implementation and testing in progress
+
+---
+
+## Part 1: Tokenizer + Transformer
 
 **Goal:** Build a complete language model training stack from scratch using only core PyTorch primitives (no `torch.nn` layers, no `torch.optim` implementations — only `nn.Parameter`, container classes, and the `Optimizer` base class).
 
@@ -50,7 +76,7 @@ End-to-end implementation of a language model training stack, from tokenizer and
 ### Training Infrastructure
 - **AdamW optimizer** with decoupled weight decay, implemented from scratch
 - **Cosine annealing LR schedule** with linear warmup, gradient clipping, periodic checkpointing
-- Datasets tokenized to `.npy` for fast dataloader access; perplexity evaluated on held-out sets; submitted to course leaderboard
+- Datasets tokenized to `.npy` for fast dataloader access; perplexity evaluated on held-out sets
 
 ### Architectural Ablations (models 17M–124M parameters)
 | Ablation | Comparison |
@@ -62,7 +88,7 @@ End-to-end implementation of a language model training stack, from tokenizer and
 
 ---
 
-## Assignment 2: Systems & GPU Optimization
+## Part 2: Systems & GPU Optimization
 
 **Goal:** Profile the training stack to find bottlenecks, then optimize single-GPU throughput and scale to multiple GPUs.
 
@@ -114,26 +140,39 @@ Theoretical analysis of combining Data Parallelism, **FSDP** (Fully Sharded Data
 
 ---
 
-## Assignment 3: Scaling Laws
+## Part 3: Scaling Laws
 
-**Goal:** Use empirical scaling law experiments to predict the compute-optimal model configuration for a target budget of **10¹⁹ FLOPs**.
+**Goal:** Fit empirical scaling laws to predict compute-optimal model and dataset size as a function of FLOPs budget.
 
-### Part 1 — IsoFLOPs Method (Reproduction)
-- Reproduced the IsoFLOPs scaling law methodology from Hoffmann et al. (**Chinchilla**, 2022) using synthetic training run data
-- For each compute budget C, fit a quadratic over training loss vs. model size to find N_opt(C)
-- Fitted power laws: **N_opt ∝ C^a**, **D_opt ∝ C^b** using `scipy.optimize.curve_fit`
+### Part 3a — IsoFLOPs Fitting (Fully Implemented & Executed)
+- Reproduced the IsoFLOPs scaling law methodology from Hoffmann et al. (**Chinchilla**, 2022) on synthetic training run data (9 compute budgets from 6×10¹⁸ to 3×10²¹ FLOPs)
+- For each compute budget C, identified the model size N_opt(C) that minimized final training loss; computed D_opt = C / (6N)
+- Fitted power laws in log-log space via `np.polyfit`:
+  - **N_opt = 1.163 × C^0.469** (R² fit on 9 data points; exponent ≈ 0.5 consistent with Chinchilla)
+  - **D_opt = 0.143 × C^0.531**
+- Extrapolations:
 
-### Part 2 — Live Scaling Law Experiments
-- Queried a remote training API (Stanford cluster) with Transformer hyperparameters and desired FLOPs; API returned final training loss
-- Designed experiment strategy to efficiently explore the search space within a hard budget of **2×10¹⁸ FLOPs**
-- Fitted power laws and extrapolated N_opt, D_opt, and predicted loss to the **10¹⁹ FLOP** target
-- Selected architecture (d_model, num_layers, num_heads) and training config (lr, batch size) for the predicted compute-optimal model
+| Target Budget | Optimal Model Size | Optimal Dataset Size |
+|---|---|---|
+| 10²³ FLOPs | ~70B parameters | ~238B tokens |
+| 10²⁴ FLOPs | ~206B parameters | ~809B tokens |
+
+Scaling law plots: [`results/part1_isoflops/model_size_scaling_law.png`](./assignment3-scaling/results/part1_isoflops/model_size_scaling_law.png), [`dataset_size_scaling_law.png`](./assignment3-scaling/results/part1_isoflops/dataset_size_scaling_law.png)
+
+### Part 3b — Live Experiment Infrastructure (Implemented, Not Executed)
+Full pipeline implemented in `part2_scaling_laws/`:
+- **`experiment_design.py`** — IsoFLOPs strategy: 8 compute budgets (10¹⁵–10¹⁸ FLOPs), 6 model sizes per budget, architecture search over (d_model, num_layers, num_heads) with budget tracking
+- **`api_client.py`** — API client with caching, retry logic, and budget enforcement for querying training results
+- **`scaling_law_fitter.py`** — power-law fitting from API results; extrapolation to 10¹⁹ FLOP target
+- **`hyperparameter_selector.py`** — maps predicted N_opt to concrete architecture and training hyperparameters
+
+Not executed: requires access to the Stanford cluster training API (VPN-gated). The experiment design, fitting, and extrapolation logic is complete and would run against any compatible training API endpoint.
 
 Key references: [Chinchilla (arXiv:2203.15556)](https://arxiv.org/abs/2203.15556), [Kaplan et al. (arXiv:2001.08361)](https://arxiv.org/abs/2001.08361), [μP (arXiv:2203.03466)](https://arxiv.org/abs/2203.03466)
 
 ---
 
-## Assignment 4: Data Filtering & Pipeline
+## Part 4: Data Filtering & Pipeline
 
 **Goal:** Build a web-scale data processing pipeline to turn raw Common Crawl web data into a clean language modeling dataset, and measure the impact of filtering decisions on downstream LM perplexity.
 
@@ -151,10 +190,8 @@ Key references: [Chinchilla (arXiv:2203.15556)](https://arxiv.org/abs/2203.15556
 | Fuzzy deduplication | **MinHash + LSH** (locality-sensitive hashing) for near-duplicate document removal using Jaccard similarity on n-gram sets |
 | Parallel processing | `concurrent.futures` for distributed processing of 5,000 WET files (~375 GB) |
 
-### Training & Evaluation
-- Tokenized filtered data with the BPE tokenizer from Assignment 1
-- Trained a GPT-2-small-shaped Transformer for 200K iterations on filtered data
-- Evaluated on the **Paloma C4 100-domains** benchmark; submitted to course leaderboard
+### Status
+Implementation and testing of the filtering pipeline is ongoing. Training and Paloma C4 100-domains evaluation will follow once the pipeline is complete.
 
 ---
 
@@ -173,7 +210,6 @@ Foundation_model_performance_and_scaling/
 │   └── part2_scaling_laws/
 ├── assignment4-data/            # Common Crawl filtering pipeline
 │   └── cs336_data/
-├── lectures/                    # Course slides (architecture, GPUs, parallelism, MoE, scaling laws)
 └── transformer_workshop/        # Supplementary workshop materials
 ```
 
@@ -181,7 +217,7 @@ Foundation_model_performance_and_scaling/
 
 ## Setup
 
-Each assignment uses [`uv`](https://github.com/astral-sh/uv) for dependency management:
+Each part uses [`uv`](https://github.com/astral-sh/uv) for dependency management:
 
 ```bash
 cd assignment1-basics   # or assignment2-systems, assignment3-scaling, assignment4-data
@@ -189,3 +225,9 @@ uv sync
 uv run python <script>
 uv run pytest
 ```
+
+---
+
+## Acknowledgments
+
+Curriculum structure follows the publicly available [Stanford CS336 (Spring 2025)](https://stanford-cs336.github.io/spring2025/) course materials.
