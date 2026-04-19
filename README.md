@@ -54,9 +54,6 @@ End-to-end implementation of a language model training stack, from tokenizer and
   - Extrapolated to 10²⁴ FLOPs: **N_opt ≈ 206B params, D_opt ≈ 809B tokens**
 - Part 3b (live API experiments at 10¹⁹ FLOP target): full experiment design and fitting infrastructure implemented; not executed — requires Stanford cluster API access
 
-**Data filtering (Part 4)**
-- Pipeline architecture complete (WARC extraction, language ID, PII masking, quality filtering, MinHash+LSH deduplication); implementation and testing in progress
-
 ---
 
 ## Part 1: Tokenizer + Transformer
@@ -166,7 +163,7 @@ Full pipeline implemented in `part2_scaling_laws/`:
 - **`scaling_law_fitter.py`** — power-law fitting from API results; extrapolation to 10¹⁹ FLOP target
 - **`hyperparameter_selector.py`** — maps predicted N_opt to concrete architecture and training hyperparameters
 
-Not executed: requires access to the Stanford cluster training API (VPN-gated). The experiment design, fitting, and extrapolation logic is complete and would run against any compatible training API endpoint.
+*Status: not executed — requires Stanford cluster training API (VPN-gated). Experiment design, fitting, and extrapolation logic is complete.*
 
 Key references: [Chinchilla (arXiv:2203.15556)](https://arxiv.org/abs/2203.15556), [Kaplan et al. (arXiv:2001.08361)](https://arxiv.org/abs/2001.08361), [μP (arXiv:2203.03466)](https://arxiv.org/abs/2203.03466)
 
@@ -190,8 +187,7 @@ Key references: [Chinchilla (arXiv:2203.15556)](https://arxiv.org/abs/2203.15556
 | Fuzzy deduplication | **MinHash + LSH** (locality-sensitive hashing) for near-duplicate document removal using Jaccard similarity on n-gram sets |
 | Parallel processing | `concurrent.futures` for distributed processing of 5,000 WET files (~375 GB) |
 
-### Status
-Implementation and testing of the filtering pipeline is ongoing. Training and Paloma C4 100-domains evaluation will follow once the pipeline is complete.
+*Status: implementation and testing in progress. Training on filtered data and Paloma C4 100-domains evaluation to follow.*
 
 ---
 
