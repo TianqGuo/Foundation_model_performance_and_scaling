@@ -6,7 +6,7 @@ from typing import Any
 
 
 def run_extract_text_from_html_bytes(html_bytes: bytes) -> str | None:
-    from cs336_data.extract import extract_text_from_html_bytes
+    from cs336_data.filtering_cc.extract import extract_text_from_html_bytes
     return extract_text_from_html_bytes(html_bytes)
 
 
