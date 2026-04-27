@@ -102,4 +102,112 @@ zcat /data/CC/example.warc.wet.gz | less  # WET file
 
 ---
 
+### 2.2 HTML to Text Conversion
+
+Extracting text from HTML is non-trivial. Visible content (e.g., `<p>` tags) still includes navigation menus, footers, and boilerplate that a reader would not consider "main content". This assignment uses the **Resiliparse** library for extraction. Resiliparse also handles a more basic problem: detecting the encoding of raw HTML bytes. Although ~98% of web pages use UTF-8, the pipeline must be robust to other encodings.
+
+> Use `fastwarc` to iterate over WARC records:
+> ```python
+> from fastwarc.warc import ArchiveIterator, WarcRecordType
+> ```
+
+---
+
+#### Problem: `extract_text` (3 points)
+
+**(a)** Write a function that extracts plain text from raw HTML bytes.
+- Use `resiliparse.extract.html2text.extract_plain_text` for extraction.
+- Decode bytes to Unicode first. Input may not be UTF-8 — use `resiliparse.parse.encoding.detect_encoding()` as a fallback.
+
+**Deliverable:** Function taking HTML `bytes` → extracted `str`. Implement adapter `run_extract_text_from_html_bytes`. Must pass:
+```bash
+uv run pytest -k test_extract_text_from_html_bytes
+```
+
+---
+
+**(b)** Run your extraction function on a single WARC file and compare its output to the corresponding WET file. What differences and similarities do you notice? Which extraction seems better?
+
+**Deliverable:** 2–3 sentence response.
+
+---
+
+### 2.3 Language Identification
+
+The web contains pages in thousands of languages. Most LM training sets limit to a small set of languages (typically English-centric), since training truly multilingual models at standard compute budgets is challenging. This section uses **fastText** for language identification.
+
+- **Model:** `lid.176.bin` — download from [fasttext.cc](https://fasttext.cc/docs/en/language-identification.html), or find it at `/data/classifiers/lid.176.bin` on the Together cluster.
+
+---
+
+#### Problem: `language_identification` (6 points)
+
+**(a)** Write a function that takes a Unicode string and returns the top predicted language and a confidence score in `[0, 1]`.
+
+**Deliverable:** Function returning `(language_id, score)`. Implement adapter `run_identify_language`. Note: tests expect `"en"` for English and `"zh"` for Chinese — remap fastText labels if needed. Must pass:
+```bash
+uv run pytest -k test_identify_language
+```
+
+---
+
+**(b)** What issues could arise downstream in a language model from errors in language identification? In a higher-stakes deployment scenario, how would you mitigate them?
+
+**Deliverable:** 2–5 sentence response.
+
+---
+
+**(c)** Run your language identification system on WARC-extracted text (using your extraction function from 2.2). Manually label 20 random examples and compare against classifier predictions. Report errors, the fraction of English documents, and a suitable confidence threshold for filtering.
+
+**Deliverable:** 2–5 sentence response.
+
+---
+
+### 2.4 Personal Identifiable Information (PII)
+
+Web data contains large quantities of PII — email addresses, phone numbers, IP addresses — that we don't want a user-facing LM to reproduce. A standard step is to **mask** these out in the training data before use.
+
+---
+
+#### Problem: `mask_pii` (3 points)
+
+**(1) Mask emails.** Replace all email addresses in a string with `"|||EMAIL_ADDRESS|||"`.
+
+**Deliverable:** Function returning `(masked_str, count)`. Implement adapter `run_mask_emails`. Must pass:
+```bash
+uv run pytest -k test_mask_emails
+```
+
+---
+
+**(2) Mask phone numbers.** Replace all phone numbers with `"|||PHONE_NUMBER|||"`. Must handle at minimum common US formats and be robust to minor syntactic variation.
+
+**Deliverable:** Function returning `(masked_str, count)`. Implement adapter `run_mask_phone_numbers`. Must pass:
+```bash
+uv run pytest -k test_mask_phones
+```
+
+---
+
+**(3) Mask IPv4 addresses.** Replace all IPv4 addresses (4 octets ≤ 255 separated by dots) with `"|||IP_ADDRESS|||"`.
+
+**Deliverable:** Function returning `(masked_str, count)`. Implement adapter `run_mask_ips`. Must pass:
+```bash
+uv run pytest -k test_mask_ips
+```
+
+---
+
+**(4)** What downstream problems might arise in a language model when these filters are naïvely applied to the training set? How might you mitigate them?
+
+**Deliverable:** 2–5 sentence response.
+
+---
+
+**(5)** Run your PII masking functions on WARC-extracted text. Look through 20 random examples where a replacement was made. Report examples of false positives and false negatives.
+
+**Deliverable:** 2–5 sentence response.
+
+---
+
 *More parts to be added.*
