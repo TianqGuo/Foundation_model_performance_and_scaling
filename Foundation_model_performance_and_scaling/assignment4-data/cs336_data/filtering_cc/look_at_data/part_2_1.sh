@@ -4,7 +4,7 @@
 # ==============================================================================
 #
 # USAGE:
-#   cd cs336_data/filtering_cc
+#   cd cs336_data/filtering_cc/look_at_data
 #   ./part_2_1.sh
 #
 # WHAT IT DOES:
@@ -14,7 +14,7 @@
 #   3. Saves output to results/filtering_cc/look_at_cc_observations.txt.
 #
 # OUTPUT:
-#   ../../results/filtering_cc/look_at_cc_observations.txt
+#   ../../../results/filtering_cc/look_at_cc_observations.txt
 #
 # NOTES:
 #   - Files are ~500 MB each. Download only runs once; subsequent runs skip.
@@ -27,8 +27,8 @@ set -e
 cd "$(dirname "$0")"
 
 CLUSTER_CC_DIR="/data/CC"
-DATA_DIR="../../data/CC"
-RESULTS_DIR="../../results/filtering_cc"
+DATA_DIR="../../../data/CC"
+RESULTS_DIR="../../../results/filtering_cc"
 
 WARC_FILENAME="CC-MAIN-20250417135010-20250417165010-00065.warc.gz"
 WET_FILENAME="CC-MAIN-20250417135010-20250417165010-00065.warc.wet.gz"
@@ -41,7 +41,7 @@ WET_PATH="${DATA_DIR}/${WET_FILENAME}"
 mkdir -p "${DATA_DIR}"
 mkdir -p "${RESULTS_DIR}"
 
-# ── Download or link WARC ──────────────────────────────────────────────────
+# ── Download or link files ────────────────────────────────────────────────────
 handle_file() {
     local filename=$1
     local url=$2
@@ -64,10 +64,10 @@ echo "=== Step 1: Acquire CC sample files ==="
 handle_file "${WARC_FILENAME}" "${WARC_URL}"
 handle_file "${WET_FILENAME}" "${WET_URL}"
 
-# ── Run analysis ──────────────────────────────────────────────────────────
+# ── Run analysis ──────────────────────────────────────────────────────────────
 echo ""
 echo "=== Step 2: Run analysis (parts a, b, d) ==="
-../../.venv/bin/python explore_cc.py \
+../../../.venv/bin/python explore_cc.py \
     --warc "${WARC_PATH}" \
     --wet  "${WET_PATH}" \
     --output "${RESULTS_DIR}/look_at_cc_observations.txt"
