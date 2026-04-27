@@ -210,4 +210,146 @@ uv run pytest -k test_mask_ips
 
 ---
 
+### 2.5 Harmful Content
+
+Unfiltered web dumps contain large volumes of text a model should not reproduce at inference time — including content from otherwise harmless sites (e.g., toxic Wikipedia talk-page comments). This section identifies two categories using **fastText classifiers from the Dolma project** trained on the Jigsaw Toxic Comments dataset:
+
+- **NSFW** — pornography, profanity, or otherwise disturbing content
+- **Toxic speech** — "rude, disrespectful, or unreasonable language that is likely to make someone leave a discussion"
+
+**Classifier files:**
+
+| Classifier | Download URL | Cluster path |
+|------------|-------------|--------------|
+| NSFW | `dolma-artifacts.org/fasttext_models/jigsaw_fasttext_bigrams_20230515/jigsaw_fasttext_bigrams_nsfw_final.bin` | `/data/classifiers/dolma_fasttext_nsfw_jigsaw_model.bin` |
+| Hate speech | `dolma-artifacts.org/fasttext_models/jigsaw_fasttext_bigrams_20230515/jigsaw_fasttext_bigrams_hatespeech_final.bin` | `/data/classifiers/dolma_fasttext_hatespeech_jigsaw_model.bin` |
+
+> Also available via `get_assets.sh` in the repo root.
+
+---
+
+#### Problem: `harmful_content` (6 points)
+
+**(1) NSFW classifier.** Write a function that labels a string as NSFW or not, returning `(label, confidence_score)`.
+
+**Deliverable:** Implement adapter `run_classify_nsfw`. Must pass (sanity check only — validate accuracy separately):
+```bash
+uv run pytest -k test_classify_nsfw
+```
+
+---
+
+**(2) Toxic speech classifier.** Write a function that labels a string as toxic or not, returning `(label, confidence_score)`.
+
+**Deliverable:** Implement adapter `run_classify_toxic_speech`. Must pass:
+```bash
+uv run pytest -k test_classify_toxic_speech
+```
+
+---
+
+**(3)** What downstream problems might arise in a language model when these filters are applied to create the training set? How might you mitigate them?
+
+**Deliverable:** 2–5 sentence response.
+
+---
+
+**(4)** Run your harmful content filters on WARC-extracted text. Look through 20 random examples and compare classifier predictions to your own judgment. Report errors, the fraction of harmful documents, and suitable confidence threshold(s).
+
+**Deliverable:** 2–5 sentence response.
+
+---
+
+### 2.6 Quality Rules (Gopher Filters)
+
+Even after language and harmful-content filtering, many pages are still low-quality for LM training: paywalled content, broken-link placeholders, login/signup forms, pages whose content is mostly images or video. The **Gopher paper** [Rae et al., 2021] defines a set of heuristic rules for exactly these cases. You will implement the following subset:
+
+| Rule | Threshold |
+|------|-----------|
+| Word count | Must be between 50 and 100,000 words |
+| Mean word length | Must be between 3 and 10 characters |
+| Lines ending with ellipsis (`"..."`) | Must be ≤ 30% of all lines |
+| Words containing ≥ 1 alphabetic character | Must be ≥ 80% of all words |
+
+A document **fails** (returns `False`) if it violates any rule. See Appendix A of the Gopher paper for the full set of filters.
+
+> For tokenizing into words, `nltk.word_tokenize` is recommended but not required.
+
+---
+
+#### Problem: `gopher_quality_filters` (3 points)
+
+**(a)** Implement the Gopher quality filters described above.
+
+**Deliverable:** Function `(text: str) -> bool` — `True` if the document passes all filters. Implement adapter `run_gopher_quality_filter`. Must pass:
+```bash
+uv run pytest -k test_gopher
+```
+
+---
+
+**(b)** Run your filter on WARC-extracted text. Look through 20 random examples and compare filter decisions to your own judgment. Comment on any disagreements.
+
+**Deliverable:** 2–5 sentence response.
+
+---
+
+### 2.7 Quality Classifier
+
+Heuristic rules capture only syntactic quality signals. A complementary approach is a learned classifier. The key insight: **high-quality pages tend to be linked from high-quality sources**. OpenAI used Reddit karma-filtered links for WebText/GPT-2; an alternative is Wikipedia, whose external links tend to point to trusted pages [Touvron et al., 2023].
+
+**Approach:** Use Wikipedia-linked URLs as positive examples, random CC pages as negatives, and train a **fastText classifier**. The resulting score can then filter pages across the full Common Crawl — the threshold trades off precision vs. recall.
+
+**Wikipedia URL file:**
+- Cluster: `/data/wiki/enwiki-20240420-extracted_urls.txt.gz` — 43.5M external links from the April 2024 English Wikipedia dump
+- Download: `https://nlp.stanford.edu/data/nfliu/cs336-spring-2024/assignment4/enwiki-20240420-extracted_urls.txt.gz`
+- Subsample these URLs to get positive training examples. Apply earlier filters (language ID, Gopher rules, etc.) to improve positive example quality.
+
+**Scraping URLs to WARC format:**
+```bash
+wget --timeout=5 \
+     -i subsampled_positive_urls.txt \
+     --warc-file=subsampled_positive_urls.warc \
+     -O /dev/null
+```
+
+---
+
+#### Problem: `quality_classifier` (15 points)
+
+**(a)** Train a fastText quality classifier that takes text and returns a numeric quality score.
+
+**Deliverable:** A trained quality classifier for use in part (b).
+
+---
+
+**(b)** Write a function that labels a page as high- or low-quality with a confidence score.
+
+**Deliverable:** Function `(text: str) -> (label, confidence_score)`. Implement adapter `run_classify_quality`. Must pass:
+```bash
+uv run pytest -k test_classify_quality
+```
+
+---
+
+## Proposed Code Structure for Part 2
+
+As Part 2 has many subparts, each with its own implementation, `cs336_data/filtering_cc/` should be organized into subfolders:
+
+```
+cs336_data/
+└── filtering_cc/
+    ├── __init__.py
+    ├── html_extraction/        # 2.2 — extract_text_from_html_bytes
+    ├── language_id/            # 2.3 — identify_language
+    ├── pii/                    # 2.4 — mask_emails, mask_phones, mask_ips
+    ├── harmful_content/        # 2.5 — classify_nsfw, classify_toxic_speech
+    ├── quality_rules/          # 2.6 — gopher_quality_filter
+    └── quality_classifier/     # 2.7 — classify_quality (train + inference)
+```
+
+Exploration scripts (`explore_cc.py`, `compare_wet.py`) and shell scripts (`part_2_1.sh`, etc.) live in their respective subfolder alongside the implementation they support.
+
+---
+
 *More parts to be added.*
