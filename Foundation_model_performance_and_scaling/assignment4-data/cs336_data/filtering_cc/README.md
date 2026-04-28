@@ -18,6 +18,9 @@ filtering_cc/
 │   └── part_2_2.sh         # Runs test + comparison
 │
 ├── language_id/            # 2.3 – identify_language
+│   ├── identify.py         # Implementation (fastText lid.176.bin, strips __label__ prefix)
+│   └── part_2_3.sh         # Downloads lid.176.bin and runs tests
+│
 ├── pii/                    # 2.4 – mask_emails, mask_phone_numbers, mask_ips
 ├── harmful_content/        # 2.5 – classify_nsfw, classify_toxic_speech
 ├── quality_rules/          # 2.6 – gopher_quality_filter
@@ -36,6 +39,10 @@ cd cs336_data/filtering_cc/look_at_data
 cd cs336_data/filtering_cc/html_extraction
 ./part_2_2.sh
 # → results/filtering_cc/wet_comparison.txt
+
+# 2.3 — Download lid.176.bin and run language identification tests
+cd cs336_data/filtering_cc/language_id
+./part_2_3.sh
 ```
 
 ## Results

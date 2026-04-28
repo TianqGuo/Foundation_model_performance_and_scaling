@@ -11,7 +11,8 @@ def run_extract_text_from_html_bytes(html_bytes: bytes) -> str | None:
 
 
 def run_identify_language(text: str) -> tuple[Any, float]:
-    raise NotImplementedError
+    from cs336_data.filtering_cc.language_id.identify import identify_language
+    return identify_language(text)
 
 
 def run_mask_emails(text: str) -> tuple[str, int]:

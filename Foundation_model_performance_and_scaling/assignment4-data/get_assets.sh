@@ -23,5 +23,6 @@ handle_file() {
 }
 
 # Handle each file
+handle_file "lid.176.bin" "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
 handle_file "dolma_fasttext_nsfw_jigsaw_model.bin" "https://huggingface.co/allenai/dolma-jigsaw-fasttext-bigrams-nsfw/resolve/main/model.bin"
 handle_file "dolma_fasttext_hatespeech_jigsaw_model.bin" "https://huggingface.co/allenai/dolma-jigsaw-fasttext-bigrams-hatespeech/resolve/main/model.bin"
