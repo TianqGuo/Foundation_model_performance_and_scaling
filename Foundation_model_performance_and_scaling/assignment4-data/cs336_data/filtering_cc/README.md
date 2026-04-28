@@ -35,6 +35,9 @@ filtering_cc/
 │   └── part_2_6.sh         # Runs all Gopher filter tests
 │
 └── quality_classifier/     # 2.7 – classify_quality (train + inference)
+    ├── train.py            # Data prep + fastText training (wiki positives vs CC negatives)
+    ├── classify.py         # Inference (loads quality_classifier.bin from assets/)
+    └── part_2_7.sh         # Downloads wiki URLs, trains, runs test
 ```
 
 ## Quick Start
