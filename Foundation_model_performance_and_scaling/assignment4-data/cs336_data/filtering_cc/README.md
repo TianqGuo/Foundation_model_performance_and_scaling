@@ -30,6 +30,10 @@ filtering_cc/
 │   └── part_2_5.sh         # Downloads models and runs tests
 │
 ├── quality_rules/          # 2.6 – gopher_quality_filter
+├── quality_rules/          # 2.6 – gopher_quality_filter
+│   ├── gopher.py           # Implementation (word count, mean len, ellipsis, alpha ratio)
+│   └── part_2_6.sh         # Runs all Gopher filter tests
+│
 └── quality_classifier/     # 2.7 – classify_quality (train + inference)
 ```
 
