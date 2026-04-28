@@ -26,6 +26,9 @@ filtering_cc/
 │   └── part_2_4.sh         # Runs all PII masking tests
 │
 ├── harmful_content/        # 2.5 – classify_nsfw, classify_toxic_speech
+│   ├── classify.py         # Implementation (Dolma fastText NSFW + hate-speech models)
+│   └── part_2_5.sh         # Downloads models and runs tests
+│
 ├── quality_rules/          # 2.6 – gopher_quality_filter
 └── quality_classifier/     # 2.7 – classify_quality (train + inference)
 ```
