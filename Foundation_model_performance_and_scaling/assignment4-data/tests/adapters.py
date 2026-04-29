@@ -65,4 +65,12 @@ def run_minhash_deduplication(
     jaccard_threshold: float,
     output_directory: os.PathLike,
 ):
-    raise NotImplementedError
+    from cs336_data.deduplication.minhash.minhash import minhash_deduplication
+    minhash_deduplication(
+        input_files=input_files,
+        num_hashes=num_hashes,
+        num_bands=num_bands,
+        ngrams=ngrams,
+        jaccard_threshold=jaccard_threshold,
+        output_directory=output_directory,
+    )
