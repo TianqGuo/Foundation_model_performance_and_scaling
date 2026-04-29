@@ -52,6 +52,7 @@ echo "  Output:  ${OUTPUT_DIR}"
 echo ""
 
 cd "${ROOT}"
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
 .venv/bin/python -m cs336_data.leaderboard.filter_data.filter \
     --input-dir  "${INPUT_DIR}" \
     --output-dir "${OUTPUT_DIR}" \

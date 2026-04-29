@@ -132,10 +132,14 @@ def _print_stats(totals: dict[str, int], elapsed: float, num_files: int) -> None
 
 
 def main() -> None:
+    # Cap at 16 workers: each worker imports numpy/fasttext which triggers OpenBLAS
+    # thread creation. Too many workers × OpenBLAS threads exhausts RLIMIT_NPROC.
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
     try:
-        default_workers = len(os.sched_getaffinity(0))
+        default_workers = min(16, len(os.sched_getaffinity(0)))
     except AttributeError:
-        default_workers = os.cpu_count() or 4
+        default_workers = min(16, os.cpu_count() or 4)
 
     parser = argparse.ArgumentParser(description="Filter CC WET files for LM training (Part 4)")
     parser.add_argument("--input-dir",  required=True,  help="Directory with CC*.warc.wet.gz files")
