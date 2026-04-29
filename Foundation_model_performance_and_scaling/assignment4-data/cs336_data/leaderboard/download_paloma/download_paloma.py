@@ -23,7 +23,7 @@ def download_and_tokenize(output_path: Path) -> int:
     from datasets import load_dataset
 
     print("Downloading Paloma C4-100-domains validation split from HuggingFace …")
-    ds = load_dataset("allenai/paloma", "c4_100_domains", split="validation", trust_remote_code=True)
+    ds = load_dataset("allenai/paloma", "c4_100_domains", split="validation")
     print(f"  {len(ds):,} examples loaded.")
 
     tokenizer = AutoTokenizer.from_pretrained("gpt2")
