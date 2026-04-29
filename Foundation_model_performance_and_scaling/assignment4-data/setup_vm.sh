@@ -59,6 +59,7 @@ cd "${SCRIPT_DIR}"
 # ── 4. Download model assets (fastText lid, NSFW, hate-speech models) ─────────
 echo ""
 echo "[4/5] Downloading classifier assets …"
+mkdir -p cs336_data/assets
 bash get_assets.sh
 
 # ── 5. Create data directories ────────────────────────────────────────────────
