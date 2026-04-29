@@ -1,0 +1,24 @@
+{
+  "counts": {
+    "total": 27173,
+    "empty": 452,
+    "non_english": 17517,
+    "gopher_fail": 786,
+    "low_quality": 1204,
+    "nsfw": 10,
+    "kept": 7204
+  },
+  "elapsed_s": 90.73,
+  "num_files": 1,
+  "per_file_s": 90.73,
+  "estimated_100k_files_hours": 2520.1,
+  "config": {
+    "input_dir": "/mnt/d/Repos/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/assignment4-data/data/CC",
+    "output_dir": "/mnt/d/Repos/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/assignment4-data/data/filtered",
+    "workers": 32,
+    "lang_threshold": 0.65,
+    "quality_threshold": 0.3,
+    "nsfw_threshold": 0.8,
+    "limit": null
+  }
+}
