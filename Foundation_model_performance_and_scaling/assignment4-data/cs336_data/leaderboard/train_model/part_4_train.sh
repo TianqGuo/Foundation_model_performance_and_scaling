@@ -29,6 +29,7 @@ cd "$(dirname "$0")"
 ROOT="$(cd ../../.. && pwd)"
 BASICS_DIR="${ROOT}/cs336-basics"
 TRAIN_BIN="${ROOT}/data/tokenized/train.bin"
+VALID_BIN="${ROOT}/data/paloma/tokenized_paloma_c4_100_domains_validation.bin"
 CONFIG="${BASICS_DIR}/configs/experiment/your_data.yaml"
 
 # ── Validate prerequisites ───────────────────────────────────────────────────
@@ -37,6 +38,11 @@ if [ ! -f "${TRAIN_BIN}" ]; then
     echo "ERROR: Tokenized data not found at ${TRAIN_BIN}"
     echo "       Run cs336_data/leaderboard/tokenize_data/part_4_tokenize.sh first."
     exit 1
+fi
+
+if [ ! -f "${VALID_BIN}" ]; then
+    echo "Paloma validation file not found. Downloading now ..."
+    bash "${ROOT}/cs336_data/leaderboard/download_paloma/part_4_download_paloma.sh"
 fi
 
 if [ -z "${WANDB_ENTITY}" ]; then
@@ -76,6 +82,12 @@ text = config_path.read_text()
 text = re.sub(
     r"(train_bin:\s*).*",
     r"\g<1>${TRAIN_BIN}",
+    text,
+)
+# Replace valid_bin path
+text = re.sub(
+    r"(valid_bin:\s*).*",
+    r"\g<1>${VALID_BIN}",
     text,
 )
 # Replace wandb_entity (handles both ??? and a previous value)
