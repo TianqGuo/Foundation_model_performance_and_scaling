@@ -56,13 +56,11 @@ else
     NPROC=1
 fi
 
-TRAIN_STEPS="${TRAIN_STEPS:-100000}"
-
 echo "=== Part 4: Train Model ==="
 echo "  Train bin:    ${TRAIN_BIN}"
 echo "  wandb entity: ${WANDB_ENTITY}"
 echo "  GPUs:         ${NPROC}"
-echo "  Steps:        ${TRAIN_STEPS}"
+echo "  Steps:        100000 (default from train_config.py)"
 echo ""
 
 # ── Patch your_data.yaml ─────────────────────────────────────────────────────
@@ -100,13 +98,11 @@ if [ "${NPROC}" -gt 1 ]; then
         --standalone \
         --nproc_per_node="${NPROC}" \
         scripts/train.py \
-        --config-name=experiment/your_data \
-        "training.train_steps=${TRAIN_STEPS}"
+        --config-name=experiment/your_data
 else
     echo "Launching single-GPU training …"
     .venv/bin/python scripts/train.py \
-        --config-name=experiment/your_data \
-        "training.train_steps=${TRAIN_STEPS}"
+        --config-name=experiment/your_data
 fi
 
 echo ""
