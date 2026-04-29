@@ -98,20 +98,24 @@ def collect_wiki_positives(
 def collect_cc_negatives(warc_path: Path, n_target: int) -> list[str]:
     """Collect raw CC pages as negatives — no language/quality filtering.
 
-    The classifier learns "wiki-quality English" vs "random web noise". Keeping
-    CC negatives unfiltered (multilingual, boilerplate, spam) makes the classes
-    clearly distinct and matches the WebText/Llama training approach.
+    Supports both WARC files (WarcRecordType.response, extracts HTML) and
+    WET files (WarcRecordType.conversion, pre-extracted text).
     """
-    print(f"Extracting CC negatives from {warc_path} …")
+    is_wet = "warc.wet" in warc_path.name or warc_path.name.endswith(".wet.gz")
+    record_type = WarcRecordType.conversion if is_wet else WarcRecordType.response
+    print(f"Extracting CC negatives from {warc_path} ({'WET' if is_wet else 'WARC'}) …")
     negatives: list[str] = []
     with gzip.open(warc_path, "rb") as fh:
-        for record in ArchiveIterator(fh, record_types=WarcRecordType.response):
+        for record in ArchiveIterator(fh, record_types=record_type):
             if len(negatives) >= n_target:
                 break
             raw = record.reader.read()
-            if b"<html" not in raw[:500].lower() and b"<!doctype" not in raw[:500].lower():
-                continue
-            text = extract_text_from_html_bytes(raw)
+            if is_wet:
+                text = raw.decode("utf-8", errors="replace").strip()
+            else:
+                if b"<html" not in raw[:500].lower() and b"<!doctype" not in raw[:500].lower():
+                    continue
+                text = extract_text_from_html_bytes(raw)
             if text and len(text.strip()) > 100:
                 negatives.append(text)
     print(f"  Collected {len(negatives)} CC negatives.")

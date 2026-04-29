@@ -58,14 +58,46 @@ cd "${SCRIPT_DIR}"
 
 # ── 4. Download model assets (fastText lid, NSFW, hate-speech models) ─────────
 echo ""
-echo "[4/5] Downloading classifier assets …"
+echo "[4/6] Downloading classifier assets …"
 mkdir -p cs336_data/assets
 bash get_assets.sh
 
 # ── 5. Create data directories ────────────────────────────────────────────────
 echo ""
-echo "[5/5] Creating data directories …"
-mkdir -p data/CC data/filtered data/tokenized results/leaderboard
+echo "[5/6] Creating data directories …"
+mkdir -p data/CC data/filtered data/tokenized data/wiki results/leaderboard
+
+# ── 6. Train quality classifier ───────────────────────────────────────────────
+echo ""
+echo "[6/6] Training quality classifier …"
+MODEL_PATH="${SCRIPT_DIR}/cs336_data/assets/quality_classifier.bin"
+if [ -f "${MODEL_PATH}" ]; then
+    echo "  quality_classifier.bin already exists, skipping."
+else
+    # Download Wikipedia URL list (~500 MB)
+    WIKI_URL="https://nlp.stanford.edu/data/nfliu/cs336-spring-2024/assignment4/enwiki-20240420-extracted_urls.txt.gz"
+    WIKI_PATH="${SCRIPT_DIR}/data/wiki/enwiki-20240420-extracted_urls.txt.gz"
+    if [ ! -f "${WIKI_PATH}" ] && [ ! -f "/data/wiki/enwiki-20240420-extracted_urls.txt.gz" ]; then
+        echo "  Downloading Wikipedia URL list (~500 MB) …"
+        wget -q --show-progress "${WIKI_URL}" -O "${WIKI_PATH}"
+    fi
+
+    # Use first available WET file as CC negatives source
+    CC_WET=$(ls "${SCRIPT_DIR}/data/CC/"*.warc.wet.gz 2>/dev/null | head -1)
+    if [ -z "${CC_WET}" ]; then
+        echo "  WARNING: No WET file found in data/CC/ — download at least 1 file first."
+        echo "  Re-run setup_vm.sh after: cs336_data/leaderboard/download_wet/part_4_download.sh 1"
+    else
+        echo "  Training quality classifier using ${CC_WET} …"
+        OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+        .venv/bin/python -m cs336_data.filtering_cc.quality_classifier.train \
+            --wiki-urls "${WIKI_PATH}" \
+            --cc-warc   "${CC_WET}" \
+            --output    "${MODEL_PATH}" \
+            --n-wiki 1000 --n-cc 1000 --n-try-wiki 4000 --workers 16
+        echo "  Saved to ${MODEL_PATH}"
+    fi
+fi
 
 echo ""
 echo "============================================================"
