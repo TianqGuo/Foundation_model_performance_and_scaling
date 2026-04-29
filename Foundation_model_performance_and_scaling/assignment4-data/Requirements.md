@@ -457,4 +457,176 @@ uv run pytest -k test_minhash_deduplication
 
 ---
 
-*More parts to be added.*
+## Part 4: Leaderboard — Filter Data for Language Modeling
+
+Now that we've implemented a variety of primitives for filtering web crawl data, the goal is to put them to use and generate language modeling training data.
+
+**Objective:** Filter a collection of CC WET files to produce training data such that a GPT-2 small-shaped Transformer trained on it **minimizes validation perplexity on the C4 100 domains subset of the Paloma benchmark** [Magnusson et al., 2023]. Do not modify the model architecture or training procedure — the goal is to construct the best data.
+
+**Data:**
+- **Input:** 5,000 WET files at `/data/CC/CC*.warc.wet.gz` (~375 GB compressed)
+- **Validation target:** C4 100 domains subset of Paloma at `/data/paloma/tokenized_paloma_c4_100_domains_validation.bin` (tokenized with GPT-2 tokenizer)
+
+```python
+import numpy as np
+data = np.fromfile(
+    "/data/paloma/tokenized_paloma_c4_100_domains_validation.bin",
+    dtype=np.uint16
+)
+from transformers import AutoTokenizer
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+print(tokenizer.decode(data[0:2000]))
+```
+
+> **Important:** You may use the Paloma validation data to construct filters or classifiers, but you must **not** copy any validation data into training data. The language model must never see validation set data.
+
+---
+
+### Parallelization
+
+375 GB of data requires parallel processing. Use `concurrent.futures.ProcessPoolExecutor` locally or `submitit` on the Slurm cluster.
+
+**Local (concurrent.futures):**
+```python
+import concurrent.futures, os, pathlib
+from tqdm import tqdm
+
+def process_single_wet_file(input_path: str, output_path: str):
+    # read, filter, write
+    return output_path
+
+num_cpus = len(os.sched_getaffinity(0))
+executor = concurrent.futures.ProcessPoolExecutor(max_workers=num_cpus)
+futures = []
+for wet_filepath in wet_filepaths:
+    wet_filename = str(pathlib.Path(wet_filepath).name)
+    futures.append(executor.submit(process_single_wet_file, wet_filepath,
+                                   os.path.join(output_directory_path, wet_filename)))
+for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
+    print(f"Output file written: {future.result()}")
+```
+
+**Cluster (submitit — Slurm job array):**
+```python
+import submitit, pathlib, os
+from tqdm import tqdm
+
+executor = submitit.AutoExecutor(folder="slurm_logs")
+executor.update_parameters(
+    slurm_array_parallelism=16, timeout_min=15, mem_gb=2, cpus_per_task=2,
+    slurm_account="student", slurm_partition="a4-cpu", slurm_qos="a4-cpu-qos",
+)
+futures = []
+with executor.batch():
+    for wet_filepath in wet_filepaths:
+        wet_filename = str(pathlib.Path(wet_filepath).name)
+        futures.append(executor.submit(process_single_wet_file, wet_filepath,
+                                       os.path.join(output_directory_path, wet_filename)))
+for future in tqdm(submitit.helpers.as_completed(futures), total=len(futures)):
+    print(f"Output file written: {future.result()}")
+```
+
+Key submitit differences vs `concurrent.futures`: (1) configure Slurm resource parameters, (2) use `executor.batch()` to group jobs into a single array, (3) use `submitit.helpers.as_completed` to collect results.
+
+**Recommended libraries:**
+```python
+from fastwarc.warc import ArchiveIterator, WarcRecordType   # iterate WET records
+from tldextract import TLDExtract                            # extract domains from URLs
+```
+
+---
+
+### Problem: `filter_data` (6 points)
+
+**(a)** Write a script to filter language modeling data from the CC WET files at `/data/CC/CC*.warc.wet.gz`. You may apply any primitives from Parts 2–3 and explore additional filters (e.g., n-gram language model perplexity filtering). Your script should report the number of examples kept by each filter step.
+
+**Deliverable:** A parallel filtering script (or sequence of scripts). A written breakdown of what proportion of discarded examples are removed by each filter step.
+
+---
+
+**(b)** How long does it take to filter the 5,000 WET files? How long would it take to filter the entire Common Crawl dump (100,000 WETs)?
+
+**Deliverable:** Runtime of the data filtering pipeline.
+
+---
+
+### Problem: `inspect_filtered_data` (4 points)
+
+**(a)** Take five random examples from your filtered dataset. Comment on their quality and suitability for language modeling, given the C4 100 domains goal.
+
+**Deliverable:** Five random examples with 1–2 sentence descriptions each. Pertinent excerpts are fine.
+
+---
+
+**(b)** Take five CC WET documents that were removed and/or modified by your filtering script. What filter removed or modified them, and was the removal justified?
+
+**Deliverable:** Five random discarded examples with 1–2 sentence descriptions each. Pertinent excerpts are fine.
+
+---
+
+**(c)** If your analysis motivates further pipeline changes, report them.
+
+**Deliverable:** A description of any data pipeline iterations you experimented with.
+
+---
+
+### Problem: `tokenize_data` (2 points)
+
+Tokenize your filtered data using the GPT-2 tokenizer. Append `<|endoftext|>` after each document. Serialize as a `np.uint16` array using `.tofile()` for compatibility with the training script.
+
+```python
+import multiprocessing, numpy as np
+from tqdm import tqdm
+from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+
+def tokenize_line_and_add_eos(line):
+    return tokenizer.encode(line) + [tokenizer.eos_token_id]
+
+with open(input_path) as f:
+    lines = f.readlines()
+
+pool = multiprocessing.Pool(multiprocessing.cpu_count())
+results = list(tqdm(pool.imap(tokenize_line_and_add_eos, lines, chunksize=100),
+                    total=len(lines), desc="Tokenizing"))
+pool.close(); pool.join()
+
+all_ids = [tok for sublist in results for tok in sublist]
+print(f"Tokenized {input_path} into {len(all_ids)} tokens")
+np.array(all_ids, dtype=np.uint16).tofile(output_path)
+```
+
+**Deliverable:** A tokenization script and the total number of tokens in your dataset.
+
+---
+
+### Problem: `train_model` (2 points)
+
+Train a GPT-2 small-shaped model for 200K iterations on your tokenized dataset. Validation loss on C4 100 domains is measured periodically (enabled by default in the config).
+
+**Setup:** Edit `cs336-basics/configs/experiment/your_data.yaml`:
+- Set `paths.train_bin` to your tokenized training data path
+- Set `training.wandb_entity` and `training.wandb_project`
+
+**Launch training (2 GPUs, batch size 128 per device, ~7 hours):**
+```bash
+uv run torchrun --standalone --nproc_per_node=2 \
+    scripts/train.py --config-name=experiment/your_data
+```
+
+**Optional — save checkpoints and sample from model:**
+```bash
+# Save checkpoints at each validation step
+uv run torchrun --standalone --nproc_per_node=2 \
+    scripts/train.py --config-name=experiment/your_data \
+    +training.save_checkpoints=True
+
+# Sample from a saved checkpoint
+uv run python scripts/generate_with_gpt2_tok.py \
+    --model_path cs336-basics/output/your_data/step_N
+```
+
+> Do not modify the training config (other than `paths.train_bin`, `wandb_entity`, `wandb_project`) or the training script. The goal is better data, not better training.
+
+**Deliverable:** The best validation loss achieved, the associated learning curve, and a description of your data filtering approach.
