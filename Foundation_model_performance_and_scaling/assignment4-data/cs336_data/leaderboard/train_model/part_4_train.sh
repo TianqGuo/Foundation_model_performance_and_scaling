@@ -46,9 +46,7 @@ if [ ! -f "${VALID_BIN}" ]; then
 fi
 
 if [ -z "${WANDB_ENTITY}" ]; then
-    echo "ERROR: WANDB_ENTITY is not set."
-    echo "       Export it before running:  export WANDB_ENTITY=your-wandb-username"
-    exit 1
+    echo "WARNING: WANDB_ENTITY is not set — wandb entity will be inferred from login credentials."
 fi
 
 # ── Detect GPU count ─────────────────────────────────────────────────────────
@@ -90,12 +88,13 @@ text = re.sub(
     r"\g<1>${VALID_BIN}",
     text,
 )
-# Replace wandb_entity (handles both ??? and a previous value)
-text = re.sub(
-    r"(wandb_entity:\s*).*",
-    r"\g<1>${WANDB_ENTITY}",
-    text,
-)
+# Replace wandb_entity only if WANDB_ENTITY is explicitly set
+if "${WANDB_ENTITY}":
+    text = re.sub(
+        r"(wandb_entity:\s*).*",
+        r"\g<1>${WANDB_ENTITY}",
+        text,
+    )
 config_path.write_text(text)
 print(f"Patched {config_path}")
 PYEOF
