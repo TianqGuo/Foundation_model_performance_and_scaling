@@ -106,11 +106,10 @@ def main(cfg: Config) -> None:
                 * cfg.model.context_length
             )
         )
-        if cfg.training.wandb_project and cfg.training.wandb_entity:
+        if cfg.training.wandb_project:
             wandb.init(
-                # Set the project where this run will be logged
-                entity=cfg.training.wandb_entity,
                 project=cfg.training.wandb_project,
+                **({"entity": cfg.training.wandb_entity} if cfg.training.wandb_entity else {}),
                 config=OmegaConf.to_container(cfg, resolve=True),
                 name=cfg.paths.model_output.name,
             )
