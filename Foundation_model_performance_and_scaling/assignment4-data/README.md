@@ -1,42 +1,132 @@
-# CS336 Spring 2025 Assignment 4: Data
+# LM Data Pipeline: Common Crawl → Trained Language Model
 
-For a full description of the assignment, see the assignment handout at
-[cs336_spring2025_assignment4_data.pdf](./cs336_spring2025_assignment4_data.pdf)
+A full data engineering pipeline that turns raw Common Crawl web dumps into a trained GPT-2-scale language model, evaluated on the [Paloma](https://github.com/allenai/paloma) C4-100-domains benchmark.
 
-If you see any issues with the assignment handout or code, please feel free to
-raise a GitHub issue or open a pull request with a fix.
+## What This Project Does
+
+Starting from hundreds of gigabytes of unfiltered web text, the pipeline:
+
+1. **Extracts** clean text from raw HTML using Resiliparse
+2. **Filters** for language, quality, safety, and PII
+3. **Deduplicates** the corpus at both exact-line and fuzzy-document level
+4. **Trains** an 85M-parameter Transformer on the resulting data
+
+### Part 1: Overview
+
+The core question: *how much does data quality matter?* Raw Common Crawl is ~7.9% usable text after filtering — the rest is non-English, low-quality, or harmful content. The goal is to maximize language model quality on the Paloma benchmark purely through better data, without changing the model or training procedure.
+
+### Part 2: Filtering (`cs336_data/filtering_cc/`)
+
+A multi-stage quality filter applied to CC WET files:
+
+1. **HTML extraction** — strip markup, extract clean text with `resiliparse`
+2. **Language identification** — `fastText` lid.176.bin model, keep English (score ≥ 0.65)
+3. **PII masking** — regex-based masking of emails, phone numbers, IP addresses
+4. **Harmful content** — Dolma NSFW / toxic-speech classifiers
+5. **Gopher quality rules** — word count, mean word length, ellipsis ratio, alpha ratio
+6. **Quality classifier** — fastText model trained on Wikipedia (positive) vs CC (negative) to score web-page quality
+
+Written analysis for each stage is in `results/filtering_cc/`.
+
+### Part 3: Deduplication (`cs336_data/deduplication/`)
+
+- **Exact-line deduplication** — remove duplicate lines across the corpus using a global hash set
+- **MinHash deduplication** — approximate fuzzy document deduplication via Locality-Sensitive Hashing (LSH)
+
+### Part 4: Full Training Pipeline (`cs336_data/leaderboard/`)
+
+End-to-end pipeline from raw CC to a trained language model evaluated on Paloma C4-100-domains.
+
+#### Pipeline
+
+| Step | Script | Output |
+|------|--------|--------|
+| Download CC WET files | `cs336_data/leaderboard/download_wet/part_4_download.sh` | `data/CC/*.warc.wet.gz` |
+| Filter | `cs336_data/leaderboard/filter_data/part_4_filter.sh` | `data/filtered/*.txt` |
+| Tokenize | `cs336_data/leaderboard/tokenize_data/part_4_tokenize.sh` | `data/tokenized/train.bin` |
+| Train | `cs336_data/leaderboard/train_model/part_4_train.sh` | `cs336-basics/output/your_data/model.pt` |
+
+#### Filter Results (600 WET files, CC-MAIN-2025-18)
+
+| Stage | Removed | % of total |
+|-------|---------|------------|
+| Non-English | 10,603,105 | 64.8% |
+| Low quality | 3,723,914 | 22.8% |
+| Gopher fail | 481,112 | 2.9% |
+| Too short | 262,401 | 1.6% |
+| NSFW | 2,810 | 0.02% |
+| **Kept** | **1,292,650** | **7.9%** |
+| Total records | 16,365,992 | — |
+
+#### Model Architecture
+
+84.95M non-embedding parameters (GPT-2 scale):
+
+| Hyperparameter | Value |
+|----------------|-------|
+| Vocabulary size | 50,257 (GPT-2 BPE) |
+| Context length | 512 |
+| d_model | 768 |
+| Layers | 12 |
+| Attention heads | 12 |
+| d_ff | 2,048 |
+
+#### Training Results
+
+Trained for **100,000 steps** on 2× A100 GPUs (131,072 tokens/step, cosine LR decay from 1e-3).
+
+| Metric | Value |
+|--------|-------|
+| Final train loss | ~2.5 |
+| Best eval loss (Paloma) | ~4.3 (step ~60k) |
+| Final eval loss (Paloma) | ~4.5 |
+
+Training curves (wandb):
+
+![Training loss, learning rate, and eval loss](results/screenshots/losses_and_lr.png)
+
+![GPU system statistics](results/screenshots/system_statistics.png)
+
+---
+
+## Repository Layout
+
+```
+.
+├── cs336-basics/               # GPT-2 training implementation
+├── cs336_data/                 # Pipeline implementation
+│   ├── assets/                 # Downloaded classifier models
+│   ├── filtering_cc/           # Part 2 — filter implementations
+│   ├── deduplication/          # Part 3 — deduplication implementations
+│   └── leaderboard/            # Part 4 — full pipeline scripts
+├── data/                       # Raw + processed data (gitignored)
+│   ├── CC/                     # Downloaded WET files
+│   ├── filtered/               # Post-filter documents + filter_stats.json
+│   ├── tokenized/              # train.bin (GPT-2 tokenized)
+│   └── paloma/                 # Paloma validation set
+├── results/                    # Written analysis and evaluation outputs
+│   ├── filtering_cc/           # Per-stage filter analysis
+│   └── screenshots/            # Training curves (wandb)
+├── setup_vm.sh                 # One-shot cloud VM setup script
+├── get_assets.sh               # Download classifier model weights
+└── pyproject.toml
+```
 
 ## Setup
 
-This directory is organized as follows:
-
-- [`./cs336-basics`](./cs336-basics): directory containing a module
-  `cs336_basics` and its associated `pyproject.toml`. This module contains the staff 
-  implementation of the language model from assignment 1. You will use this training code
-  to train an LM on your filtered data. You should not modify the training logic, since
-  your leaderboard submission must use it exactly.
-- [`./cs336_data`](./cs336_data): This folder is basically empty! This is the
-  module where you will implement code to filter and process the data.
-
-Visually, it should look something like:
-
-``` sh
-.
-├── cs336_basics  # A python module named cs336_basics
-│   └── ... an optimized training implementation ...
-├── cs336_data  # TODO(you): code that you'll write for assignment 4
-│   ├── __init__.py
-│   └── ... TODO(you): any other files or folders you need for assignment 4 ...
-├── README.md
-├── pyproject.toml
-└── ... TODO(you): other files or folders you need for assignment 4 ...
+```bash
+uv sync          # install dependencies
+./get_assets.sh  # download lid.176.bin, Dolma models
 ```
 
-As in previous assignments, we use `uv` to manage dependencies.
+For cloud VM deployment (vast.ai / Lambda / etc.):
 
-## Submitting
+```bash
+bash setup_vm.sh
+```
 
-To submit, run `./test_and_make_submission.sh` . This script will install your
-code's dependencies, run tests, and create a gzipped tarball with the output. We
-should be able to unzip your submitted tarball and run
-`./test_and_make_submission.sh` to verify your test results.
+## Running Tests
+
+```bash
+uv run pytest -v
+```
