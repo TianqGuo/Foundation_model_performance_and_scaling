@@ -10,5 +10,6 @@ paths:
   model_output: output/your_data
 
 training:
-  wandb_entity: gtqscat
+  wandb_entity: ""
   wandb_project: cs336-data
+  save_checkpoints: true
