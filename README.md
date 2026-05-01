@@ -1,6 +1,17 @@
 # Foundation Model Systems — Performance, Profiling & Scaling
 
-End-to-end implementation of a language model training stack, from tokenizer and Transformer architecture through GPU kernel optimization, multi-GPU distributed training, empirical scaling law experiments, and web-scale data filtering.
+End-to-end implementation of a language model training stack: BPE tokenizer, Transformer architecture, GPU kernel optimization, multi-GPU distributed training, empirical scaling law experiments, and a web-scale data filtering pipeline.
+
+---
+
+## Overview
+
+| Part | Topic | Key Result |
+|---|---|---|
+| [Part 1](#part-1-tokenizer--transformer) | Tokenizer + Transformer | 4.68 val loss on OpenWebText in 1.5 hrs; ablations isolate impact of SwiGLU, RMSNorm, RoPE |
+| [Part 2](#part-2-gpu-optimization--distributed-training) | GPU Optimization & Distributed Training | BF16 gives 1.87× speedup at 2.7B; NCCL 200× faster than CPU all-reduce at 100 MB |
+| [Part 3](#part-3-scaling-laws) | Scaling Laws | N_opt = 1.16 × C^0.469 — predicts ~70B params at 10²³ FLOPs (matches Chinchilla) |
+| [Part 4](#part-4-data-pipeline--training) | Data Pipeline & Training | Filtered 1.29M docs from 16.4M CC records; trained 85M-param model to 4.3 eval loss on Paloma |
 
 ---
 
@@ -8,186 +19,233 @@ End-to-end implementation of a language model training stack, from tokenizer and
 
 **Languages & Frameworks:** Python, PyTorch, Triton
 
-**GPU & Profiling:** CUDA, Nsight Systems (`nsys`), NVTX annotations, PyTorch `memory_snapshot`, HBM-aware kernel design, FLOP/throughput benchmarking, `torch.cuda.synchronize()`
+**GPU & Profiling:** CUDA, Nsight Systems (`nsys`), NVTX annotations, PyTorch `memory_snapshot`, `torch.cuda.synchronize()`
 
-**Kernel Optimization:** FlashAttention-2, online softmax, tiling, activation recomputation, `torch.autograd.Function`, BF16 mixed precision, `torch.compile` / JIT, kernel fusion
+**Kernel Optimization:** FlashAttention-2, online softmax, tiling, activation recomputation, `torch.autograd.Function`, BF16 mixed precision, `torch.compile`
 
-**Distributed Training:** DDP (Distributed Data Parallel), gradient bucketing, comm/compute overlap, ZeRO-style optimizer sharding, FSDP (analysis), Tensor Parallelism (analysis), NCCL, Gloo, all-reduce, all-gather, broadcast collectives
+**Distributed Training:** DDP, gradient bucketing, comm/compute overlap, ZeRO-style optimizer sharding, NCCL, Gloo, all-reduce, all-gather
 
-**Model Components:** BPE tokenizer, Transformer (RoPE, RMSNorm, SwiGLU, causal masking, weight tying), AdamW, cosine LR schedule with warmup, gradient clipping, temperature scaling, nucleus (top-p) sampling
+**Model Components:** BPE tokenizer, Transformer (RoPE, RMSNorm, SwiGLU, causal masking, weight tying), AdamW, cosine LR schedule, gradient clipping, nucleus sampling
 
-**Scaling Laws:** IsoFLOPs, Chinchilla methodology, power-law fitting (`scipy.optimize`), compute-optimal model selection
+**Scaling Laws:** IsoFLOPs, Chinchilla methodology, power-law fitting (`scipy.optimize`)
 
-**Data Pipeline:** Common Crawl / WARC/WET processing, Resiliparse (HTML extraction), FastWARC, fastText (language ID, quality classifier, NSFW/toxic detection via Dolma), Gopher quality filters, MinHash + LSH fuzzy deduplication, exact line deduplication, PII masking, OpenWebText, Paloma/C4 benchmark
-
----
-
-## Overview
-
-| Part | Topic | Key Deliverables |
-|---|---|---|
-| [Part 1](#part-1-tokenizer--transformer) | Tokenizer + Transformer | Byte-level BPE tokenizer, full Transformer LM, AdamW, training loop, ablations |
-| [Part 2](#part-2-systems--gpu-optimization) | Systems & GPU Optimization | FlashAttention-2 (Triton), online softmax, tiling, BF16, `torch.compile`, DDP, ZeRO sharding, Nsight profiling |
-| [Part 3](#part-3-scaling-laws) | Scaling Laws | IsoFLOPs fitting, Chinchilla methodology, compute-optimal prediction at 10¹⁹ FLOPs |
-| [Part 4](#part-4-data-filtering--pipeline) | Data Filtering & Pipeline | Common Crawl pipeline, fastText classifiers, MinHash+LSH dedup, Gopher filters, Paloma evaluation |
-
----
-
-## Key Findings
-
-**GPU optimization (Part 2)**
-- Combined optimizations (FlashAttention-2 + BF16 + `torch.compile` + DDP) achieved **2× average / 6.35× peak** throughput improvement over the unoptimized FP32 baseline
-- BF16 provides 16× higher theoretical throughput than FP32 on H100 (312 vs 19.5 TFLOP/s); profiling confirmed attention and matmul as dominant kernels in the forward pass
-- FlashAttention-2 eliminates O(seq_len²) HBM reads by keeping Q/K/V tiles in SRAM — memory usage no longer grows quadratically with sequence length
-
-**Architectural ablations (Part 1, models 17M–124M parameters)**
-- Pre-norm converged more stably than post-norm — post-norm showed vanishing gradient symptoms in early training
-- RoPE consistently outperformed NoPE (no positional embeddings) on language modeling loss
-- SwiGLU outperformed SiLU feed-forward networks, consistent with findings in LLaMA/Qwen literature
-- Removing RMSNorm caused training instability / loss divergence
-
-**Scaling laws (Part 3)**
-- IsoFLOPs power-law fit on synthetic training data (9 compute budgets, 6×10¹⁸ to 3×10²¹ FLOPs):
-  - **N_opt = 1.163 × C^0.469** — model size scales slightly sub-linearly with compute (exponent ~0.5 matches Chinchilla)
-  - **D_opt = 0.143 × C^0.531** — tokens scale slightly super-linearly, meaning data-efficiency improves at larger budgets
-  - Extrapolated to 10²³ FLOPs: **N_opt ≈ 70B params, D_opt ≈ 238B tokens**
-  - Extrapolated to 10²⁴ FLOPs: **N_opt ≈ 206B params, D_opt ≈ 809B tokens**
-- Part 3b (live API experiments at 10¹⁹ FLOP target): full experiment design and fitting infrastructure implemented; not executed — requires Stanford cluster API access
+**Data Pipeline:** Common Crawl WARC/WET, Resiliparse, FastWARC, fastText (language ID, quality classifier, NSFW/toxic), Gopher filters, MinHash+LSH deduplication, PII masking
 
 ---
 
 ## Part 1: Tokenizer + Transformer
 
-**Goal:** Build a complete language model training stack from scratch using only core PyTorch primitives (no `torch.nn` layers, no `torch.optim` implementations — only `nn.Parameter`, container classes, and the `Optimizer` base class).
+Built a complete language model training stack from scratch using only core PyTorch primitives (`nn.Parameter`, container classes, and the `Optimizer` base class — no `torch.nn` layers or `torch.optim` implementations).
 
-### Byte-Level BPE Tokenizer
-- Implemented byte-pair encoding (BPE) over UTF-8 bytes, supporting arbitrary Unicode input without out-of-vocabulary tokens
-- Trained on **TinyStories** (10K vocab) and **OpenWebText** (32K vocab, 11.1 GB corpus; ~2.5 hrs training time)
-- Parallel pre-tokenization with GPT-2 regex pre-tokenizer; vocabulary and merge rules serialized to disk
+### BPE Tokenizer
+Byte-pair encoding over UTF-8 bytes with GPT-2 regex pre-tokenizer. Trained on TinyStories (10K vocab) and OpenWebText (32K vocab, 11.1 GB corpus).
 
-### Transformer Language Model
-- Pre-norm Transformer block: multi-head self-attention with **RoPE** positional embeddings, **RMSNorm**, **SwiGLU** feed-forward, **causal masking**, **weight tying** between embedding and output projection
-- Custom `torch.autograd.Function` implementations throughout
-- Text generation with **temperature scaling** and **nucleus (top-p) sampling**
+### Transformer Architecture
+Pre-norm design with RoPE positional embeddings, RMSNorm, SwiGLU feed-forward, causal masking, and weight tying between input embedding and output projection.
 
-### Training Infrastructure
-- **AdamW optimizer** with decoupled weight decay, implemented from scratch
-- **Cosine annealing LR schedule** with linear warmup, gradient clipping, periodic checkpointing
-- Datasets tokenized to `.npy` for fast dataloader access; perplexity evaluated on held-out sets
+### Architecture Ablations
 
-### Architectural Ablations (models 17M–124M parameters)
-| Ablation | Comparison |
-|---|---|
-| Pre-norm vs Post-norm | Effect on training stability and convergence |
-| RoPE vs NoPE | Effect of positional embeddings on language modeling loss |
-| SwiGLU vs SiLU | Effect of gating in the feed-forward network |
-| RMSNorm vs no normalization | Effect of layer normalization on gradient flow |
+Isolated the impact of each architectural choice by training 5 variants of a 17M-parameter model on TinyStories (327.68M tokens each):
+
+| Variant | Change from baseline | Best val loss |
+|---------|----------------------|---------------|
+| Baseline | Pre-norm, RoPE, SwiGLU | **1.390** |
+| no_layer_norm | Remove all RMSNorm | 1.398 |
+| post_norm | Post-norm instead of pre-norm | 1.390 |
+| no_position_emb | No positional encoding (NoPE) | 1.390 |
+| silu_ffn | SiLU FFN instead of SwiGLU | 1.410 |
+
+**Findings:** SwiGLU measurably outperforms plain SiLU (+1.4% loss). Removing normalization causes unstable initialization (starting loss 17.7 vs 9.3) but recovers to near-baseline. Interestingly, post-norm and NoPE converge to the same loss as the baseline — normalization placement and explicit positional encoding have little effect at this scale.
+
+![Architecture ablation comparison](Foundation_model_performance_and_scaling/assignment1-basics/pics/Pic2.png)
+
+### Batch Size Sweep
+
+Swept batch sizes 1–256 at a constant 327.68M token budget:
+
+| Batch size | Training time | Best val loss |
+|------------|---------------|---------------|
+| 1 | 7.22h | 1.382 |
+| **8** | **3.06h** | **1.320** |
+| 32 | 2.11h | 1.390 |
+| 64 | 1.67h | 1.435 |
+| 256 | 7.56h | 1.599 |
+
+Batch=8 wins — at a fixed token budget, smaller batches mean more gradient updates.
+
+![Batch size sweep](Foundation_model_performance_and_scaling/assignment1-basics/pics/Pic1.png)
+
+### OpenWebText vs TinyStories
+
+Same architecture and compute (327.68M tokens), different datasets:
+
+| Dataset | Best val loss |
+|---------|---------------|
+| TinyStories | 1.32 |
+| OpenWebText | 4.02 |
+
+Higher OWT loss reflects the dataset's difficulty — general web text is far harder to model than narrow children's stories.
+
+![OpenWebText vs TinyStories](Foundation_model_performance_and_scaling/assignment1-basics/pics/Pic3.png)
+
+### Leaderboard — 1.5-Hour Budget
+
+Optimized a 28.8M-parameter model on OpenWebText within a 1.5-hour compute budget using weight tying (36% parameter reduction), larger batch size, scaled LR, and bfloat16.
+
+| Metric | Value |
+|--------|-------|
+| Best val loss | 4.678 (vs 5.0 baseline) |
+| Perplexity | 107.6 |
+| Tokens processed | 89.7M in 1.5 hrs |
+
+![Leaderboard learning curves](Foundation_model_performance_and_scaling/assignment1-basics/cs336_basics/basics/runs/leaderboard_final/learning_curves.png)
 
 ---
 
-## Part 2: Systems & GPU Optimization
+## Part 2: GPU Optimization & Distributed Training
 
-**Goal:** Profile the training stack to find bottlenecks, then optimize single-GPU throughput and scale to multiple GPUs.
+### Attention Benchmarking & FlashAttention
 
-### Profiling
+Standard attention memory grows quadratically with sequence length — `seq_len=16384` OOMs on RTX 4090. FlashAttention keeps Q/K/V tiles in SRAM and eliminates the O(seq_len²) HBM read/write, handling all sequence lengths with ~2–5× forward speedup.
 
-Three complementary profiling paths:
+### Memory Profiling — 2.7B Parameter Model
 
-- **End-to-end benchmarking** — automated FLOP counting and throughput measurement (tokens/sec) for forward + backward passes; `torch.cuda.synchronize()` for accurate GPU timing; sweeping model sizes and context lengths via Slurm/`submitit`
-- **Nsight Systems** — GPU kernel-level traces (`nsys profile`) with **NVTX annotations** capturing CPU/GPU timelines; traces stored as `.nsys-rep`/`.sqlite` in `results/nsight_profiles/`
-- **Memory profiling** — PyTorch `memory_snapshot` capturing peak and allocated memory across 5 model sizes (small → 2.7B) and context lengths 128–512, in both FP32 and BF16; snapshots in `results/memory_profiling/`
+| Context length | Forward pass | Full training step |
+|----------------|--------------|-------------------|
+| 128 | 13,288 MB | 65,577 MB |
+| 256 | 13,457 MB | 65,408 MB |
+| 512 | 14,011 MB | 69,460 MB |
 
-Model configurations benchmarked:
+Training step memory (~5× forward) is dominated by AdamW optimizer states (2× parameters in FP32) and gradients.
 
-| Size | d_model | d_ff | Layers | Heads |
-|------|---------|------|--------|-------|
-| small | 768 | 3072 | 12 | 12 |
-| medium | 1024 | 4096 | 24 | 16 |
-| large | 1280 | 5120 | 36 | 20 |
-| xl | 1600 | 6400 | 48 | 25 |
-| 2.7B | 2560 | 10240 | 32 | 32 |
+![Training memory timeline — sawtooth pattern as activations build and release](Foundation_model_performance_and_scaling/assignment2-systems/results/memory_profiling/pics/Profiling7.png)
 
-### FlashAttention-2 (Triton Kernel)
+![Nsight Systems GPU kernel breakdown](Foundation_model_performance_and_scaling/assignment2-systems/results/nsight_profiles/pics/profiler1.png)
 
-Implemented following Dao 2023, avoiding reads/writes of the O(seq_len²) attention matrix to **HBM**:
+### Mixed Precision (BF16)
 
-- **Online softmax** — compute softmax in tiles without materializing the full attention matrix
-- **Tiling** — process Q/K/V in SRAM-resident tiles; block pointer arithmetic in Triton
-- **Recomputation (activation checkpointing)** — discard intermediate attention weights; recompute from saved {Q, K, logsumexp} during backward, trading compute for memory
-- **Causal masking** — skip all-zero tiles above the diagonal for autoregressive models
-- Forward pass: pure Triton kernel; backward pass: `torch.compile` over PyTorch autograd
+BF16 speedup grows with model size — dominant at 2.7B where compute, not memory bandwidth, bottlenecks:
 
-### Optimizations Implemented
+| Model | FP32 (ms) | BF16 (ms) | Speedup |
+|-------|-----------|-----------|---------|
+| small (128M) | 102 | 123 | 0.83× |
+| large (969M) | 557 | 540 | 1.03× |
+| 2.7B | 1,348 | 722 | **1.87×** |
 
-| Technique | Module |
-|---|---|
-| **FlashAttention-2** — fused attention Triton kernel | `cs336_systems/flash_attention/` |
-| **BF16 mixed precision** (stable vs FP16 loss scaling) | `cs336_systems/mixed_precision/` |
-| **`torch.compile` / JIT** — auto-fused Triton kernels | `cs336_systems/torch_compile_benchmarking/` |
-| **Naive DDP** (all-reduce after full backward) | `cs336_systems/naive_ddp/` |
-| **DDP with comm/compute overlap** (per-parameter all-reduce) | `cs336_systems/ddp_overlap_individual/` |
-| **DDP with gradient bucketing** (batched all-reduce) | `cs336_systems/ddp_bucketed/` |
-| **ZeRO-style optimizer state sharding** (ZeRO stage 1) | `cs336_systems/optimizer_sharding/` |
-| **NCCL vs Gloo collective benchmarking** | `cs336_systems/distributed_communication/` |
+### `torch.compile`
 
-Combined optimizations achieved **2× average / 6.35× peak** throughput improvement over the unoptimized baseline.
+Largest gains on small models where kernel launch overhead dominates:
 
-### 4D Parallelism Analysis
-Theoretical analysis of combining Data Parallelism, **FSDP** (Fully Sharded Data Parallelism), and **Tensor Parallelism** — memory and compute trade-offs at scale.
+| Model | Context | Vanilla | Compiled | Speedup |
+|-------|---------|---------|----------|---------|
+| small (128M) | 128 | 107 ms | 21 ms | **5.0×** |
+| 2.7B | 512 | 1,438 ms | 1,436 ms | 1.0× |
+
+### Distributed Communication — NCCL vs Gloo
+
+NCCL+CUDA is ~200× faster than gloo+CPU for all-reduce at 100 MB:
+
+| Backend | Avg time (100 MB) | Peak bandwidth |
+|---------|------------------|----------------|
+| gloo+cpu | 149 ms | ~0.9 GB/s |
+| nccl+cuda | 0.5 ms | **~310 GB/s** |
+
+![All-reduce bandwidth vs data size](Foundation_model_performance_and_scaling/assignment2-systems/results/distributed_communication/allreduce_bandwidth_vs_datasize.png)
+
+![Backend comparison at 100 MB](Foundation_model_performance_and_scaling/assignment2-systems/results/distributed_communication/allreduce_backend_comparison_100mb.png)
+
+### Distributed Data Parallel (DDP)
+
+Three variants benchmarked on a 2B-parameter (XL) model across 2 GPUs:
+
+| Implementation | Avg step time | vs naive |
+|----------------|--------------|---------|
+| Naive DDP | 808.66 ms | 1.00× |
+| Flat DDP (single bucket) | 790.91 ms | 1.02× |
+| Overlap individual | 799.28 ms | 1.01× |
+
+### ZeRO Optimizer Sharding
+
+| Mode | Avg step time | Overhead |
+|------|--------------|---------|
+| Non-sharded | 783.53 ms | — |
+| Sharded (ZeRO stage 1) | 836.05 ms | +6.7% |
+
+~6.7% overhead for distributing optimizer states, enabling larger models in memory.
 
 ---
 
 ## Part 3: Scaling Laws
 
-**Goal:** Fit empirical scaling laws to predict compute-optimal model and dataset size as a function of FLOPs budget.
+Reproduced the IsoFLOPs methodology from Hoffmann et al. (Chinchilla, 2022) to predict compute-optimal model and dataset sizes.
 
-### Part 3a — IsoFLOPs Fitting (Fully Implemented & Executed)
-- Reproduced the IsoFLOPs scaling law methodology from Hoffmann et al. (**Chinchilla**, 2022) on synthetic training run data (9 compute budgets from 6×10¹⁸ to 3×10²¹ FLOPs)
-- For each compute budget C, identified the model size N_opt(C) that minimized final training loss; computed D_opt = C / (6N)
-- Fitted power laws in log-log space via `np.polyfit`:
-  - **N_opt = 1.163 × C^0.469** (R² fit on 9 data points; exponent ≈ 0.5 consistent with Chinchilla)
-  - **D_opt = 0.143 × C^0.531**
-- Extrapolations:
+**Fitted scaling laws** (9 compute budgets, 6×10¹⁸ to 3×10²¹ FLOPs):
 
-| Target Budget | Optimal Model Size | Optimal Dataset Size |
+| Law | Formula |
+|-----|---------|
+| Compute-optimal model size | **N_opt = 1.16 × C^0.469** |
+| Compute-optimal dataset size | **D_opt = 0.143 × C^0.531** |
+
+Exponents (~0.47/~0.53) closely match Chinchilla, confirming roughly equal scaling of model size and data with compute.
+
+**Extrapolated predictions:**
+
+| Compute budget | Optimal model size | Optimal tokens |
 |---|---|---|
 | 10²³ FLOPs | ~70B parameters | ~238B tokens |
 | 10²⁴ FLOPs | ~206B parameters | ~809B tokens |
 
-Scaling law plots: [`results/part1_isoflops/model_size_scaling_law.png`](./assignment3-scaling/results/part1_isoflops/model_size_scaling_law.png), [`dataset_size_scaling_law.png`](./assignment3-scaling/results/part1_isoflops/dataset_size_scaling_law.png)
+![Compute-optimal model size scaling law](Foundation_model_performance_and_scaling/assignment3-scaling/results/part1_isoflops/model_size_scaling_law.png)
 
-### Part 3b — Live Experiment Infrastructure (Implemented, Not Executed)
-Full pipeline implemented in `part2_scaling_laws/`:
-- **`experiment_design.py`** — IsoFLOPs strategy: 8 compute budgets (10¹⁵–10¹⁸ FLOPs), 6 model sizes per budget, architecture search over (d_model, num_layers, num_heads) with budget tracking
-- **`api_client.py`** — API client with caching, retry logic, and budget enforcement for querying training results
-- **`scaling_law_fitter.py`** — power-law fitting from API results; extrapolation to 10¹⁹ FLOP target
-- **`hyperparameter_selector.py`** — maps predicted N_opt to concrete architecture and training hyperparameters
-
-*Status: not executed — requires Stanford cluster training API (VPN-gated). Experiment design, fitting, and extrapolation logic is complete.*
-
-Key references: [Chinchilla (arXiv:2203.15556)](https://arxiv.org/abs/2203.15556), [Kaplan et al. (arXiv:2001.08361)](https://arxiv.org/abs/2001.08361), [μP (arXiv:2203.03466)](https://arxiv.org/abs/2203.03466)
+![Compute-optimal dataset size scaling law](Foundation_model_performance_and_scaling/assignment3-scaling/results/part1_isoflops/dataset_size_scaling_law.png)
 
 ---
 
-## Part 4: Data Filtering & Pipeline
+## Part 4: Data Pipeline & Training
 
-**Goal:** Build a web-scale data processing pipeline to turn raw Common Crawl web data into a clean language modeling dataset, and measure the impact of filtering decisions on downstream LM perplexity.
+An end-to-end pipeline from raw Common Crawl web data to a trained language model evaluated on the Paloma benchmark.
 
-### Pipeline Stages (implemented in `cs336_data/`)
+### Filtering Pipeline
 
-| Stage | Tool / Method |
+Applied in order — first rejection wins:
+
+| Stage | Documents removed | % of total |
+|-------|-------------------|------------|
+| Too short (<100 chars) | 262,401 | 1.6% |
+| Non-English (fastText, score < 0.65) | 10,603,105 | 64.8% |
+| Gopher rules (word count, alpha ratio, ellipsis) | 481,112 | 2.9% |
+| Low quality (fastText classifier, wiki-prob < 0.3) | 3,723,914 | 22.8% |
+| NSFW (Dolma classifier, confidence ≥ 0.8) | 2,810 | 0.02% |
+| **Kept** | **1,292,650** | **7.9%** |
+| **Total records (600 WET files)** | **16,365,992** | — |
+
+Processing time: 899s across 16 workers.
+
+### Deduplication
+
+- **Exact line deduplication** — removes repeated boilerplate lines across documents
+- **MinHash + LSH** — near-duplicate removal using Jaccard similarity on 5-gram sets
+
+### Model Training
+
+Trained an 85M-parameter GPT-2 scale model on 2× A100 GPUs for 100,000 steps.
+
+| Hyperparameter | Value |
 |---|---|
-| WARC → text extraction | **Resiliparse** (`extract_plain_text`), **FastWARC** for record iteration, encoding detection |
-| Language identification | **fastText** `lid.176.bin` classifier with confidence threshold filtering |
-| PII masking | Regex-based detection and replacement of emails, phone numbers, IP addresses |
-| Harmful content filtering | **fastText** NSFW + toxic speech classifiers from the **Dolma** project (Jigsaw-trained) |
-| Quality heuristics | **Gopher** quality filters (word count, symbol/word ratio, stop-word presence, line length) |
-| Quality classifier | **fastText** classifier trained on positive (Wikipedia-linked URLs) vs negative (raw CC) examples |
-| Exact deduplication | Exact line-level deduplication across documents |
-| Fuzzy deduplication | **MinHash + LSH** (locality-sensitive hashing) for near-duplicate document removal using Jaccard similarity on n-gram sets |
-| Parallel processing | `concurrent.futures` for distributed processing of 5,000 WET files (~375 GB) |
+| Parameters (non-embedding) | 84.95M |
+| Context length | 512 |
+| d_model | 768 |
+| Layers | 12 |
+| dtype | bfloat16 |
+| Total tokens/step | 131,072 |
 
-*Status: implementation and testing in progress. Training on filtered data and Paloma C4 100-domains evaluation to follow.*
+| Metric | Value |
+|--------|-------|
+| Train loss (final) | ~2.5 |
+| Best eval loss (Paloma C4-100-domains) | ~4.3 (step ~60k) |
+| Final eval loss | ~4.5 |
+
+![Training and eval loss curves](Foundation_model_performance_and_scaling/assignment4-data/results/screenshots/losses_and_lr.png)
 
 ---
 
@@ -195,21 +253,18 @@ Key references: [Chinchilla (arXiv:2203.15556)](https://arxiv.org/abs/2203.15556
 
 ```
 Foundation_model_performance_and_scaling/
-├── assignment1-basics/          # BPE tokenizer, Transformer, AdamW, training loop, ablations
-├── assignment2-systems/         # Profiling harness, kernel optimizations, DDP, ZeRO sharding
-│   ├── cs336_systems/           # All implemented modules
-│   └── results/
-│       ├── nsight_profiles/     # Nsight Systems GPU traces (.nsys-rep, .sqlite)
-│       └── memory_profiling/    # PyTorch memory snapshots (.pickle)
-├── assignment3-scaling/         # IsoFLOPs fitting, scaling law experiments, predictions
-│   ├── part1_isoflops/
-│   └── part2_scaling_laws/
-├── assignment4-data/            # Common Crawl filtering pipeline
-│   └── cs336_data/
-└── transformer_workshop/        # Supplementary workshop materials
+├── assignment1-basics/          # BPE tokenizer, Transformer, AdamW, ablations
+│   ├── cs336_basics/
+│   └── pics/                    # Key result plots
+├── assignment2-systems/         # FlashAttention, profiling, DDP, ZeRO sharding
+│   ├── cs336_systems/
+│   └── results/                 # Benchmark CSVs, memory snapshots, Nsight traces
+├── assignment3-scaling/         # IsoFLOPs fitting, compute-optimal predictions
+│   └── results/part1_isoflops/
+└── assignment4-data/            # CC filtering pipeline, tokenization, model training
+    ├── cs336_data/
+    └── results/screenshots/
 ```
-
----
 
 ## Setup
 
@@ -222,8 +277,8 @@ uv run python <script>
 uv run pytest
 ```
 
----
+## References
 
-## Acknowledgments
-
-Curriculum structure follows the publicly available [Stanford CS336 (Spring 2025)](https://stanford-cs336.github.io/spring2025/) course materials.
+- Hoffmann et al., 2022 — [Chinchilla: Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556)
+- Dao et al., 2022 — [FlashAttention: Fast and Memory-Efficient Exact Attention](https://arxiv.org/abs/2205.14135)
+- Kaplan et al., 2020 — [Scaling Laws for Neural Language Models](https://arxiv.org/abs/2001.08361)
