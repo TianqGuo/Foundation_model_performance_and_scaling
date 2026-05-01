@@ -57,7 +57,7 @@ Isolated the impact of each architectural choice by training 5 variants of a 17M
 
 **Findings:** SwiGLU measurably outperforms plain SiLU (+1.4% loss). Removing normalization causes unstable initialization (starting loss 17.7 vs 9.3) but recovers to near-baseline. Interestingly, post-norm and NoPE converge to the same loss as the baseline — normalization placement and explicit positional encoding have little effect at this scale.
 
-![Architecture ablation comparison](Foundation_model_performance_and_scaling/assignment1-basics/pics/Pic2.png)
+![Architecture ablation comparison](Foundation_model_performance_and_scaling/part1-basics/pics/Pic2.png)
 
 ### Batch Size Sweep
 
@@ -73,7 +73,7 @@ Swept batch sizes 1–256 at a constant 327.68M token budget:
 
 Batch=8 wins — at a fixed token budget, smaller batches mean more gradient updates.
 
-![Batch size sweep](Foundation_model_performance_and_scaling/assignment1-basics/pics/Pic1.png)
+![Batch size sweep](Foundation_model_performance_and_scaling/part1-basics/pics/Pic1.png)
 
 ### OpenWebText vs TinyStories
 
@@ -86,7 +86,7 @@ Same architecture and compute (327.68M tokens), different datasets:
 
 Higher OWT loss reflects the dataset's difficulty — general web text is far harder to model than narrow children's stories.
 
-![OpenWebText vs TinyStories](Foundation_model_performance_and_scaling/assignment1-basics/pics/Pic3.png)
+![OpenWebText vs TinyStories](Foundation_model_performance_and_scaling/part1-basics/pics/Pic3.png)
 
 ### Leaderboard — 1.5-Hour Budget
 
@@ -98,7 +98,7 @@ Optimized a 28.8M-parameter model on OpenWebText within a 1.5-hour compute budge
 | Perplexity | 107.6 |
 | Tokens processed | 89.7M in 1.5 hrs |
 
-![Leaderboard learning curves](Foundation_model_performance_and_scaling/assignment1-basics/cs336_basics/basics/runs/leaderboard_final/learning_curves.png)
+![Leaderboard learning curves](Foundation_model_performance_and_scaling/part1-basics/cs336_basics/basics/runs/leaderboard_final/learning_curves.png)
 
 ---
 
@@ -118,9 +118,9 @@ Standard attention memory grows quadratically with sequence length — `seq_len=
 
 Training step memory (~5× forward) is dominated by AdamW optimizer states (2× parameters in FP32) and gradients.
 
-![Training memory timeline — sawtooth pattern as activations build and release](Foundation_model_performance_and_scaling/assignment2-systems/results/memory_profiling/pics/Profiling7.png)
+![Training memory timeline — sawtooth pattern as activations build and release](Foundation_model_performance_and_scaling/part2-systems/results/memory_profiling/pics/Profiling7.png)
 
-![Nsight Systems GPU kernel breakdown](Foundation_model_performance_and_scaling/assignment2-systems/results/nsight_profiles/pics/profiler1.png)
+![Nsight Systems GPU kernel breakdown](Foundation_model_performance_and_scaling/part2-systems/results/nsight_profiles/pics/profiler1.png)
 
 ### Mixed Precision (BF16)
 
@@ -150,9 +150,9 @@ NCCL+CUDA is ~200× faster than gloo+CPU for all-reduce at 100 MB:
 | gloo+cpu | 149 ms | ~0.9 GB/s |
 | nccl+cuda | 0.5 ms | **~310 GB/s** |
 
-![All-reduce bandwidth vs data size](Foundation_model_performance_and_scaling/assignment2-systems/results/distributed_communication/allreduce_bandwidth_vs_datasize.png)
+![All-reduce bandwidth vs data size](Foundation_model_performance_and_scaling/part2-systems/results/distributed_communication/allreduce_bandwidth_vs_datasize.png)
 
-![Backend comparison at 100 MB](Foundation_model_performance_and_scaling/assignment2-systems/results/distributed_communication/allreduce_backend_comparison_100mb.png)
+![Backend comparison at 100 MB](Foundation_model_performance_and_scaling/part2-systems/results/distributed_communication/allreduce_backend_comparison_100mb.png)
 
 ### Distributed Data Parallel (DDP)
 
@@ -195,9 +195,9 @@ Exponents (~0.47/~0.53) closely match Chinchilla, confirming roughly equal scali
 | 10²³ FLOPs | ~70B parameters | ~238B tokens |
 | 10²⁴ FLOPs | ~206B parameters | ~809B tokens |
 
-![Compute-optimal model size scaling law](Foundation_model_performance_and_scaling/assignment3-scaling/results/part1_isoflops/model_size_scaling_law.png)
+![Compute-optimal model size scaling law](Foundation_model_performance_and_scaling/part3-scaling/results/part1_isoflops/model_size_scaling_law.png)
 
-![Compute-optimal dataset size scaling law](Foundation_model_performance_and_scaling/assignment3-scaling/results/part1_isoflops/dataset_size_scaling_law.png)
+![Compute-optimal dataset size scaling law](Foundation_model_performance_and_scaling/part3-scaling/results/part1_isoflops/dataset_size_scaling_law.png)
 
 ---
 
@@ -245,7 +245,7 @@ Trained an 85M-parameter GPT-2 scale model on 2× A100 GPUs for 100,000 steps.
 | Best eval loss (Paloma C4-100-domains) | ~4.3 (step ~60k) |
 | Final eval loss | ~4.5 |
 
-![Training and eval loss curves](Foundation_model_performance_and_scaling/assignment4-data/results/screenshots/losses_and_lr.png)
+![Training and eval loss curves](Foundation_model_performance_and_scaling/part4-data/results/screenshots/losses_and_lr.png)
 
 ---
 
@@ -253,15 +253,15 @@ Trained an 85M-parameter GPT-2 scale model on 2× A100 GPUs for 100,000 steps.
 
 ```
 Foundation_model_performance_and_scaling/
-├── assignment1-basics/          # BPE tokenizer, Transformer, AdamW, ablations
+├── part1-basics/          # BPE tokenizer, Transformer, AdamW, ablations
 │   ├── cs336_basics/
 │   └── pics/                    # Key result plots
-├── assignment2-systems/         # FlashAttention, profiling, DDP, ZeRO sharding
+├── part2-systems/         # FlashAttention, profiling, DDP, ZeRO sharding
 │   ├── cs336_systems/
 │   └── results/                 # Benchmark CSVs, memory snapshots, Nsight traces
-├── assignment3-scaling/         # IsoFLOPs fitting, compute-optimal predictions
+├── part3-scaling/         # IsoFLOPs fitting, compute-optimal predictions
 │   └── results/part1_isoflops/
-└── assignment4-data/            # CC filtering pipeline, tokenization, model training
+└── part4-data/            # CC filtering pipeline, tokenization, model training
     ├── cs336_data/
     └── results/screenshots/
 ```
@@ -271,7 +271,7 @@ Foundation_model_performance_and_scaling/
 Each part uses [`uv`](https://github.com/astral-sh/uv) for dependency management:
 
 ```bash
-cd assignment1-basics   # or assignment2-systems, assignment3-scaling, assignment4-data
+cd part1-basics   # or part2-systems, part3-scaling, part4-data
 uv sync
 uv run python <script>
 uv run pytest

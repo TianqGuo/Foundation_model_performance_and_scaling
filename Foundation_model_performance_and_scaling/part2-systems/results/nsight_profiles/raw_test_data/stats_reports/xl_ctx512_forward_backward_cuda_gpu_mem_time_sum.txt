@@ -1,0 +1,14 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/xl_ctx512_forward_backward.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/xl_ctx512_forward_backward.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/xl_ctx512_forward_backward.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_gpu_mem_time_sum.py]... 
+
+ ** CUDA GPU MemOps Summary (by Time) (cuda_gpu_mem_time_sum):
+
+ Time (%)  Total Time (ns)  Count  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)            Operation           
+ --------  ---------------  -----  --------  --------  --------  --------  -----------  ------------------------------
+     93.2        247622684  73440    3371.8    1696.0      1600     85375      11285.4  [CUDA memcpy Device-to-Device]
+      6.8         18142522  14445    1256.0    1184.0       704      3360        278.4  [CUDA memset]                 
+

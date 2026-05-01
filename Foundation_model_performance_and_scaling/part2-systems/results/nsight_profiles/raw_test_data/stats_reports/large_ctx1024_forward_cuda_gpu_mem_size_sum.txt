@@ -1,0 +1,14 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/large_ctx1024_forward.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/large_ctx1024_forward.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/large_ctx1024_forward.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_gpu_mem_size_sum.py]... 
+
+ ** CUDA GPU MemOps Summary (by Size) (cuda_gpu_mem_size_sum):
+
+ Total (MB)  Count  Avg (MB)  Med (MB)  Min (MB)  Max (MB)  StdDev (MB)            Operation           
+ ----------  -----  --------  --------  --------  --------  -----------  ------------------------------
+ 181193.933    540   335.544   335.544   335.544   335.544        0.000  [CUDA memcpy Device-to-Device]
+      1.382    540     0.003     0.003     0.003     0.003        0.000  [CUDA memset]                 
+

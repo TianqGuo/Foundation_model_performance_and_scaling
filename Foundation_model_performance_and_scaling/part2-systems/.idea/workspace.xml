@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="84cd448d-df8f-4be4-9ca8-5f4754c129e3" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/results/memory_profiling/pics/Profiling1.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/memory_profiling/pics/Profiling2.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/memory_profiling/pics/Profiling3.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/memory_profiling/pics/Profiling4.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/memory_profiling/pics/Profiling5.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/memory_profiling/pics/Profiling6.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/memory_profiling/pics/Profiling7.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/memory_profiling/pics/Profiling8.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/nsight_profiles/pics/profiler1.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/nsight_profiles/pics/profiler2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="3D6i9Bq2CkcinvBVjSDxlEcg3tX" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "ai.playground.ignore.import.keys.banner.in.settings": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "D:/Repos/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/assignment2-systems",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.30387.173" />
+        <option value="bundled-python-sdk-4762d8aabb82-6d6dccd035ac-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.30387.173" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="84cd448d-df8f-4be4-9ca8-5f4754c129e3" name="Changes" comment="" />
+      <created>1777608767317</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1777608767317</updated>
+      <workItem from="1777608768412" duration="451000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

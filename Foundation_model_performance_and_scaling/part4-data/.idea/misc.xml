@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Black">
+    <option name="sdkName" value="3.11 WSL (Ubuntu): (/mnt/d/Repos/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/assignment4-data/.venv/bin/python)" />
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="3.11 WSL (Ubuntu): (/mnt/d/Repos/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/assignment4-data/.venv/bin/python)" project-jdk-type="Python SDK" />
+  <component name="PyPackaging">
+    <option name="earlyReleasesAsUpgrades" value="true" />
+  </component>
+</project>

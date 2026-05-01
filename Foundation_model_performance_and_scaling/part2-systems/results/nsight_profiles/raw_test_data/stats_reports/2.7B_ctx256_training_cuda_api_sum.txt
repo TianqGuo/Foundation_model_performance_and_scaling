@@ -1,0 +1,35 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/2.7B_ctx256_training.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/2.7B_ctx256_training.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/2.7B_ctx256_training.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                        Name                      
+ --------  ---------------  ---------  ----------  ---------  --------  --------  -----------  ------------------------------------------------
+     75.8       4656969370    1021332      4559.7     3687.0      2367  58045966      90353.5  cudaLaunchKernel                                
+     15.5        951970800         35  27199165.7    14899.0     11753  65654770   32197653.3  cudaDeviceSynchronize                           
+      4.9        303374282      62400      4861.8     4493.0      3336   1103792       6070.7  cudaMemcpyAsync                                 
+      2.0        120939222       1571     76982.3    64687.0      3304   3674194     101516.9  cudaMalloc                                      
+      0.5         32855582       8401      3910.9     3765.0      2596     39244       1037.4  cuLaunchKernel                                  
+      0.4         26762798       8685      3081.5     2356.0      1300     31655       1795.7  cudaMemsetAsync                                 
+      0.4         23012743       4830      4764.5     4563.0      3120     38277       1385.6  cudaLaunchKernelExC_v11060                      
+      0.2         14694851          4   3673712.8  4210478.5    796102   5477792    2009407.3  cuLibraryLoadData                               
+      0.1          4816502       8175       589.2      270.0       173   1086016      12240.8  cuKernelGetFunction                             
+      0.0          2606272          1   2606272.0  2606272.0   2606272   2606272          0.0  cudaGetDeviceProperties_v2_v12000               
+      0.0          1079269          2    539634.5   539634.5      1951   1077318     760399.3  cudaFree                                        
+      0.0           965655       2034       474.8      392.0       214      9354        388.1  cudaStreamIsCapturing_v10000                    
+      0.0           139449          1    139449.0   139449.0    139449    139449          0.0  cudaStreamCreate                                
+      0.0           131436        810       162.3      125.0        64       650         91.5  cuGetProcAddress_v2                             
+      0.0            85126          1     85126.0    85126.0     85126     85126          0.0  cuModuleLoadData                                
+      0.0            23890         36       663.6      235.5       203      5306       1018.2  cudaEventCreateWithFlags                        
+      0.0            11480         31       370.3      267.0       242      1971        385.3  cudaOccupancyMaxActiveClusters_v11070           
+      0.0             7362          9       818.0      759.0       429      1207        315.6  cuLibraryGetKernel                              
+      0.0             6459          1      6459.0     6459.0      6459      6459          0.0  cudaStreamDestroy                               
+      0.0             5364          2      2682.0     2682.0      1408      3956       1801.7  cudaOccupancyAvailableDynamicSMemPerBlock_v10200
+      0.0             4279          3      1426.3     1422.0       855      2002        573.5  cuInit                                          
+      0.0             1562          3       520.7      235.0       144      1183        575.4  cuModuleGetLoadingMode                          
+      0.0              956          2       478.0      478.0       197       759        397.4  cudaGetDriverEntryPoint_v11030                  
+

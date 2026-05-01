@@ -1,0 +1,27 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/medium_ctx256_forward_backward.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/medium_ctx256_forward_backward.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/medium_ctx256_forward_backward.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/nvtx_sum.py]... 
+
+ ** NVTX Range Summary (nvtx_sum):
+
+ Time (%)  Total Time (ns)  Instances    Avg (ns)      Med (ns)     Min (ns)    Max (ns)   StdDev (ns)   Style        Range      
+ --------  ---------------  ---------  ------------  ------------  ----------  ----------  -----------  -------  ----------------
+     26.7       3015623012          1  3015623012.0  3015623012.0  3015623012  3015623012          0.0  PushPop  :warmup         
+     22.8       2579506601         10   257950660.1   255297871.5   242000773   289380150   12484874.8  PushPop  :backward       
+     12.5       1412347965         10   141234796.5   138162255.0   135977591   162239673    7871345.2  PushPop  :forward        
+      4.0        451683286          1   451683286.0   451683286.0   451683286   451683286          0.0  PushPop  :step_6         
+      3.5        400777066          1   400777066.0   400777066.0   400777066   400777066          0.0  PushPop  :step_0         
+      3.5        400662729          1   400662729.0   400662729.0   400662729   400662729          0.0  PushPop  :step_3         
+      3.5        398651385          1   398651385.0   398651385.0   398651385   398651385          0.0  PushPop  :step_4         
+      3.5        395796861          1   395796861.0   395796861.0   395796861   395796861          0.0  PushPop  :step_1         
+      3.5        391854893          1   391854893.0   391854893.0   391854893   391854893          0.0  PushPop  :step_2         
+      3.5        390616950          1   390616950.0   390616950.0   390616950   390616950          0.0  PushPop  :step_8         
+      3.4        388361820          1   388361820.0   388361820.0   388361820   388361820          0.0  PushPop  :step_5         
+      3.4        387664496          1   387664496.0   387664496.0   387664496   387664496          0.0  PushPop  :step_7         
+      3.4        386336155          1   386336155.0   386336155.0   386336155   386336155          0.0  PushPop  :step_9         
+      2.6        291334004          1   291334004.0   291334004.0   291334004   291334004          0.0  PushPop  :model_creation 
+      0.0          5498444          1     5498444.0     5498444.0     5498444     5498444          0.0  PushPop  :data_generation
+

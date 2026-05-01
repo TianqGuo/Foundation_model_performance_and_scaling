@@ -1,0 +1,35 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/xl_ctx512_forward_backward.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/xl_ctx512_forward_backward.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/xl_ctx512_forward_backward.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls  Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                        Name                      
+ --------  ---------------  ---------  ---------  ---------  --------  --------  -----------  ------------------------------------------------
+     89.0       4959943018    1189030     4171.4     3667.0      2257  58337522      75525.8  cudaLaunchKernel                                
+      6.3        350523770      73440     4772.9     4419.0      2954   1341077       5284.1  cudaMemcpyAsync                                 
+      1.8        102976428       1378    74728.9    63197.5      3995    291134      30399.1  cudaMalloc                                      
+      1.2         64157737      14430     4446.1     4203.0      2841    561566       4779.3  cudaLaunchKernelExC_v11060                      
+      0.9         51264351      14445     3548.9     2830.0      1696   1288987      10817.4  cudaMemsetAsync                                 
+      0.4         21599776       5393     4005.2     3820.0      2724     36530       1122.4  cuLaunchKernel                                  
+      0.3         15004230          4  3751057.5  4301484.5    836885   5564376    2038505.3  cuLibraryLoadData                               
+      0.1          3791202       5055      750.0      377.0       178   1165918      16546.1  cuKernelGetFunction                             
+      0.0          2587920          1  2587920.0  2587920.0   2587920   2587920          0.0  cudaGetDeviceProperties_v2_v12000               
+      0.0          1350642          2   675321.0   675321.0      2046   1348596     952154.6  cudaFree                                        
+      0.0          1053357       2050      513.8      424.0       207     15616        619.4  cudaStreamIsCapturing_v10000                    
+      0.0           366457         25    14658.3    14753.0     12435     18488       1469.4  cudaDeviceSynchronize                           
+      0.0           169097          1   169097.0   169097.0    169097    169097          0.0  cudaStreamCreate                                
+      0.0           144504        810      178.4      137.0        74       777        102.9  cuGetProcAddress_v2                             
+      0.0            83958          1    83958.0    83958.0     83958     83958          0.0  cuModuleLoadData                                
+      0.0            26854         36      745.9      254.0       231      5331       1098.5  cudaEventCreateWithFlags                        
+      0.0            12432         31      401.0      293.0       257      2029        430.1  cudaOccupancyMaxActiveClusters_v11070           
+      0.0             7152          1     7152.0     7152.0      7152      7152          0.0  cudaStreamDestroy                               
+      0.0             6122          7      874.6      758.0       509      1608        409.5  cuLibraryGetKernel                              
+      0.0             5780          2     2890.0     2890.0      1857      3923       1460.9  cudaOccupancyAvailableDynamicSMemPerBlock_v10200
+      0.0             4465          3     1488.3     1538.0       985      1942        480.4  cuInit                                          
+      0.0             2150          3      716.7      331.0       206      1613        778.8  cuModuleGetLoadingMode                          
+      0.0              816          2      408.0      408.0       193       623        304.1  cudaGetDriverEntryPoint_v11030                  
+

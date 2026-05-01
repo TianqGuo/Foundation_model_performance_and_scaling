@@ -1,0 +1,35 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/xl_ctx128_training.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/xl_ctx128_training.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/xl_ctx128_training.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)    Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                        Name                      
+ --------  ---------------  ---------  ----------  ----------  --------  --------  -----------  ------------------------------------------------
+     77.6       5043654182    1202995      4192.6      3739.0      2453  60808593      82300.0  cudaLaunchKernel                                
+     11.5        747419950         35  21354855.7     16740.0     12553  52953316   25556097.7  cudaDeviceSynchronize                           
+      5.7        372053422      73440      5066.1      4663.0      3428    325068       2560.4  cudaMemcpyAsync                                 
+      2.0        127680506       1494     85462.2     76100.5      4488   1809210      57719.7  cudaMalloc                                      
+      1.7        108578041      24495      4432.7      4206.0      2734    105020       1387.0  cudaLaunchKernelExC_v11060                      
+      0.9         60058248          1  60058248.0  60058248.0  60058248  60058248          0.0  cudaStreamCreate                                
+      0.2         15761924          4   3940481.0   4537285.5    875033   5812320    2130827.8  cuLibraryLoadData                               
+      0.2         11615363       1455      7983.1      9072.0      3958     34881       3082.0  cudaMemsetAsync                                 
+      0.1          7537043       1808      4168.7      3997.5      2843     21426       1083.1  cuLaunchKernel                                  
+      0.0          2579352          1   2579352.0   2579352.0   2579352   2579352          0.0  cudaGetDeviceProperties_v2_v12000               
+      0.0          2413012       1470      1641.5       902.5       209   1142574      29906.0  cuKernelGetFunction                             
+      0.0          1214527       2181       556.9       429.0       231     17553        648.3  cudaStreamIsCapturing_v10000                    
+      0.0          1161684          2    580842.0    580842.0      1940   1159744     818691.1  cudaFree                                        
+      0.0           143669        810       177.4       142.0        75       784         98.0  cuGetProcAddress_v2                             
+      0.0            92063          1     92063.0     92063.0     92063     92063          0.0  cuModuleLoadData                                
+      0.0            23393         36       649.8       249.0       229      5667       1096.8  cudaEventCreateWithFlags                        
+      0.0            19161         31       618.1       314.0       292      7905       1386.6  cudaOccupancyMaxActiveClusters_v11070           
+      0.0            13061          1     13061.0     13061.0     13061     13061          0.0  cudaStreamDestroy                               
+      0.0             5983          2      2991.5      2991.5      1863      4120       1595.9  cudaOccupancyAvailableDynamicSMemPerBlock_v10200
+      0.0             5069          6       844.8       617.5       536      1659        439.8  cuLibraryGetKernel                              
+      0.0             4953          3      1651.0      1554.0      1148      2251        557.9  cuInit                                          
+      0.0             1673          3       557.7       268.0       136      1269        619.6  cuModuleGetLoadingMode                          
+      0.0              887          2       443.5       443.5       210       677        330.2  cudaGetDriverEntryPoint_v11030                  
+

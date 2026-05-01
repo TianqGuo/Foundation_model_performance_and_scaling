@@ -1,0 +1,35 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/part_e/small_attention_analysis.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/part_e/small_attention_analysis.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/part_e/small_attention_analysis.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls  Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                        Name                      
+ --------  ---------------  ---------  ---------  ---------  --------  --------  -----------  ------------------------------------------------
+     89.0        459828234      49750     9242.8     4017.0      2772  64290094     370090.7  cudaLaunchKernel                                
+      3.3         17310186          4  4327546.5  4944910.0    950466   6469900    2364506.9  cuLibraryLoadData                               
+      3.1         15908546         15  1060569.7  1121074.0    722632   1174981     152966.0  cudaDeviceSynchronize                           
+      1.4          7384640       1455     5075.4     4867.0      3675     32698       1425.2  cudaLaunchKernelExC_v11060                      
+      1.1          5942856         48   123809.5   103617.5      3315    292164      64615.8  cudaMalloc                                      
+      0.5          2533430        180    14074.6    13583.5     11927     33296       2333.2  cudaMemcpyAsync                                 
+      0.4          2076546          1  2076546.0  2076546.0   2076546   2076546          0.0  cudaGetDeviceProperties_v2_v12000               
+      0.3          1532522        180     8514.0     8412.5      7806     19953        962.1  cudaMemsetAsync                                 
+      0.3          1304301        180     7246.1     1089.0       848   1110279      82674.6  cuKernelGetFunction                             
+      0.2          1288207          1  1288207.0  1288207.0   1288207   1288207          0.0  cudaFree                                        
+      0.2          1185055        266     4455.1     4337.0      2793     13946       1057.3  cuLaunchKernel                                  
+      0.0           215085          1   215085.0   215085.0    215085    215085          0.0  cudaStreamCreate                                
+      0.0           151487        810      187.0      154.0        82       863         99.9  cuGetProcAddress_v2                             
+      0.0           134101        219      612.3      389.0       254     10517        944.7  cudaStreamIsCapturing_v10000                    
+      0.0            72550          1    72550.0    72550.0     72550     72550          0.0  cuModuleLoadData                                
+      0.0            18316         31      590.8      416.0       382      3155        654.1  cudaOccupancyMaxActiveClusters_v11070           
+      0.0            14219         18      789.9      312.0       270      5314       1247.7  cudaEventCreateWithFlags                        
+      0.0             9669          5     1933.8     1199.0       837      5063       1769.1  cuLibraryGetKernel                              
+      0.0             6074          3     2024.7     1671.0      1436      2967        824.5  cuInit                                          
+      0.0             5960          1     5960.0     5960.0      5960      5960          0.0  cudaStreamDestroy                               
+      0.0             5343          2     2671.5     2671.5      2587      2756        119.5  cudaOccupancyAvailableDynamicSMemPerBlock_v10200
+      0.0             1946          3      648.7      194.0       174      1578        804.9  cuModuleGetLoadingMode                          
+      0.0              981          2      490.5      490.5       241       740        352.8  cudaGetDriverEntryPoint_v11030                  
+

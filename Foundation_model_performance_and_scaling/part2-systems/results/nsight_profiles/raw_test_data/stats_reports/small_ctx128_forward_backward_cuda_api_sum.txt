@@ -1,0 +1,35 @@
+
+NOTICE: Existing SQLite export found: ../../results/nsight_profiles/small_ctx128_forward_backward.sqlite
+        It is assumed file was previously exported from: ../../results/nsight_profiles/small_ctx128_forward_backward.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [../../results/nsight_profiles/small_ctx128_forward_backward.sqlite] with [/opt/nvidia/nsight-systems/2024.6.2/host-linux-x64/reports/cuda_api_sum.py]... 
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls  Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                        Name                      
+ --------  ---------------  ---------  ---------  ---------  --------  --------  -----------  ------------------------------------------------
+     89.0        927950920     152965     6066.4     3850.0      2559  58166323     218146.1  cudaLaunchKernel                                
+      4.6         48179094       9000     5353.2     4812.5      3557     35820       1989.7  cudaMemcpyAsync                                 
+      2.9         30286268       6855     4418.1     4134.0      2637     67727       1746.5  cudaLaunchKernelExC_v11060                      
+      1.4         15009083          4  3752270.8  4278591.5    838192   5613708    2046395.8  cuLibraryLoadData                               
+      0.9          8964171         94    95363.5    89223.5      3573    389416      43768.7  cudaMalloc                                      
+      0.4          3793115        555     6834.4     5117.0      3659    110204       5192.4  cudaMemsetAsync                                 
+      0.2          2562702          1  2562702.0  2562702.0   2562702   2562702          0.0  cudaGetDeviceProperties_v2_v12000               
+      0.2          2058232        476     4324.0     4082.5      2901     21409       1408.5  cuLaunchKernel                                  
+      0.1          1480323        390     3795.7      667.5       238   1089243      55368.9  cuKernelGetFunction                             
+      0.1          1110892          2   555446.0   555446.0      1925   1108967     782796.9  cudaFree                                        
+      0.0           324120         25    12964.8    12157.0      9549     23140       3265.6  cudaDeviceSynchronize                           
+      0.0           190303          1   190303.0   190303.0    190303    190303          0.0  cudaStreamCreate                                
+      0.0           151779        262      579.3      339.0       215      9779        902.7  cudaStreamIsCapturing_v10000                    
+      0.0           137128        810      169.3      133.0        70       847         95.9  cuGetProcAddress_v2                             
+      0.0            87793          1    87793.0    87793.0     87793     87793          0.0  cuModuleLoadData                                
+      0.0            22184         36      616.2      254.5       227      5755       1058.9  cudaEventCreateWithFlags                        
+      0.0            13661         31      440.7      299.0       260      2707        554.7  cudaOccupancyMaxActiveClusters_v11070           
+      0.0             6983          1     6983.0     6983.0      6983      6983          0.0  cudaStreamDestroy                               
+      0.0             6396          2     3198.0     3198.0      1966      4430       1742.3  cudaOccupancyAvailableDynamicSMemPerBlock_v10200
+      0.0             5219          3     1739.7     1568.0      1080      2571        760.2  cuInit                                          
+      0.0             4849          6      808.2      723.0       447      1493        377.1  cuLibraryGetKernel                              
+      0.0             1936          3      645.3      294.0       116      1526        767.9  cuModuleGetLoadingMode                          
+      0.0              731          2      365.5      365.5       185       546        255.3  cudaGetDriverEntryPoint_v11030                  
+
