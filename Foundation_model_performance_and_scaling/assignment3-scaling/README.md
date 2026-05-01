@@ -1,236 +1,102 @@
-# CS336 Spring 2025 Assignment 3: Scaling Laws
+# Scaling Laws: Predicting Compute-Optimal Language Models
 
-Implementation of scaling laws experiments for predicting compute-optimal language model configurations.
+Implementation of the IsoFLOPs method (Hoffmann et al., 2022 / Chinchilla) for fitting scaling laws and predicting compute-optimal model configurations.
 
-For the full assignment description, see [cs336_spring2025_assignment3_scaling.pdf](./cs336_spring2025_assignment3_scaling.pdf)
+**Goal**: Given a fixed compute budget, what is the optimal tradeoff between model size and training tokens?
 
-## Assignment Overview
+## What This Project Does
 
-**Objective**: Predict the optimal model size and hyperparameters for a compute budget of **1×10^19 FLOPs**.
+### Part 1: IsoFLOPs Scaling Law Fitting
 
-**Approach**:
-1. **Part 1**: Reproduce IsoFLOPs scaling law fitting method using synthetic data (5 points)
-2. **Part 2**: Query training API with budget of 2×10^18 FLOPs, fit scaling laws, and predict optimal configuration (50 points)
+Reproduces the Chinchilla IsoFLOPs method using synthetic training run data. For each compute budget, finds the model size that minimizes training loss, then fits power laws to predict compute-optimal configurations at much larger budgets.
 
-## Setup
+**Method:**
+1. For each compute budget C, find the model size N_opt(C) that minimizes loss
+2. Fit power laws: N_opt ∝ C^a and D_opt ∝ C^b
+3. Extrapolate to unseen compute budgets
 
-### 1. Install Dependencies
+**Fitted scaling laws** (from 9 IsoFLOP profiles across 6×10¹⁸ – 3×10²¹ FLOPs):
 
-```sh
-# Install uv (if not already installed)
-# Follow instructions at https://github.com/astral-sh/uv
+| Law | Formula |
+|-----|---------|
+| Compute-optimal model size | N_opt = 1.16 × C^0.469 |
+| Compute-optimal dataset size | D_opt = 0.143 × C^0.531 |
 
-# Install project dependencies
-uv add numpy scipy matplotlib requests torch
+**Extrapolated predictions:**
 
-# Or install in existing environment
-uv pip install numpy scipy matplotlib requests torch
-```
+| Compute budget | Optimal model size | Optimal tokens |
+|---|---|---|
+| 1×10²³ FLOPs | ~70B parameters | ~238B tokens |
+| 1×10²⁴ FLOPs | ~206B parameters | ~809B tokens |
 
-### 2. Run Commands with uv
+These exponents (~0.47 / ~0.53) closely match the Chinchilla paper, confirming roughly equal scaling of model size and data with compute.
 
-```sh
-# Run any command in the environment
-uv run <command>
+**Scaling law plots:**
 
-# Get Python interpreter path (for VSCode)
-uv run which python
-```
+![Compute-optimal model size scaling law](results/part1_isoflops/model_size_scaling_law.png)
 
-### 3. Setup for Part 2 (API Access)
+![Compute-optimal dataset size scaling law](results/part1_isoflops/dataset_size_scaling_law.png)
 
-Create API key file:
-```sh
-echo "your-ssh-public-key-here" > api_key.txt
-```
+### Part 2: Empirical Scaling Laws via Training API
 
-**Important**: Ensure you're on Stanford VPN to access the training API.
+Queries a live training API (Stanford cluster) with a budget of 2×10¹⁸ FLOPs to run real training experiments across model sizes and compute budgets, fits scaling laws from the results, and predicts the optimal model configuration for a target budget of 1×10¹⁹ FLOPs.
 
-## Quick Start
+The pipeline includes:
+- **Experiment design** — IsoFLOPs sweep across model sizes at each compute level
+- **Scaling law fitting** — power law regression with R² quality assessment
+- **Hyperparameter selection** — architecture matching for target model size, LR scaling
 
-### Part 1: IsoFLOPs Method
+---
 
-```bash
-cd part1_isoflops
-./run_part1.sh
-```
-
-**Output**: Scaling law plots and predictions for 10^23 and 10^24 FLOPs in `results/part1_isoflops/`.
-
-### Part 2: Full Scaling Laws Pipeline
-
-```bash
-cd part2_scaling_laws
-
-# Test API connection first
-python test_api_connection.py
-
-# Preview strategy without querying API
-./run_part2.sh --dry-run
-
-# Run full pipeline
-./run_part2.sh
-```
-
-**Output**: Scaling law plots, predictions, and selected hyperparameters in `results/part2_scaling_laws/`.
-
-## Project Structure
+## Repository Layout
 
 ```
 assignment3-scaling/
-├── part1_isoflops/              # Part 1: IsoFLOPs method
-│   ├── fit_scaling_laws.py     # Main implementation
-│   ├── run_part1.sh            # Run script
-│   └── README.md               # Documentation
-│
-├── part2_scaling_laws/          # Part 2: Training API experiments
-│   ├── api_client.py           # API client with caching
-│   ├── experiment_design.py    # Experiment strategy
-│   ├── scaling_law_fitter.py   # Power law fitting
-│   ├── hyperparameter_selector.py  # Hyperparameter selection
-│   ├── run_experiments.py      # Main orchestration
-│   ├── test_api_connection.py  # Connection testing
-│   ├── generate_submission.py  # Submission summary
-│   ├── run_part2.sh            # Run script
-│   └── README.md               # Documentation
-│
-├── results/                     # All outputs (organized by module)
-│   ├── part1_isoflops/
-│   └── part2_scaling_laws/
-│
+├── part1_isoflops/
+│   ├── fit_scaling_laws.py      # IsoFLOPs fitting implementation
+│   └── run_part1.sh             # Runner script
+├── part2_scaling_laws/
+│   ├── api_client.py            # API client with caching + budget tracking
+│   ├── experiment_design.py     # IsoFLOPs sweep strategy
+│   ├── scaling_law_fitter.py    # Power law regression
+│   ├── hyperparameter_selector.py
+│   ├── run_experiments.py       # Main orchestration
+│   └── run_part2.sh             # Runner script
+├── results/
+│   └── part1_isoflops/          # Scaling law plots and fitted parameters
 ├── data/
-│   └── isoflops_curves.json    # Synthetic training data
-│
-├── cs336_scaling/               # Model code (provided)
-│   └── model.py
-│
-├── Requirements.md              # Assignment requirements breakdown
-├── WRITEUP_TEMPLATE.md          # Template for writeup.pdf
-└── README.md                    # This file
+│   └── isoflops_curves.json     # Synthetic training run data
+└── cs336_scaling/
+    └── model.py                 # Transformer model definition
 ```
 
-## Workflow
+## Setup
 
-### Complete Pipeline
-
-1. **Part 1**: Reproduce IsoFLOPs method
-   ```bash
-   cd part1_isoflops
-   ./run_part1.sh
-   ```
-
-2. **Part 2**: Run scaling law experiments
-   ```bash
-   cd part2_scaling_laws
-   python test_api_connection.py  # Verify API access
-   ./run_part2.sh --dry-run        # Preview strategy
-   ./run_part2.sh                  # Run experiments
-   python generate_submission.py   # Generate submission summary
-   ```
-
-3. **Create Writeup**: Use `WRITEUP_TEMPLATE.md` as starting point
-
-4. **Submit**:
-   - `writeup.pdf` to Gradescope
-   - `code.zip` to Gradescope
-   - Predictions to Google form: https://forms.gle/sAUSLwCUETew2hYN6
-
-## Key Features
-
-### API Client (`part2_scaling_laws/api_client.py`)
-- Automatic caching to avoid re-querying same configurations
-- Budget tracking and monitoring
-- Configuration validation before querying
-- Retry logic for transient failures
-
-### Experiment Design (`part2_scaling_laws/experiment_design.py`)
-- IsoFLOPs approach: multiple model sizes at each compute budget
-- Efficient use of 2×10^18 FLOPs budget
-- Systematic exploration from 1e15 to 1e18 FLOPs
-
-### Scaling Law Fitting (`part2_scaling_laws/scaling_law_fitter.py`)
-- Power law fitting: N_opt ~ C^a, D_opt ~ C^b, L ~ C^c
-- R² scores for fit quality assessment
-- Extrapolation to target budget (1e19 FLOPs)
-
-### Hyperparameter Selection (`part2_scaling_laws/hyperparameter_selector.py`)
-- Architecture matching for target model size
-- Learning rate scaling based on model size
-- Batch size constraint satisfaction (128 or 256)
-
-## Deliverables
-
-### 1. writeup.pdf
-Complete methodology and results using `WRITEUP_TEMPLATE.md`
-
-### 2. code.zip
-All implementation code (both part1_isoflops/ and part2_scaling_laws/)
-
-### 3. Google Form
-- Predicted optimal model size (parameters)
-- Hyperparameters: d_model, num_layers, num_heads, batch_size, learning_rate
-- Predicted training loss
-
-Generate submission values:
 ```bash
+uv sync
+```
+
+## Running
+
+### Part 1 — IsoFLOPs fitting on synthetic data
+
+```bash
+cd part1_isoflops && ./run_part1.sh
+# → results/part1_isoflops/
+```
+
+### Part 2 — Empirical scaling laws (requires Stanford VPN + API key)
+
+```bash
+echo "your-ssh-public-key" > api_key.txt
+
 cd part2_scaling_laws
-python generate_submission.py
-```
-
-## Important Constraints
-
-### Budget
-- **Part 2 budget**: 2×10^18 FLOPs (hard cap enforced by API)
-- **Target budget**: 1×10^19 FLOPs (for predictions)
-
-### Hyperparameters
-- `d_model`: [64, 1024], must be divisible by num_heads
-- `num_layers`: [2, 24]
-- `num_heads`: [2, 16]
-- `batch_size`: **Must be 128 or 256** (assignment requirement)
-- `learning_rate`: [1e-4, 1e-3]
-- `train_flops`: Discrete values {1e13, 3e13, 6e13, ..., 1e18}
-
-## Troubleshooting
-
-### API Connection Issues
-```bash
-# Verify Stanford VPN connection
-curl http://hyperturing.stanford.edu:8000/docs
-
-# Test API connection and key
-cd part2_scaling_laws
-python test_api_connection.py
-```
-
-### Budget Exceeded
-```bash
-# Use only cached runs
-cd part2_scaling_laws
-./run_part2.sh --use-cached
-```
-
-### Line Ending Issues (WSL/Windows)
-```bash
-# Fix all shell scripts
-./fix_line_endings.sh
+python test_api_connection.py   # verify access
+./run_part2.sh --dry-run        # preview experiment plan
+./run_part2.sh                  # run experiments
 ```
 
 ## References
 
-- Hoffmann et al., 2022: "Training compute-optimal large language models" (Chinchilla, arXiv:2203.15556)
-- Kaplan et al., 2020: "Scaling laws for neural language models" (arXiv:2001.08361)
-- Yang et al., 2022: "Tensor Programs V" (μP, arXiv:2203.03466)
-
-## Additional Documentation
-
-- `Requirements.md` - Detailed assignment requirements
-- `WRITEUP_TEMPLATE.md` - Template for final writeup
-- `CODING_PREFERENCES.md` - Code organization guidelines
-- `part1_isoflops/README.md` - Part 1 documentation
-- `part2_scaling_laws/README.md` - Part 2 documentation
-
-## Issues
-
-If you see any issues with the assignment handout or code, please raise a GitHub issue or open a pull request with a fix.
-
+- Hoffmann et al., 2022 — [Chinchilla: Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556)
+- Kaplan et al., 2020 — [Scaling Laws for Neural Language Models](https://arxiv.org/abs/2001.08361)
