@@ -36,7 +36,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 
 
 def load_and_clean_data(input_path: str) -> pd.DataFrame:
@@ -72,16 +71,18 @@ def create_performance_plots(df: pd.DataFrame, output_dir: Path):
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Set style
-    sns.set_style("whitegrid")
     plt.rcParams["figure.figsize"] = (12, 8)
+    plt.rcParams["axes.grid"] = True
 
     # Plot 1: Time vs Data Size (for each backend/device and world size)
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    n_backends = len(df["backend_device"].unique())
+    fig, axes = plt.subplots(1, n_backends, figsize=(7 * n_backends, 6))
+    if n_backends == 1:
+        axes = [axes]
     fig.suptitle("All-Reduce Performance: Impact of Data Size and Process Count", fontsize=14, fontweight="bold")
 
     for idx, backend_device in enumerate(df["backend_device"].unique()):
-        ax = axes[idx // 2, idx % 2]
+        ax = axes[idx]
         df_subset = df[df["backend_device"] == backend_device]
 
         for world_size in sorted(df_subset["world_size"].unique()):
@@ -107,11 +108,13 @@ def create_performance_plots(df: pd.DataFrame, output_dir: Path):
     plt.close()
 
     # Plot 2: Bandwidth vs Data Size
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(1, n_backends, figsize=(7 * n_backends, 6))
+    if n_backends == 1:
+        axes = [axes]
     fig.suptitle("All-Reduce Bandwidth: Impact of Data Size and Process Count", fontsize=14, fontweight="bold")
 
     for idx, backend_device in enumerate(df["backend_device"].unique()):
-        ax = axes[idx // 2, idx % 2]
+        ax = axes[idx]
         df_subset = df[df["backend_device"] == backend_device]
 
         for world_size in sorted(df_subset["world_size"].unique()):
