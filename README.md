@@ -164,6 +164,8 @@ Three variants benchmarked on a 2B-parameter (XL) model across 2 GPUs:
 | Flat DDP (single bucket) | 790.91 ms | 1.02× |
 | Overlap individual | 799.28 ms | 1.01× |
 
+The speedups are intentionally modest: at 2 GPUs with a 2B-parameter model, compute dominates and gradient communication is a small fraction of total step time — leaving little headroom for overlap to exploit. The value of these implementations is scalability: as world size grows (8, 64, 256 GPUs), the all-reduce communication grows proportionally while per-GPU compute stays fixed, and comm/compute overlap becomes the dominant source of efficiency gains.
+
 ### ZeRO Optimizer Sharding
 
 | Mode | Avg step time | Overhead |
@@ -171,7 +173,7 @@ Three variants benchmarked on a 2B-parameter (XL) model across 2 GPUs:
 | Non-sharded | 783.53 ms | — |
 | Sharded (ZeRO stage 1) | 836.05 ms | +6.7% |
 
-~6.7% overhead for distributing optimizer states, enabling larger models in memory.
+ZeRO stage 1 distributes optimizer states (momentum + variance) across GPUs, cutting per-GPU optimizer memory by 1/N. The 6.7% compute overhead is the cost of the extra all-gather needed to reconstruct parameters after the sharded optimizer step — a worthwhile trade when the optimizer states alone would exceed GPU memory for very large models.
 
 ---
 
