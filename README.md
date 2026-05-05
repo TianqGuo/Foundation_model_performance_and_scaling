@@ -45,7 +45,7 @@ Pre-norm design with RoPE positional embeddings, RMSNorm, SwiGLU feed-forward, c
 
 ### Architecture Ablations
 
-Isolated the impact of each architectural choice by training 5 variants of a 17M-parameter model on TinyStories (327.68M tokens each):
+Isolated the impact of each architectural choice by training 5 variants of a 22.7M-parameter model on TinyStories (327.68M tokens each):
 
 | Variant | Change from baseline | Best val loss |
 |---------|----------------------|---------------|
@@ -143,7 +143,7 @@ Largest gains on small models where kernel launch overhead dominates:
 
 ### Distributed Communication — NCCL vs Gloo
 
-NCCL+CUDA is ~200× faster than gloo+CPU for all-reduce at 100 MB:
+NCCL+CUDA is ~300× faster than gloo+CPU for all-reduce at 100 MB:
 
 | Backend | Avg time (100 MB) | Peak bandwidth |
 |---------|------------------|----------------|
