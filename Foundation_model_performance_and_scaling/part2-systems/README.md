@@ -231,3 +231,11 @@ part2-systems/
 ```bash
 uv sync
 ```
+
+## References
+
+- Dao et al., 2022 — [FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135)
+- Dao, 2023 — [FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning](https://arxiv.org/abs/2307.08691)
+- Milakov & Gimelshein, 2018 — [Online Normalizer Calculation for Softmax](https://arxiv.org/abs/1805.02867)
+- Rajbhandari et al., 2020 — [ZeRO: Memory Optimizations Toward Training Trillion Parameter Models](https://arxiv.org/abs/1910.02054)
+- Stanford CS336 Spring 2025 — [Language Models from Scratch, Part 2 (course framework)](https://github.com/stanford-cs336/assignment2-systems)
