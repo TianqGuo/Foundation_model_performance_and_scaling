@@ -12,6 +12,7 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 | [Part 2](#part-2-gpu-optimization--distributed-training) | GPU Optimization & Distributed Training | BF16 gives 1.87× speedup at 2.7B; NCCL 200× faster than CPU all-reduce at 100 MB |
 | [Part 3](#part-3-scaling-laws) | Scaling Laws | N_opt = 1.16 × C^0.469 — predicts ~70B params at 10²³ FLOPs (matches Chinchilla) |
 | [Part 4](#part-4-data-pipeline--training) | Data Pipeline & Training | Filtered 1.29M docs from 16.4M CC records; trained 85M-param model to 4.3 eval loss on Paloma |
+| [Part 5](#part-5-alignment--reasoning-rl) | Alignment & Reasoning RL | SFT → Expert Iteration → GRPO with verified rewards; DPO for instruction following — *in progress* |
 
 ---
 
@@ -251,6 +252,17 @@ Trained an 85M-parameter GPT-2 scale model on 2× A100 GPUs for 100,000 steps.
 
 ---
 
+## Part 5: Alignment & Reasoning RL
+
+> **Work in progress.**
+
+Post-training techniques for improving reasoning and instruction-following:
+
+- **Reasoning RL** — zero-shot baseline → SFT on reasoning traces from a stronger model → Expert Iteration (STaR) → Group-Relative Policy Optimization (GRPO) with verified rewards on competition math problems
+- **Instruction Tuning & RLHF** — SFT for instruction following → Direct Preference Optimization (DPO) for alignment with human preferences; evaluated on MMLU, GSM8K, AlpacaEval, and SimpleSafetyTests
+
+---
+
 ## Repository Structure
 
 ```
@@ -263,9 +275,11 @@ Foundation_model_performance_and_scaling/
 │   └── results/                 # Benchmark CSVs, memory snapshots, Nsight traces
 ├── part3-scaling/         # IsoFLOPs fitting, compute-optimal predictions
 │   └── results/part1_isoflops/
-└── part4-data/            # CC filtering pipeline, tokenization, model training
-    ├── cs336_data/
-    └── results/screenshots/
+├── part4-data/            # CC filtering pipeline, tokenization, model training
+│   ├── cs336_data/
+│   └── results/screenshots/
+└── part5-alignment/       # Reasoning RL (SFT, Expert Iteration, GRPO) + RLHF/DPO — in progress
+    └── cs336_alignment/
 ```
 
 ## Setup
@@ -273,7 +287,7 @@ Foundation_model_performance_and_scaling/
 Each part uses [`uv`](https://github.com/astral-sh/uv) for dependency management:
 
 ```bash
-cd part1-basics   # or part2-systems, part3-scaling, part4-data
+cd part1-basics   # or part2-systems, part3-scaling, part4-data, part5-alignment
 uv sync
 uv run python <script>
 uv run pytest
@@ -281,6 +295,21 @@ uv run pytest
 
 ## References
 
+- Vaswani et al., 2017 — [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+- Radford et al., 2019 — [Language Models Are Unsupervised Multitask Learners (GPT-2)](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)
+- Sennrich et al., 2016 — [Neural Machine Translation of Rare Words with Subword Units (BPE)](https://arxiv.org/abs/1508.07909)
+- Zhang & Sennrich, 2019 — [Root Mean Square Layer Normalization](https://arxiv.org/abs/1910.07467)
+- Dao et al., 2022 — [FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135)
+- Dao, 2023 — [FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning](https://arxiv.org/abs/2307.08691)
+- Rajbhandari et al., 2020 — [ZeRO: Memory Optimizations Toward Training Trillion Parameter Models](https://arxiv.org/abs/1910.02054)
 - Hoffmann et al., 2022 — [Chinchilla: Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556)
-- Dao et al., 2022 — [FlashAttention: Fast and Memory-Efficient Exact Attention](https://arxiv.org/abs/2205.14135)
 - Kaplan et al., 2020 — [Scaling Laws for Neural Language Models](https://arxiv.org/abs/2001.08361)
+- Rae et al., 2021 — [Scaling Language Models: Methods, Analysis & Insights from Training Gopher](https://arxiv.org/abs/2112.11446)
+- Soldaini et al., 2024 — [Dolma: An Open Corpus of Three Trillion Tokens for Language Model Pretraining Research](https://arxiv.org/abs/2402.00159)
+- Magnusson et al., 2023 — [Paloma: A Benchmark for Evaluating Language Model Fit](https://arxiv.org/abs/2312.10523)
+- DeepSeek-AI et al., 2025 — [DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning](https://arxiv.org/abs/2501.12948)
+- Zelikman et al., 2022 — [STaR: Bootstrapping Reasoning with Reasoning](https://arxiv.org/abs/2203.14465)
+- Shao et al., 2024 — [DeepSeekMath: Pushing the Limits of Mathematical Reasoning (GRPO)](https://arxiv.org/abs/2402.03300)
+- Ouyang et al., 2022 — [Training Language Models to Follow Instructions with Human Feedback (InstructGPT)](https://arxiv.org/abs/2203.02155)
+- Rafailov et al., 2023 — [Direct Preference Optimization (DPO)](https://arxiv.org/abs/2305.18290)
+- Stanford CS336 Spring 2025 — [Language Models from Scratch](https://github.com/stanford-cs336)
