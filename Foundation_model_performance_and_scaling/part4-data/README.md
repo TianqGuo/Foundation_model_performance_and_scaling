@@ -130,3 +130,13 @@ bash setup_vm.sh
 ```bash
 uv run pytest -v
 ```
+
+## References
+
+- Rae et al., 2021 — [Scaling Language Models: Methods, Analysis & Insights from Training Gopher](https://arxiv.org/abs/2112.11446)
+- Soldaini et al., 2024 — [Dolma: An Open Corpus of Three Trillion Tokens for Language Model Pretraining Research](https://arxiv.org/abs/2402.00159)
+- Magnusson et al., 2023 — [Paloma: A Benchmark for Evaluating Language Model Fit](https://arxiv.org/abs/2312.10523)
+- Raffel et al., 2020 — [Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer (T5/C4)](https://arxiv.org/abs/1910.10683)
+- Penedo et al., 2023 — [The RefinedWeb Dataset for Falcon LLM: Outperforming Curated Corpora with Web Data](https://arxiv.org/abs/2306.01116)
+- Leskovec, Rajaraman & Ullman, 2014 — [Mining of Massive Datasets (MinHash/LSH)](http://www.mmds.org/)
+- Stanford CS336 Spring 2025 — [Language Models from Scratch, Part 4 (course framework)](https://github.com/stanford-cs336/assignment4-data)
