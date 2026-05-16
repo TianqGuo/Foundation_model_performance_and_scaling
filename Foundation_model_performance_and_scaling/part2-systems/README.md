@@ -148,7 +148,7 @@ Full results: `results/torch_compile_benchmarking/`
 
 Benchmarked NCCL+CUDA vs gloo+CPU backends for all-reduce across 2/4/6 processes and data sizes from 1 MB to 1,000 MB.
 
-**NCCL+CUDA is ~200× faster than gloo+CPU** at 100 MB:
+**NCCL+CUDA is ~300× faster than gloo+CPU** at 100 MB:
 
 | Backend | Avg time (100 MB) | Peak bandwidth |
 |---------|------------------|----------------|
@@ -210,7 +210,7 @@ part2-systems/
 │   ├── attention/              # FlashAttention kernel
 │   ├── distributed/            # DDP, all-reduce, optimizer sharding
 │   └── benchmarks/             # Benchmarking scripts
-├── cs336-basics/               # Base LM implementation (from Assignment 1)
+├── cs336-basics/               # Base LM implementation (from Part 1)
 ├── results/
 │   ├── attention_benchmarking/ # Part 1 — attention benchmark CSVs + H100 results
 │   ├── flash_attention/        # Part 2 — FlashAttention benchmark CSVs

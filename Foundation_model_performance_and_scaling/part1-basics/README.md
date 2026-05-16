@@ -130,7 +130,7 @@ part1-basics/
 │   │       ├── openwebtext/
 │   │       └── leaderboard_final/
 │   ├── artifacts/              # Vocabularies and tokenized datasets (gitignored)
-│   └── assignment_experiments/ # Additional experiment scripts
+│   └── extra_experiments/      # Additional experiment scripts
 ├── pics/                       # Key result plots
 ├── tests/                      # Unit tests + adapters
 └── pyproject.toml
