@@ -100,3 +100,5 @@ python test_api_connection.py   # verify access
 
 - Hoffmann et al., 2022 — [Chinchilla: Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556)
 - Kaplan et al., 2020 — [Scaling Laws for Neural Language Models](https://arxiv.org/abs/2001.08361)
+- Yang et al., 2022 — [Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer (μP)](https://arxiv.org/abs/2203.03466)
+- Stanford CS336 Spring 2025 — [Language Models from Scratch, Part 3 (course framework)](https://github.com/stanford-cs336/assignment3-scaling)
