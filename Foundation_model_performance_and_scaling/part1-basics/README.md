@@ -161,3 +161,16 @@ gunzip owt_valid.txt.gz
 ```bash
 uv run pytest
 ```
+
+## References
+
+- Vaswani et al., 2017 — [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+- Radford et al., 2019 — [Language Models Are Unsupervised Multitask Learners (GPT-2)](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)
+- Sennrich et al., 2016 — [Neural Machine Translation of Rare Words with Subword Units (BPE)](https://arxiv.org/abs/1508.07909)
+- Zhang & Sennrich, 2019 — [Root Mean Square Layer Normalization](https://arxiv.org/abs/1910.07467)
+- Ba et al., 2016 — [Layer Normalization](https://arxiv.org/abs/1607.06450)
+- Kingma & Ba, 2015 — [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
+- Loshchilov & Hutter, 2019 — [Decoupled Weight Decay Regularization (AdamW)](https://arxiv.org/abs/1711.05101)
+- Eldan & Li, 2023 — [TinyStories: How Small Can Language Models Be and Still Speak Coherent English?](https://arxiv.org/abs/2305.07759)
+- Gokaslan et al., 2019 — [OpenWebText Corpus](http://Skylion007.github.io/OpenWebTextCorpus)
+- Stanford CS336 Spring 2025 — [Language Models from Scratch, Part 1 (course framework)](https://github.com/stanford-cs336/assignment1-basics)
