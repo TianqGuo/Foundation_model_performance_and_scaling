@@ -176,9 +176,12 @@ output_path = "/home/user/results/output.txt"
 | Task | Local (RTX 4090) | Remote (H100) |
 |------|-----------------|---------------|
 | `pytest tests/` | ✅ YES | ✅ YES |
-| Zero-shot inference (small model) | ✅ YES | ✅ YES |
+| vLLM inference (any model) | ⚠️ requires WSL2 CUDA drivers | ✅ YES |
 | SFT / Expert Iteration / GRPO training | ❌ too slow | ✅ YES |
 | DPO training (supplement) | ❌ too slow | ✅ YES |
+
+> **WSL2 note:** CUDA is not visible to PyTorch/vLLM under WSL2 by default.
+> Install the NVIDIA WSL2 driver package to enable GPU access, or run all inference/training on the cluster.
 
 ### Line Endings and Permissions
 
