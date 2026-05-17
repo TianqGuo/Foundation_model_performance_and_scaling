@@ -205,3 +205,266 @@ Examine at least 10 cases where format reward is 0: is the issue with the base m
 **(c)** How well does the Qwen 2.5 Math 1.5B zero-shot baseline perform on MATH?
 
 **Output:** 1–2 sentences with evaluation metrics.
+
+---
+
+## Section 4: Supervised Fine-Tuning for MATH
+
+### Algorithm: SFT
+
+```
+Input: initial policy model π_θ_init; SFT dataset D
+1: policy model π_θ ← π_θ_init
+2: for step = 1, …, n_sft_steps do
+3:     Sample a batch of question-response pairs D_b from D
+4:     Compute the cross-entropy loss of the responses given the questions using model π_θ
+5:     Update the model parameters θ by taking a gradient step w.r.t. the cross-entropy loss
+6: end for
+Output: π_θ
+```
+
+**Goal:** Fine-tune the base model on the MATH dataset to generate chain-of-thought reasoning traces followed by answers, rather than directly predicting answers. The reasoning SFT dataset (from DeepSeek R1) is at `/data/a5-alignment/MATH/sft.jsonl`, where each example is `{"prompt": str, "response": str}`.
+
+> **Note:** SFT is often used as a warm-start for RL fine-tuning in practice: SFT requires high-quality annotated data (reasoning traces), while RL requires only the correct answer as feedback. Even when annotated data is plentiful, RL can find better policies beyond SFT. For this project, SFT and RL phases are treated separately since the model size is too small to show composable gains.
+
+---
+
+### 4.1 Using HuggingFace Models
+
+**Loading a model and tokenizer** (in bfloat16 with FlashAttention-2):
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model = AutoModelForCausalLM.from_pretrained(
+    "/data/a5-alignment/models/Qwen2.5-Math-1.5B",
+    torch_dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+tokenizer = AutoTokenizer.from_pretrained("/data/a5-alignment/models/Qwen2.5-Math-1.5B")
+```
+
+**Forward pass:**
+
+```python
+input_ids = train_batch["input_ids"].to(device)
+labels    = train_batch["labels"].to(device)
+logits    = model(input_ids).logits
+loss      = F.cross_entropy(..., ...)
+```
+
+**Saving a trained model** — use `.save_pretrained()` for both model and tokenizer. Save under `/data/<username>/` on the cluster due to file sizes; saving the tokenizer alongside the model keeps the directory self-contained.
+
+```python
+model.save_pretrained(save_directory=output_dir)
+tokenizer.save_pretrained(save_directory=output_dir)
+```
+
+**Gradient accumulation** — 80 GB VRAM is insufficient for large batch sizes, even in bfloat16. Gradient accumulation defers the optimizer step until after `k` microbatches, giving an effective batch size multiplied by `k`:
+
+```python
+gradient_accumulation_steps = 4
+for idx, (inputs, labels) in enumerate(data_loader):
+    logits = model(inputs)
+    loss   = loss_fn(logits, labels) / gradient_accumulation_steps
+    loss.backward()
+    if (idx + 1) % gradient_accumulation_steps == 0:
+        optimizer.step()
+        optimizer.zero_grad()
+```
+
+---
+
+### 4.2 SFT Helper Methods
+
+#### `tokenize_prompt_and_output` (2 points)
+
+Tokenize the question and output strings separately, concatenate, and build a `response_mask` — a boolean mask that is `True` for response tokens and `False` for prompt/padding tokens. The mask is used in the training loop so that the loss is computed only over response tokens.
+
+```python
+def tokenize_prompt_and_output(prompt_strs, output_strs, tokenizer):
+    """
+    Args:
+        prompt_strs: list[str]
+        output_strs: list[str]
+        tokenizer:   PreTrainedTokenizer
+
+    Returns:
+        dict with keys:
+          input_ids     (batch_size, max_len - 1)  — tokenized prompt+output, final token removed
+          labels        (batch_size, max_len - 1)  — input_ids shifted left (first token removed)
+          response_mask (batch_size, max_len - 1)  — 1 for response tokens in labels, 0 otherwise
+    """
+```
+
+Test: `uv run pytest -k test_tokenize_prompt_and_output`
+
+---
+
+#### `compute_entropy` (1 point)
+
+Compute the per-token entropy of next-token predictions. For a discrete distribution p(x) over vocabulary V:
+
+```
+H(p) = -∑_{x ∈ V} p(x) log p(x)
+```
+
+```python
+def compute_entropy(logits: torch.Tensor) -> torch.Tensor:
+    """
+    Args:
+        logits: (batch_size, sequence_length, vocab_size)
+    Returns:
+        (batch_size, sequence_length) — per-token entropy
+    """
+```
+
+Use a numerically stable method (e.g., logsumexp) to avoid overflow.
+
+Test: `uv run pytest -k test_compute_entropy`
+
+---
+
+#### `get_response_log_probs` (2 points)
+
+Compute per-token conditional log-probabilities from a causal LM, and optionally return per-token entropy. For a prefix x, logits f_θ(x) ∈ ℝ^|V|, and label y ∈ V:
+
+```
+log p_θ(y | x) = log [softmax(f_θ(x))]_y
+```
+
+```python
+def get_response_log_probs(
+    model: PreTrainedModel,
+    input_ids: torch.Tensor,       # (batch_size, sequence_length)
+    labels: torch.Tensor,          # (batch_size, sequence_length)
+    return_token_entropy: bool = False,
+) -> dict[str, torch.Tensor]:
+    """
+    Returns:
+        "log_probs":     (batch_size, sequence_length) — per-token log p_θ(x_t | x_{<t})
+        "token_entropy": (batch_size, sequence_length) — present only if return_token_entropy=True
+    """
+```
+
+Obtain logits with `model(input_ids).logits`. Use numerically stable methods from `torch.nn.functional`.
+
+Test: `uv run pytest -k test_get_response_log_probs`
+
+---
+
+#### `masked_normalize` (1 point)
+
+Sum over tensor elements and divide by a normalization constant, respecting a boolean mask (positions where `mask == 0` do not contribute).
+
+```python
+def masked_normalize(
+    tensor: torch.Tensor,
+    mask: torch.Tensor,
+    normalize_constant: float,
+    dim: int | None = None,
+) -> torch.Tensor:
+    """
+    Args:
+        tensor:             value tensor
+        mask:               same shape as tensor; 1 = included, 0 = excluded
+        normalize_constant: divide the sum by this value
+        dim:                dimension to reduce; None reduces all dimensions
+    Returns:
+        normalized sum (masked elements do not contribute)
+    """
+```
+
+Test: `uv run pytest -k test_masked_normalize`
+
+---
+
+#### `sft_microbatch_train_step` (3 points)
+
+A single microbatch update for SFT: compute the NLL loss over response tokens, scale for gradient accumulation, and call `loss.backward()`.
+
+```python
+def sft_microbatch_train_step(
+    policy_log_probs: torch.Tensor,     # (batch_size, sequence_length)
+    response_mask: torch.Tensor,        # (batch_size, sequence_length)
+    gradient_accumulation_steps: int,
+    normalize_constant: float = 1.0,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    """
+    Returns:
+        loss      — scalar tensor, adjusted for gradient accumulation (for logging)
+        metadata  — dict of stats to log
+    """
+```
+
+`loss.backward()` must be called inside this function. Divide by `gradient_accumulation_steps` before the backward pass.
+
+Test: `uv run pytest -k test_sft_microbatch_train_step`
+
+---
+
+#### `log_generations` (1 point)
+
+Log in-the-loop generations from the SFT/RL model during training. For each example, log at minimum:
+
+1. Input prompt
+2. Model response
+3. Ground-truth answer
+4. Reward info: format reward, answer reward, total reward
+5. Average token entropy of the response
+6. Average response length; average length for correct vs. incorrect responses
+
+---
+
+### 4.3 SFT Experiment (2 points, ~2 H100 hrs)
+
+Using the helper methods above, implement the full SFT procedure (Algorithm 1) to fine-tune Qwen 2.5 Math 1.5B Base on the MATH reasoning SFT dataset.
+
+**Training setup:**
+- Run with **2 GPUs**: one for the policy model (training), one for the vLLM evaluation instance
+- Periodically evaluate on the MATH validation set during training
+- Use gradient clipping with clip value 1.0
+
+**vLLM initialization and weight loading** (required for 2-GPU setup):
+
+```python
+from vllm.model_executor import set_random_seed as vllm_set_random_seed
+
+def init_vllm(model_id: str, device: str, seed: int, gpu_memory_utilization: float = 0.85):
+    vllm_set_random_seed(seed)
+    world_size_patch  = patch("torch.distributed.get_world_size", return_value=1)
+    profiling_patch   = patch(
+        "vllm.worker.worker.Worker._assert_memory_footprint_increased_during_profiling",
+        return_value=None,
+    )
+    with world_size_patch, profiling_patch:
+        return LLM(
+            model=model_id,
+            device=device,
+            dtype=torch.bfloat16,
+            enable_prefix_caching=True,
+            gpu_memory_utilization=gpu_memory_utilization,
+        )
+
+def load_policy_into_vllm_instance(policy: PreTrainedModel, llm: LLM):
+    state_dict = policy.state_dict()
+    llm_model  = llm.llm_engine.model_executor.driver_worker.model_runner.model
+    llm_model.load_weights(state_dict.items())
+```
+
+**wandb metric separation** (train vs. eval axes):
+
+```python
+wandb.define_metric("train_step")
+wandb.define_metric("eval_step")
+wandb.define_metric("train/*", step_metric="train_step")
+wandb.define_metric("eval/*",  step_metric="eval_step")
+```
+
+**(a)** Run SFT varying the number of unique training examples across `{128, 256, 512, 1024, full dataset}`. Tune learning rate and batch size to achieve at least **15% validation accuracy** on the full dataset.
+
+**Output:** Validation accuracy curves for each dataset size.
+
+**(b)** Filter the SFT dataset to only examples where the response contains the correct answer. Run SFT on the full filtered dataset.
+
+**Output:** Filtered dataset size and validation accuracy curve. Compare to unfiltered SFT results.
