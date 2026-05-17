@@ -210,7 +210,16 @@ def output_strs():
 
 @pytest.fixture
 def model_id():
-    return "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
+    from pathlib import Path
+    candidates = [
+        "/data/a5-alignment/models/Qwen2.5-Math-1.5B",
+        str(Path(__file__).parent.parent / "assets" / "Qwen2.5-Math-1.5B"),
+        "Qwen/Qwen2.5-Math-1.5B",  # HuggingFace auto-download fallback
+    ]
+    for path in candidates[:2]:
+        if Path(path).exists():
+            return path
+    return candidates[-1]  # let HuggingFace resolve it
 
 
 @pytest.fixture
