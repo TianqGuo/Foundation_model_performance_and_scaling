@@ -1,6 +1,13 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable
+
 import torch
 import torch.nn.functional as F
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
+
+if TYPE_CHECKING:
+    from vllm import LLM, SamplingParams
 
 
 def tokenize_prompt_and_output(
@@ -119,3 +126,96 @@ def sft_microbatch_train_step(
     )
     loss.backward()
     return loss.detach(), {}
+
+
+def log_generations(
+    vllm_model: LLM,
+    policy_model: PreTrainedModel | None,
+    tokenizer: PreTrainedTokenizerBase,
+    reward_fn: Callable[[str, str], dict[str, float]],
+    prompts: list[str],
+    ground_truths: list[str],
+    sampling_params: SamplingParams,
+    device: str = "cuda",
+) -> dict[str, Any]:
+    """Generate responses with vLLM, compute rewards and diagnostics.
+
+    Logs per-example: prompt, response, ground truth, rewards.
+    Logs aggregate: accuracy, format rate, avg token entropy, avg response length
+    (overall, correct-only, incorrect-only).
+
+    Args:
+        vllm_model:    vLLM LLM instance for fast generation.
+        policy_model:  HuggingFace model for token entropy (None to skip entropy).
+        tokenizer:     Tokenizer shared by both models.
+        reward_fn:     Callable(response, ground_truth) → {reward, format_reward, answer_reward}.
+        prompts:       List of formatted prompt strings.
+        ground_truths: Ground-truth answer strings aligned with prompts.
+        sampling_params: vLLM SamplingParams for generation.
+        device:        Device for the policy model forward pass.
+
+    Returns:
+        dict with aggregate metrics and an "examples" list of per-example dicts.
+    """
+    outputs = vllm_model.generate(prompts, sampling_params)
+    responses = [o.outputs[0].text for o in outputs]
+
+    rewards_list = [reward_fn(resp, gt) for resp, gt in zip(responses, ground_truths)]
+
+    # Token-level response lengths
+    response_lengths = [
+        len(tokenizer.encode(resp, add_special_tokens=False)) for resp in responses
+    ]
+    correct_idx = [i for i, r in enumerate(rewards_list) if r["answer_reward"] == 1.0]
+    incorrect_idx = [i for i, r in enumerate(rewards_list) if r["answer_reward"] == 0.0]
+
+    avg_len = sum(response_lengths) / max(len(response_lengths), 1)
+    avg_len_correct = (
+        sum(response_lengths[i] for i in correct_idx) / len(correct_idx)
+        if correct_idx else 0.0
+    )
+    avg_len_incorrect = (
+        sum(response_lengths[i] for i in incorrect_idx) / len(incorrect_idx)
+        if incorrect_idx else 0.0
+    )
+
+    # Per-token entropy via HuggingFace model (only on first few examples to keep cost low)
+    avg_entropy = 0.0
+    if policy_model is not None:
+        total_entropy, n_counted = 0.0, 0
+        policy_model.eval()
+        with torch.no_grad():
+            for prompt, resp in zip(prompts[:5], responses[:5]):
+                tok = tokenize_prompt_and_output([prompt], [resp], tokenizer)
+                ids = tok["input_ids"].to(device)
+                labs = tok["labels"].to(device)
+                mask = tok["response_mask"].to(device).float()
+                out = get_response_log_probs(policy_model, ids, labs, return_token_entropy=True)
+                entropy = out["token_entropy"]          # (1, seq_len)
+                n_resp = mask.sum()
+                if n_resp > 0:
+                    total_entropy += ((entropy * mask).sum() / n_resp).item()
+                    n_counted += 1
+        avg_entropy = total_entropy / max(n_counted, 1)
+
+    examples = [
+        {
+            "prompt": prompts[i],
+            "response": responses[i],
+            "ground_truth": ground_truths[i],
+            "rewards": rewards_list[i],
+            "response_length": response_lengths[i],
+        }
+        for i in range(len(prompts))
+    ]
+
+    return {
+        "accuracy": sum(r["answer_reward"] for r in rewards_list) / max(len(rewards_list), 1),
+        "format_rate": sum(r["format_reward"] for r in rewards_list) / max(len(rewards_list), 1),
+        "avg_reward": sum(r["reward"] for r in rewards_list) / max(len(rewards_list), 1),
+        "avg_token_entropy": avg_entropy,
+        "avg_response_length": avg_len,
+        "avg_response_length_correct": avg_len_correct,
+        "avg_response_length_incorrect": avg_len_incorrect,
+        "examples": examples,
+    }

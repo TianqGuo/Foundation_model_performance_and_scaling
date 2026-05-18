@@ -5,29 +5,26 @@
 #
 # USAGE:
 #   cd cs336_alignment/section4_sft
-#   ./part_5_4.sh                        # run helper tests + SFT training
-#   ./part_5_4.sh --tests-only           # helper tests only (no training)
-#   ./part_5_4.sh --train-only           # SFT training only
-#
-#   Override paths via environment variables:
-#   MODEL=/path/to/model DATA=/path/to/sft.jsonl ./part_5_4.sh
+#   ./part_5_4.sh                  # tests + all training experiments
+#   ./part_5_4.sh --tests-only     # helper tests only (no training)
+#   ./part_5_4.sh --train-only     # all training experiments, skip tests
 #
 # WHAT IT DOES:
-#   1. Resolves the Qwen 2.5 Math 1.5B model path (cluster → local → HuggingFace)
-#   2. Downloads the model/tokenizer locally if not found on the cluster
-#   3. Runs pytest for Section 4 helper method tests
-#   4. Runs the full SFT training experiment on the MATH reasoning dataset,
-#      varying dataset sizes {128, 256, 512, 1024, full} and logging to wandb
+#   1. Resolves model and data paths (cluster → local assets → HuggingFace)
+#   2. Runs pytest for Section 4 helper method tests
+#   3. Runs SFT training for dataset size ablation: 128, 256, 512, 1024, full
+#   4. Runs SFT training on the filtered (correct-answers-only) dataset
+#   Each run logs to wandb and saves a model checkpoint.
 #
 # OUTPUT:
-#   ${ROOT}/results/section4/           — evaluation logs and accuracy curves
-#   /data/${USER}/sft_model/            — trained model checkpoint (cluster)
-#   ${ROOT}/assets/sft_model/           — trained model checkpoint (local)
+#   ${ROOT}/results/section4/           — eval logs, accuracy curves, dataset info
+#   /data/${USER}/sft_n{size}/          — model checkpoints (cluster)
+#   ${ROOT}/assets/sft_n{size}/         — model checkpoints (local fallback)
 #
 # NOTES:
-#   Helper tests (step 3) need only the tokenizer; full training (step 4)
-#   requires 2 GPUs with ~80 GB VRAM each (H100 recommended).
-#   On the cluster, the model and SFT data are pre-downloaded at /data/a5-alignment/.
+#   Training requires 2 GPUs (~80 GB VRAM each, H100 recommended).
+#   Helper tests (step 2) only require the tokenizer and run on CPU.
+#   On the cluster the model and data are pre-downloaded at /data/a5-alignment/.
 #
 # ==============================================================================
 
@@ -60,27 +57,41 @@ if [ -z "${MODEL}" ]; then
         MODEL="${LOCAL_MODEL}"
     fi
 fi
-echo "==> Model: ${MODEL}"
 
-# --- SFT data path ---
+# --- Data paths ---
 CLUSTER_SFT="/data/a5-alignment/MATH/sft.jsonl"
+CLUSTER_VAL="/data/a5-alignment/MATH/validation.jsonl"
 LOCAL_SFT="${ROOT}/data/math/sft.jsonl"
+LOCAL_VAL="${ROOT}/data/math/validation.jsonl"
+
 if [ -z "${DATA}" ]; then
-    if [ -f "${CLUSTER_SFT}" ]; then
-        DATA="${CLUSTER_SFT}"
-    elif [ -f "${LOCAL_SFT}" ]; then
-        DATA="${LOCAL_SFT}"
-    else
-        echo "WARNING: SFT data not found. Training will fail if --train-only is set."
-        DATA="${CLUSTER_SFT}"
+    if   [ -f "${CLUSTER_SFT}" ]; then DATA="${CLUSTER_SFT}"
+    elif [ -f "${LOCAL_SFT}" ];   then DATA="${LOCAL_SFT}"
+    else echo "ERROR: SFT data not found at ${CLUSTER_SFT} or ${LOCAL_SFT}"; exit 1
     fi
 fi
-echo "==> SFT data: ${DATA}"
+
+if [ -z "${VAL_DATA}" ]; then
+    if   [ -f "${CLUSTER_VAL}" ]; then VAL_DATA="${CLUSTER_VAL}"
+    elif [ -f "${LOCAL_VAL}" ];   then VAL_DATA="${LOCAL_VAL}"
+    else VAL_DATA="${CLUSTER_VAL}"  # will be skipped gracefully if missing
+    fi
+fi
+
+OUTPUT="${ROOT}/results/section4"
+
+echo "==> Section 4: SFT for MATH"
+echo "    Model:    ${MODEL}"
+echo "    SFT data: ${DATA}"
+echo "    Val data: ${VAL_DATA}"
+echo "    Output:   ${OUTPUT}"
 echo ""
 
-# --- Step 1: Helper method tests ---
+# ---------------------------------------------------------------------------
+# Step 1: Helper method tests
+# ---------------------------------------------------------------------------
 if [ "${TRAIN_ONLY}" = false ]; then
-    echo "==> Running Section 4 helper tests..."
+    echo "==> [1/2] Running Section 4 helper tests..."
     cd "${ROOT}"
     uv run pytest tests/test_sft.py -v
     cd "${ROOT}/cs336_alignment/section4_sft"
@@ -88,18 +99,39 @@ if [ "${TRAIN_ONLY}" = false ]; then
     echo ""
 fi
 
-# --- Step 2: SFT training experiment ---
+# ---------------------------------------------------------------------------
+# Step 2: SFT training experiments
+# ---------------------------------------------------------------------------
 if [ "${TESTS_ONLY}" = false ]; then
-    echo "==> Running SFT training experiment..."
-    OUTPUT_DIR="${ROOT}/results/section4"
-    mkdir -p "${OUTPUT_DIR}"
-
-    uv run python "${ROOT}/cs336_alignment/section4_sft/train_sft.py" \
-        --model   "${MODEL}" \
-        --data    "${DATA}" \
-        --output  "${OUTPUT_DIR}" \
-        "$@"
-
+    echo "==> [2/2] Running SFT training experiments..."
     echo ""
-    echo "==> Done. Results at ${OUTPUT_DIR}"
+
+    TRAIN_CMD="uv run python ${ROOT}/cs336_alignment/section4_sft/train_sft.py
+        --model    ${MODEL}
+        --data     ${DATA}
+        --val_data ${VAL_DATA}
+        --output   ${OUTPUT}"
+
+    # --- Dataset size ablation ---
+    for N in 128 256 512 1024; do
+        echo "--- SFT with ${N} training examples ---"
+        ${TRAIN_CMD} \
+            --max_train_examples ${N} \
+            --run_name "sft_n${N}"
+        echo ""
+    done
+
+    echo "--- SFT with full dataset ---"
+    ${TRAIN_CMD} \
+        --run_name "sft_full"
+    echo ""
+
+    # --- Filtered dataset experiment ---
+    echo "--- SFT with correct-answer-filtered dataset ---"
+    ${TRAIN_CMD} \
+        --filter_correct \
+        --run_name "sft_filtered"
+    echo ""
+
+    echo "==> All training experiments done. Results at ${OUTPUT}"
 fi
