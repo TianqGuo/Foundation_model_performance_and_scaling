@@ -15,7 +15,7 @@ Starting from hundreds of gigabytes of unfiltered web text, the pipeline:
 
 The core question: *how much does data quality matter?* Raw Common Crawl is ~7.9% usable text after filtering — the rest is non-English, low-quality, or harmful content. The goal is to maximize language model quality on the Paloma benchmark purely through better data, without changing the model or training procedure.
 
-### Part 2: Filtering (`cs336_data/filtering_cc/`)
+### Part 2: Filtering
 
 A multi-stage quality filter applied to CC WET files:
 
@@ -28,12 +28,12 @@ A multi-stage quality filter applied to CC WET files:
 
 Written analysis for each stage is in `results/filtering_cc/`.
 
-### Part 3: Deduplication (`cs336_data/deduplication/`)
+### Part 3: Deduplication
 
 - **Exact-line deduplication** — remove duplicate lines across the corpus using a global hash set
 - **MinHash deduplication** — approximate fuzzy document deduplication via Locality-Sensitive Hashing (LSH)
 
-### Part 4: Full Training Pipeline (`cs336_data/leaderboard/`)
+### Part 4: Full Training Pipeline
 
 End-to-end pipeline from raw CC to a trained language model evaluated on Paloma C4-100-domains.
 
@@ -41,10 +41,10 @@ End-to-end pipeline from raw CC to a trained language model evaluated on Paloma 
 
 | Step | Script | Output |
 |------|--------|--------|
-| Download CC WET files | `cs336_data/leaderboard/download_wet/part_4_download.sh` | `data/CC/*.warc.wet.gz` |
-| Filter | `cs336_data/leaderboard/filter_data/part_4_filter.sh` | `data/filtered/*.txt` |
-| Tokenize | `cs336_data/leaderboard/tokenize_data/part_4_tokenize.sh` | `data/tokenized/train.bin` |
-| Train | `cs336_data/leaderboard/train_model/part_4_train.sh` | `cs336-basics/output/your_data/model.pt` |
+| Download CC WET files | `part_4_download.sh` | `data/CC/*.warc.wet.gz` |
+| Filter | `part_4_filter.sh` | `data/filtered/*.txt` |
+| Tokenize | `part_4_tokenize.sh` | `data/tokenized/train.bin` |
+| Train | `part_4_train.sh` | `output/your_data/model.pt` |
 
 #### Filter Results (600 WET files, CC-MAIN-2025-18)
 
