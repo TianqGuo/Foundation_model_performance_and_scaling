@@ -5,9 +5,10 @@
 #
 # USAGE:
 #   cd cs336_alignment/section4_sft
-#   ./part_5_4.sh                  # tests + all training experiments
-#   ./part_5_4.sh --tests-only     # helper tests only (no training)
+#   ./part_5_4.sh                  # tests + all training experiments (2 GPUs)
+#   ./part_5_4.sh --tests-only     # helper tests only (no training, CPU)
 #   ./part_5_4.sh --train-only     # all training experiments, skip tests
+#   ./part_5_4.sh --smoke-test     # single-GPU local smoke test (no eval, no wandb)
 #
 # WHAT IT DOES:
 #   1. Resolves model and data paths (cluster → local assets → HuggingFace)
@@ -22,8 +23,9 @@
 #   ${ROOT}/assets/sft_n{size}/         — model checkpoints (local fallback)
 #
 # NOTES:
-#   Training requires 2 GPUs (~80 GB VRAM each, H100 recommended).
-#   Helper tests (step 2) only require the tokenizer and run on CPU.
+#   Full training requires 2 GPUs (~80 GB VRAM each, H100 recommended).
+#   --smoke-test runs on a single GPU with 32 examples, skipping vLLM eval.
+#   Helper tests (--tests-only) only require the tokenizer and run on CPU.
 #   On the cluster the model and data are pre-downloaded at /data/a5-alignment/.
 #
 # ==============================================================================
@@ -34,10 +36,12 @@ ROOT="$(cd ../.. && pwd)"
 
 TESTS_ONLY=false
 TRAIN_ONLY=false
+SMOKE_TEST=false
 for arg in "$@"; do
     case "$arg" in
-        --tests-only) TESTS_ONLY=true ;;
-        --train-only) TRAIN_ONLY=true ;;
+        --tests-only)  TESTS_ONLY=true ;;
+        --train-only)  TRAIN_ONLY=true ;;
+        --smoke-test)  SMOKE_TEST=true ;;
     esac
 done
 
@@ -86,6 +90,25 @@ echo "    SFT data: ${DATA}"
 echo "    Val data: ${VAL_DATA}"
 echo "    Output:   ${OUTPUT}"
 echo ""
+
+# ---------------------------------------------------------------------------
+# Smoke test: single-GPU local run (no vLLM eval, no wandb)
+# ---------------------------------------------------------------------------
+if [ "${SMOKE_TEST}" = true ]; then
+    echo "==> [smoke-test] SFT smoke test (32 examples, 1 epoch, no eval)"
+    uv run python "${ROOT}/cs336_alignment/section4_sft/train_sft.py" \
+        --model    "${MODEL}" \
+        --data     "${DATA}" \
+        --val_data "${VAL_DATA}" \
+        --output   "${OUTPUT}" \
+        --max_train_examples 32 \
+        --n_epochs 1 \
+        --skip_eval \
+        --no_wandb \
+        --run_name "sft_smoke"
+    echo "==> Smoke test done. Results at ${OUTPUT}"
+    exit 0
+fi
 
 # ---------------------------------------------------------------------------
 # Step 1: Helper method tests

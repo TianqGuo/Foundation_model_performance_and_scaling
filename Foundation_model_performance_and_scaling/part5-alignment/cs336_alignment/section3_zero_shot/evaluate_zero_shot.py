@@ -24,9 +24,9 @@ def get_question(example: dict) -> str:
 def get_ground_truth(example: dict) -> str:
     # MATH: full solution string containing \boxed{answer} — grader extracts it
     if "solution" in example:
-        return example["solution"]
+        return str(example["solution"])
     # GSM8K: answer field ends with "#### <number>"
-    raw = example.get("answer", "")
+    raw = str(example.get("answer", ""))
     if "####" in raw:
         return raw.split("####")[-1].strip()
     return raw
