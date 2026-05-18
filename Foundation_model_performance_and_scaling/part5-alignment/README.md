@@ -51,14 +51,20 @@ cd cs336_alignment/section3_zero_shot
 | Format ok, wrong answer (format=1, answer=0) | 1 | 10% |
 | No format (format=0) | 9 | 90% |
 
-**Full MATH validation (5K examples, cluster):** pending cluster run.
+**Full MATH validation (5,000 examples, RTX 4090):**
 
-The 0% accuracy is expected — the base model defaults to `\boxed{}` format from
-math pretraining rather than the r1_zero `<answer>` tags. Several responses
-contain the correct numerical answer inside `\boxed{}` but are penalised on format.
-Two additional failures are parser-strictness edge cases (`\n` vs space between
-`</think>` and `<answer>`). See `results/section3/zero_shot_analysis.md` for the
-full breakdown.
+| Category | Count | % |
+|---|---|---|
+| Correct (format=1, answer=1) | 124 | 2.5% |
+| Format ok, wrong answer (format=1, answer=0) | 707 | 14.1% |
+| No format (format=0) | 4169 | 83.4% |
+
+Conditional accuracy given format compliance: **14.9%** (124/831).
+
+The base model defaults to `\boxed{}` from math pretraining — only 16.6% of responses
+use the r1_zero format. Of those that do comply, the model answers correctly ~15% of
+the time, suggesting latent reasoning ability that RL training will unlock.
+See `results/section3/zero_shot_analysis.md` for the full breakdown.
 
 ---
 

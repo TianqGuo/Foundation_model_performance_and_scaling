@@ -6,7 +6,7 @@
 - **Prompt:** r1_zero (`cs336_alignment/prompts/r1_zero.prompt`)
 - **Reward function:** `cs336_alignment.drgrpo_grader.r1_zero_reward_fn`
 - **Local smoke test:** 10 examples from GSM8K (`data/gsm8k/test.jsonl`)
-- **Full evaluation:** 5K examples from MATH validation set (cluster only)
+- **Full evaluation:** 5,000 examples from MATH validation set (`data/math/validation.jsonl`)
 - **Raw results:** `zero_shot_eval.jsonl`
 
 ---
@@ -79,12 +79,26 @@ via RL.
 
 **Local smoke test (10 examples, GSM8K):** 0% end-to-end accuracy.
 
-This is expected — see (b) for why. The majority of failures are format failures rather
-than reasoning failures; several responses contain the correct answer in `\boxed{}` format.
+**Full MATH validation (5,000 examples):**
 
-**On the full MATH validation set (cluster):** To be filled in after cluster run.
-Expected: low but non-zero accuracy, likely in the range reported for base models with
-the r1_zero prompt before RL training. The `question_only` prompt is expected to perform
-significantly better on this base model (per Liu et al., 2025), and will be compared
-directly in a later section. RL training (Sections 5–6) will improve both format
-compliance and answer correctness substantially.
+| Category | Count | % |
+|---|---|---|
+| Correct (format=1, answer=1) | 124 | 2.5% |
+| Format ok, wrong answer (format=1, answer=0) | 707 | 14.1% |
+| No format (format=0) | 4169 | 83.4% |
+
+**Conditional accuracy (given format compliance):** 124 / 831 = **14.9%**
+
+The overall 2.5% accuracy is low but non-zero. With correct format compliance at only 16.6%,
+most failures are format failures rather than reasoning failures. The conditional accuracy
+of 14.9% suggests the model has some reasoning ability when it does comply with the format.
+
+Notable behaviors observed in "no format" examples:
+- Model generates Python code blocks instead of text reasoning (defaults to code-based math
+  problem-solving from pretraining)
+- Responses trail off mid-reasoning without producing `</think>` or `<answer>` tags
+- Some responses exceed the 1024-token limit, cutting off before completing the format
+
+The `question_only` prompt is expected to perform significantly better on this base model
+(per Liu et al., 2025) since it avoids the format mismatch. RL training (Sections 5–6)
+will improve both format compliance and answer correctness substantially.
