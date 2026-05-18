@@ -103,6 +103,7 @@ if [ "${SMOKE_TEST}" = true ]; then
         --output   "${OUTPUT}" \
         --max_train_examples 32 \
         --n_epochs 1 \
+        --gradient_accumulation_steps 4 \
         --skip_eval \
         --no_wandb \
         --run_name "sft_smoke"
