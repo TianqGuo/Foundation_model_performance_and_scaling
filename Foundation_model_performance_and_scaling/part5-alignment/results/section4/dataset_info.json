@@ -1,4 +1,4 @@
 {
-  "n_train": 4836,
-  "filter_correct": true
+  "n_train": 1024,
+  "filter_correct": false
 }
