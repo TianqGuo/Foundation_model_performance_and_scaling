@@ -1,4 +1,4 @@
-# Part 5 — Alignment and Reasoning RL: Qwen 2.5 Math 1.5B
+# Part 5 — Alignment and Reasoning RL
 
 Teaching a 1.5B-parameter math model to reason step-by-step using supervised
 fine-tuning, Expert Iteration, and Group Relative Policy Optimization (GRPO)
@@ -101,9 +101,11 @@ Runs six experiments sequentially (dataset size ablation + filtered data):
 
 ```bash
 cd cs336_alignment/section4_sft
-./part_5_4.sh                        # helper tests + all 6 training runs (cluster)
+./part_5_4.sh                        # helper tests + all 6 training runs (2 GPUs)
 ./part_5_4.sh --tests-only           # helper tests only (CPU, works locally)
-./part_5_4.sh --train-only           # training only, skip tests
+./part_5_4.sh --train-only           # all 6 training runs, skip tests
+./part_5_4.sh --ablation-only        # re-run only n128/256/512/1024, preserve full/filtered
+./part_5_4.sh --smoke-test           # single-GPU local smoke test (32 examples, no eval)
 ```
 
 Training uses 2 GPUs: policy on `cuda:0`, vLLM evaluator on `cuda:1`. Evaluates
@@ -137,9 +139,37 @@ Reads all `eval_metrics_*.jsonl` files in `results/section4/` and saves:
 
 ### Results
 
-**Accuracy curves (cluster run):** pending.
+All six experiments ran on 2× A100 40 GB GPUs. Target was ≥ 15% validation accuracy on the full dataset — exceeded by a large margin.
 
-**Final validation accuracy (target ≥ 15% on full dataset):** pending.
+**Final validation accuracy per run:**
+
+| Run | Training examples | Peak accuracy | Final accuracy |
+|-----|------------------|---------------|----------------|
+| `sft_n128` | 128 | 51.0% | 51.0% |
+| `sft_n256` | 256 | 57.5% | 56.5% |
+| `sft_n512` | 512 | 62.5% | 62.5% |
+| `sft_n1024` | 1024 | **65.0%** | 59.0% |
+| `sft_full` | 4836 | 58.5% | 55.5% |
+| `sft_filtered` | Full, correct-only | 59.5% | 55.0% |
+
+**Key findings:**
+- Even 128 examples is enough to jump from 2.5% (zero-shot) to ~50% — SFT teaches format compliance immediately, which unlocks most of the gain
+- Accuracy improves with dataset size up to 1024 examples (65% peak), then plateaus with the full dataset — likely because the full-dataset model needs more training steps to fully converge
+- Correct-answer filtering has a modest benefit early in training (slightly higher peak at step 100) but converges to similar accuracy as unfiltered SFT
+
+**Accuracy curves (dataset size ablation):**
+
+![SFT accuracy by dataset size](results/section4/sft_ablation_accuracy.png)
+
+**Full dataset vs filtered comparison:**
+
+![SFT full vs filtered](results/section4/sft_filtered_comparison.png)
+
+**Training loss and eval metrics (wandb):**
+
+![Training loss](results/section4/wandb_loss.png)
+
+![Eval metrics](results/section4/wandb_eval.png)
 
 ---
 
