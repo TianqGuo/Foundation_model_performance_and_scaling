@@ -1,0 +1,9 @@
+{
+  "accuracy": 0.586,
+  "format_rate": 0.96,
+  "avg_reward": 0.586,
+  "avg_token_entropy": 0.3086498975753784,
+  "avg_response_length": 291.968,
+  "avg_response_length_correct": 209.1160409556314,
+  "avg_response_length_incorrect": 409.24154589371983
+}
