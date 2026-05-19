@@ -176,7 +176,7 @@ def train(args: argparse.Namespace) -> None:
     # --- wandb ---
     if not args.no_wandb:
         run_name = args.run_name or f"sft_n{args.max_train_examples or 'full'}"
-        if args.filter_correct:
+        if args.filter_correct and not run_name.endswith("_filtered"):
             run_name += "_filtered"
         wandb.init(project=args.wandb_project, name=run_name, config=vars(args))
         wandb.define_metric("train_step")
@@ -223,7 +223,7 @@ def train(args: argparse.Namespace) -> None:
 
     # Per-step eval metrics — appended at every eval so results survive crashes
     run_name = args.run_name or f"sft_n{args.max_train_examples or 'full'}"
-    if args.filter_correct:
+    if args.filter_correct and not run_name.endswith("_filtered"):
         run_name += "_filtered"
     metrics_path = output_path / f"eval_metrics_{run_name}.jsonl"
     metrics_file = open(metrics_path, "w")

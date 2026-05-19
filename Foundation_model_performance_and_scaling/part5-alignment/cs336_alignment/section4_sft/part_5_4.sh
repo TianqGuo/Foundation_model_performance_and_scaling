@@ -8,6 +8,7 @@
 #   ./part_5_4.sh                  # tests + all training experiments (2 GPUs)
 #   ./part_5_4.sh --tests-only     # helper tests only (no training, CPU)
 #   ./part_5_4.sh --train-only     # all training experiments, skip tests
+#   ./part_5_4.sh --ablation-only  # ablation runs only (n128/256/512/1024), skip full/filtered
 #   ./part_5_4.sh --smoke-test     # single-GPU local smoke test (no eval, no wandb)
 #
 # WHAT IT DOES:
@@ -36,12 +37,14 @@ ROOT="$(cd ../.. && pwd)"
 
 TESTS_ONLY=false
 TRAIN_ONLY=false
+ABLATION_ONLY=false
 SMOKE_TEST=false
 for arg in "$@"; do
     case "$arg" in
-        --tests-only)  TESTS_ONLY=true ;;
-        --train-only)  TRAIN_ONLY=true ;;
-        --smoke-test)  SMOKE_TEST=true ;;
+        --tests-only)    TESTS_ONLY=true ;;
+        --train-only)    TRAIN_ONLY=true ;;
+        --ablation-only) ABLATION_ONLY=true; TRAIN_ONLY=true ;;
+        --smoke-test)    SMOKE_TEST=true ;;
     esac
 done
 
@@ -137,25 +140,38 @@ if [ "${TESTS_ONLY}" = false ]; then
         --output   ${OUTPUT}"
 
     # --- Dataset size ablation ---
+    # eval_interval is set per run so at least one eval fires per epoch:
+    #   n steps/epoch = (n_examples / micro_bs / grad_accum)
+    #   n128 → 2 steps/epoch, n256 → 4, n512 → 8, n1024 → 16
     for N in 128 256 512 1024; do
-        echo "--- SFT with ${N} training examples ---"
+        case ${N} in
+            128)  EVAL_INT=2  ;;
+            256)  EVAL_INT=4  ;;
+            512)  EVAL_INT=8  ;;
+            1024) EVAL_INT=15 ;;
+        esac
+        echo "--- SFT with ${N} training examples (eval every ${EVAL_INT} steps) ---"
         ${TRAIN_CMD} \
             --max_train_examples ${N} \
+            --eval_interval      ${EVAL_INT} \
             --run_name "sft_n${N}"
         echo ""
     done
 
-    echo "--- SFT with full dataset ---"
-    ${TRAIN_CMD} \
-        --run_name "sft_full"
-    echo ""
+    if [ "${ABLATION_ONLY}" = false ]; then
+        echo "--- SFT with full dataset ---"
+        ${TRAIN_CMD} \
+            --run_name "sft_full"
+        echo ""
 
-    # --- Filtered dataset experiment ---
-    echo "--- SFT with correct-answer-filtered dataset ---"
-    ${TRAIN_CMD} \
-        --filter_correct \
-        --run_name "sft_filtered"
-    echo ""
+        # run_name "sft_filtered" + --filter_correct → train_sft.py keeps "sft_filtered"
+        # (does not double-append since name already ends with _filtered)
+        echo "--- SFT with correct-answer-filtered dataset ---"
+        ${TRAIN_CMD} \
+            --filter_correct \
+            --run_name "sft_filtered"
+        echo ""
+    fi
 
     echo "==> All training experiments done. Results at ${OUTPUT}"
 fi
