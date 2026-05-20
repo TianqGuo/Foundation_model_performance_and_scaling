@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,32 @@ from cs336_alignment.drgrpo_grader import r1_zero_reward_fn
 
 if TYPE_CHECKING:
     from vllm import LLM, SamplingParams
+
+
+# ---------------------------------------------------------------------------
+# Weight sync helper
+# ---------------------------------------------------------------------------
+
+def load_policy_into_vllm_instance(policy, llm: LLM, train_device: str) -> None:
+    """Copy policy weights into a live vLLM instance.
+
+    Routes through CPU to avoid cross-GPU P2P transfer hangs that can occur
+    when vLLM allocates all GPU memory to KV cache (reporting 0.00 GB for model
+    weights during profiling) and leaves no room for a direct cuda:0 → cuda:1
+    memcpy. CPU as intermediate sidesteps this by letting CUDA page weights in
+    from pinned memory rather than requiring a pre-allocated destination block.
+    """
+    import torch
+    t0 = time.time()
+    mem_before = torch.cuda.memory_allocated(train_device) / 1e9
+    print(f"    [sync] GPU {train_device} mem before: {mem_before:.2f} GB")
+
+    state_dict = {k: v.cpu() for k, v in policy.state_dict().items()}
+    llm_model = llm.llm_engine.model_executor.driver_worker.model_runner.model
+    llm_model.load_weights(state_dict.items())
+
+    mem_after = torch.cuda.memory_allocated(train_device) / 1e9
+    print(f"    [sync] GPU {train_device} mem after:  {mem_after:.2f} GB  ({time.time()-t0:.1f}s)")
 
 
 # ---------------------------------------------------------------------------
@@ -140,12 +167,6 @@ def train(args: argparse.Namespace) -> None:
     from cs336_alignment.section4_sft.helpers import log_generations
     from cs336_alignment.section4_sft.train_sft import init_vllm
 
-def load_policy_into_vllm_instance(policy, llm) -> None:
-    # Route through CPU to avoid cross-GPU (cuda:0 → cuda:1) P2P transfer hangs
-    state_dict = {k: v.cpu() for k, v in policy.state_dict().items()}
-    llm_model = llm.llm_engine.model_executor.driver_worker.model_runner.model
-    llm_model.load_weights(state_dict.items())
-
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
@@ -155,7 +176,6 @@ def load_policy_into_vllm_instance(policy, llm) -> None:
     if not torch.cuda.is_available():
         raise SystemExit("ERROR: CUDA not available. EI training requires GPU(s).")
     n_gpus = torch.cuda.device_count()
-    # Single-GPU mode: share cuda:0 for both policy and vLLM (lower memory utilization)
     single_gpu = n_gpus == 1
     if single_gpu:
         args.vllm_device = args.train_device
@@ -187,7 +207,6 @@ def load_policy_into_vllm_instance(policy, llm) -> None:
     # vLLM: second GPU for full runs, same GPU for single-GPU smoke tests
     vllm_model = None
     if use_vllm:
-        # Single-GPU: reduce vLLM memory to leave room for policy gradients
         gpu_memory_utilization = 0.5 if single_gpu else 0.85
         print(f"Initializing vLLM on {args.vllm_device} (mem_util={gpu_memory_utilization}) ...")
         vllm_model = init_vllm(
@@ -258,7 +277,7 @@ def load_policy_into_vllm_instance(policy, llm) -> None:
         # 1. Rollout
         if vllm_model is not None:
             print("Syncing policy → vLLM for rollout...")
-            load_policy_into_vllm_instance(policy, vllm_model)
+            load_policy_into_vllm_instance(policy, vllm_model, args.train_device)
             print(f"Generating rollouts ({len(train_prompts)} questions × G={args.G})...")
             rollout_data = generate_ei_rollouts(
                 vllm_model, train_prompts, train_gts, rollout_params
@@ -293,7 +312,7 @@ def load_policy_into_vllm_instance(policy, llm) -> None:
         # 3. Evaluate
         if vllm_model is not None:
             print(f"Evaluating on {args.n_eval_examples} validation examples...")
-            load_policy_into_vllm_instance(policy, vllm_model)
+            load_policy_into_vllm_instance(policy, vllm_model, args.train_device)
             policy.eval()
             with torch.no_grad():
                 subset = random.sample(val_examples, min(args.n_eval_examples, len(val_examples)))
