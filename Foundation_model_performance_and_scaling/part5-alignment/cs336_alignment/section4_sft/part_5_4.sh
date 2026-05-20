@@ -9,6 +9,7 @@
 #   ./part_5_4.sh --tests-only               # helper tests only (no training, CPU)
 #   ./part_5_4.sh --train-only               # all training experiments, skip tests
 #   ./part_5_4.sh --ablation-only            # ablation runs only (n128/256/512/1024), skip full/filtered
+#   ./part_5_4.sh --filtered-only           # filtered runs only (skip ablation + full) — use after ablation/full already ran
 #   ./part_5_4.sh --smoke-test               # single-GPU local smoke test (no eval, no wandb)
 #   ./part_5_4.sh --filter-source both       # filtered runs: run both auto+repo for comparison (default)
 #   ./part_5_4.sh --filter-source auto       # filtered run: compute via r1_zero_reward_fn only (4542 examples)
@@ -41,6 +42,7 @@ ROOT="$(cd ../.. && pwd)"
 TESTS_ONLY=false
 TRAIN_ONLY=false
 ABLATION_ONLY=false
+FILTERED_ONLY=false
 SMOKE_TEST=false
 FILTER_SOURCE="both"   # both = run auto + repo | auto = r1_zero_reward_fn only | repo = repo file only
 while [[ $# -gt 0 ]]; do
@@ -48,6 +50,7 @@ while [[ $# -gt 0 ]]; do
         --tests-only)        TESTS_ONLY=true ;;
         --train-only)        TRAIN_ONLY=true ;;
         --ablation-only)     ABLATION_ONLY=true; TRAIN_ONLY=true ;;
+        --filtered-only)     FILTERED_ONLY=true; TRAIN_ONLY=true ;;
         --smoke-test)        SMOKE_TEST=true ;;
         --filter-source)     FILTER_SOURCE="$2"; shift ;;
         --filter-source=*)   FILTER_SOURCE="${1#--filter-source=}" ;;
@@ -150,26 +153,30 @@ if [ "${TESTS_ONLY}" = false ]; then
     # eval_interval is set per run so at least one eval fires per epoch:
     #   n steps/epoch = (n_examples / micro_bs / grad_accum)
     #   n128 → 2 steps/epoch, n256 → 4, n512 → 8, n1024 → 16
-    for N in 128 256 512 1024; do
-        case ${N} in
-            128)  EVAL_INT=2  ;;
-            256)  EVAL_INT=4  ;;
-            512)  EVAL_INT=8  ;;
-            1024) EVAL_INT=15 ;;
-        esac
-        echo "--- SFT with ${N} training examples (eval every ${EVAL_INT} steps) ---"
-        ${TRAIN_CMD} \
-            --max_train_examples ${N} \
-            --eval_interval      ${EVAL_INT} \
-            --run_name "sft_n${N}"
-        echo ""
-    done
+    if [ "${FILTERED_ONLY}" = false ]; then
+        for N in 128 256 512 1024; do
+            case ${N} in
+                128)  EVAL_INT=2  ;;
+                256)  EVAL_INT=4  ;;
+                512)  EVAL_INT=8  ;;
+                1024) EVAL_INT=15 ;;
+            esac
+            echo "--- SFT with ${N} training examples (eval every ${EVAL_INT} steps) ---"
+            ${TRAIN_CMD} \
+                --max_train_examples ${N} \
+                --eval_interval      ${EVAL_INT} \
+                --run_name "sft_n${N}"
+            echo ""
+        done
+    fi
 
     if [ "${ABLATION_ONLY}" = false ]; then
-        echo "--- SFT with full dataset ---"
-        ${TRAIN_CMD} \
-            --run_name "sft_full"
-        echo ""
+        if [ "${FILTERED_ONLY}" = false ]; then
+            echo "--- SFT with full dataset ---"
+            ${TRAIN_CMD} \
+                --run_name "sft_full"
+            echo ""
+        fi
 
         # --- auto: filter at runtime via r1_zero_reward_fn (4542 examples) ---
         if [ "${FILTER_SOURCE}" = "auto" ] || [ "${FILTER_SOURCE}" = "both" ]; then

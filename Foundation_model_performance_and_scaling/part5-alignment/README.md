@@ -12,7 +12,7 @@ Starting from a base model pretrained on math data, the pipeline progressively
 improves mathematical reasoning:
 
 1. **Measure** zero-shot baseline performance on MATH using the r1_zero prompt
-2. **Fine-tune** on DeepSeek R1 chain-of-thought reasoning traces (SFT)
+2. **Fine-tune** on `gpt-oss-120b` chain-of-thought reasoning traces (SFT)
 3. **Bootstrap** reasoning via Expert Iteration: rollout → filter correct → fine-tune
 4. **Optimize** with GRPO: policy gradient with group-normalized verified rewards
 
@@ -87,7 +87,7 @@ varying dataset size and data quality filtering.
 
 ### Training Experiment
 
-Runs six experiments sequentially (dataset size ablation + filtered data):
+Runs seven experiments sequentially (dataset size ablation + filtered data):
 
 | Run | Training examples | Notes |
 |-----|------------------|-------|
@@ -95,16 +95,19 @@ Runs six experiments sequentially (dataset size ablation + filtered data):
 | `sft_n256` | 256 | |
 | `sft_n512` | 512 | |
 | `sft_n1024` | 1024 | |
-| `sft_full` | Full dataset | Target: ≥ 15% validation accuracy |
-| `sft_filtered` | Full, correct-answer only | Filtered by r1_zero reward function |
+| `sft_full` | Full dataset (4836) | Target: ≥ 15% validation accuracy |
+| `sft_filtered` | 4542, correct-only | Filtered by r1_zero_reward_fn (sympy equivalence) |
+| `sft_filtered_repo` | 3496, correct-only | Filtered by strict string match |
 
 ```bash
 cd cs336_alignment/section4_sft
-./part_5_4.sh                        # helper tests + all 6 training runs (2 GPUs)
+./part_5_4.sh                        # helper tests + all 7 training runs (2 GPUs)
 ./part_5_4.sh --tests-only           # helper tests only (CPU, works locally)
-./part_5_4.sh --train-only           # all 6 training runs, skip tests
+./part_5_4.sh --train-only           # all 7 training runs, skip tests
 ./part_5_4.sh --ablation-only        # re-run only n128/256/512/1024, preserve full/filtered
 ./part_5_4.sh --smoke-test           # single-GPU local smoke test (32 examples, no eval)
+./part_5_4.sh --filter-source auto   # filtered run: r1_zero_reward_fn only
+./part_5_4.sh --filter-source repo   # filtered run: string-match file only
 ```
 
 Training uses 2 GPUs: policy on `cuda:0`, vLLM evaluator on `cuda:1`. Evaluates
@@ -138,23 +141,25 @@ Reads all `eval_metrics_*.jsonl` files in `results/section4/` and saves:
 
 ### Results
 
-All six experiments ran on 2× A100 40 GB GPUs. Target was ≥ 15% validation accuracy on the full dataset — exceeded by a large margin.
+All seven experiments ran on 2× A100 40 GB GPUs. Target was ≥ 15% validation accuracy on the full dataset — exceeded by a large margin.
 
 **Final validation accuracy per run:**
 
 | Run | Training examples | Peak accuracy | Final accuracy |
 |-----|------------------|---------------|----------------|
 | `sft_n128` | 128 | 51.0% | 51.0% |
-| `sft_n256` | 256 | 57.5% | 56.5% |
-| `sft_n512` | 512 | 62.5% | 62.5% |
-| `sft_n1024` | 1024 | **65.0%** | 59.0% |
-| `sft_full` | 4836 | 58.5% | 55.5% |
-| `sft_filtered` | Full, correct-only | 59.5% | 55.0% |
+| `sft_n256` | 256 | 58.5% | 57.5% |
+| `sft_n512` | 512 | 63.5% | 63.5% |
+| `sft_n1024` | 1024 | **65.0%** | 58.5% |
+| `sft_full` | 4836 | 60.0% | 53.5% |
+| `sft_filtered` | 4542 (correct-only, r1_zero_reward_fn) | **65.0%** | **65.0%** |
+| `sft_filtered_repo` | 3496 (correct-only, string match) | 63.5% | 63.5% |
 
 **Key findings:**
 - Even 128 examples is enough to jump from 2.5% (zero-shot) to ~50% — SFT teaches format compliance immediately, which unlocks most of the gain
-- Accuracy improves with dataset size up to 1024 examples (65% peak), then plateaus with the full dataset — likely because the full-dataset model needs more training steps to fully converge
-- Correct-answer filtering has a modest benefit early in training (slightly higher peak at step 100) but converges to similar accuracy as unfiltered SFT
+- Accuracy improves with dataset size up to 1024 examples (65% peak), then degrades slightly at end-of-training due to mild overfitting on the small set
+- Correct-answer filtering makes a clear difference: `sft_filtered` reaches 65% and holds it through 200 steps, while `sft_full` peaks at 60% and degrades to 53.5% — the ~6% wrong-answer examples in the full dataset introduce noise that causes late overfitting
+- Stricter string-match filtering (3496 examples) performs slightly below sympy-equivalence filtering (4542) — the extra 1046 examples that are mathematically correct but not string-identical do provide useful signal
 
 **Accuracy curves (dataset size ablation):**
 
@@ -166,9 +171,9 @@ All six experiments ran on 2× A100 40 GB GPUs. Target was ≥ 15% validation ac
 
 **Training loss and eval metrics (wandb):**
 
-![Training loss](results/section4/wandb_loss.png)
+![Training loss](results/section4/wandb_loss_updated.png)
 
-![Eval metrics](results/section4/wandb_eval.png)
+![Eval metrics](results/section4/wandb_eval_updated.png)
 
 ---
 
