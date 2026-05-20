@@ -4,25 +4,23 @@ Run via part_5_4.sh or directly:
     uv run python cs336_alignment/section4_sft/train_sft.py [args]
 """
 
+from __future__ import annotations  # defer annotation evaluation — keeps LLM/SamplingParams in sigs without importing vLLM
+
 import argparse
 import json
+import re
 import random
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from unittest.mock import patch
 
-import torch
-import wandb
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from vllm import LLM, SamplingParams
-
 from cs336_alignment.drgrpo_grader import r1_zero_reward_fn
-from cs336_alignment.section4_sft.helpers import (
-    get_response_log_probs,
-    log_generations,
-    sft_microbatch_train_step,
-    tokenize_prompt_and_output,
-)
+
+# vLLM and wandb are NOT imported at module level: importing vLLM triggers
+# CUDA initialization (~3 min) which breaks fast unit tests of data utilities.
+# They are imported lazily inside init_vllm() and train() at runtime.
+if TYPE_CHECKING:
+    from vllm import LLM, SamplingParams
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +33,8 @@ def init_vllm(
     seed: int,
     gpu_memory_utilization: float = 0.85,
 ) -> LLM:
+    import torch
+    from vllm import LLM
     from vllm.model_executor import set_random_seed as vllm_set_random_seed
     vllm_set_random_seed(seed)
     world_size_patch = patch("torch.distributed.get_world_size", return_value=1)
@@ -72,6 +72,28 @@ def _get_ground_truth(example: dict) -> str:
     return raw
 
 
+def _load_gt_lookup(data_path: Path) -> dict[str, str]:
+    """Build question→ground_truth lookup from train.jsonl in the same directory."""
+    train_path = data_path.parent / "train.jsonl"
+    if not train_path.exists():
+        return {}
+    lookup = {}
+    with open(train_path) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                ex = json.loads(line)
+                if "problem" in ex:
+                    lookup[ex["problem"]] = str(ex.get("solution", ex.get("answer", "")))
+    return lookup
+
+
+def _extract_question_from_prompt(prompt: str) -> str:
+    """Extract question text from the r1_zero prompt format (between 'User: ' and '\\nAssistant:')."""
+    m = re.search(r"User: (.+?)\nAssistant:", prompt, re.DOTALL)
+    return m.group(1).strip() if m else ""
+
+
 def load_sft_dataset(
     data_path: Path,
     max_examples: Optional[int] = None,
@@ -85,17 +107,31 @@ def load_sft_dataset(
                 examples.append(json.loads(line))
 
     if filter_correct:
+        # Load ground-truth lookup from train.jsonl sibling file.
+        # SFT data only has {prompt, response} — no ground-truth field — so we
+        # extract the question from the prompt and look it up in train.jsonl.
+        gt_lookup = _load_gt_lookup(data_path)
+        if gt_lookup:
+            print(f"Loaded ground-truth lookup: {len(gt_lookup)} entries from {data_path.parent / 'train.jsonl'}")
+        else:
+            print("WARNING: train.jsonl not found; falling back to format-based filtering.")
+
         filtered = []
-        for ex in examples:
+        for i, ex in enumerate(examples):
             gt = _get_ground_truth(ex)
+            if not gt and gt_lookup:
+                q = _extract_question_from_prompt(ex.get("prompt", ""))
+                gt = gt_lookup.get(q, "")
             if gt:
                 rewards = r1_zero_reward_fn(ex.get("response", ""), gt)
                 if rewards["answer_reward"] == 1.0:
                     filtered.append(ex)
             else:
-                # No ground truth available — keep if response has valid format
+                # Fallback when ground truth unavailable: keep if format is valid
                 if "<answer>" in ex.get("response", ""):
                     filtered.append(ex)
+            if (i + 1) % 500 == 0:
+                print(f"  Filtering: {i + 1}/{len(examples)} checked, {len(filtered)} kept so far")
         print(f"Filtered to correct-answer examples: {len(filtered)} / {len(examples)}")
         examples = filtered
 
@@ -131,6 +167,7 @@ def run_eval(
     n_eval: int = 200,
 ) -> dict:
     """Evaluate policy on a random subset of the MATH validation set."""
+    from cs336_alignment.section4_sft.helpers import log_generations
     subset = random.sample(val_examples, min(n_eval, len(val_examples)))
     prompts = [
         prompt_template.format(question=ex.get("problem", ex.get("question", "")))
@@ -158,6 +195,17 @@ def run_eval(
 # ---------------------------------------------------------------------------
 
 def train(args: argparse.Namespace) -> None:
+    import torch
+    import wandb
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from vllm import SamplingParams
+    from cs336_alignment.section4_sft.helpers import (
+        get_response_log_probs,
+        log_generations,
+        sft_microbatch_train_step,
+        tokenize_prompt_and_output,
+    )
+
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 

@@ -5,11 +5,14 @@
 #
 # USAGE:
 #   cd cs336_alignment/section4_sft
-#   ./part_5_4.sh                  # tests + all training experiments (2 GPUs)
-#   ./part_5_4.sh --tests-only     # helper tests only (no training, CPU)
-#   ./part_5_4.sh --train-only     # all training experiments, skip tests
-#   ./part_5_4.sh --ablation-only  # ablation runs only (n128/256/512/1024), skip full/filtered
-#   ./part_5_4.sh --smoke-test     # single-GPU local smoke test (no eval, no wandb)
+#   ./part_5_4.sh                            # tests + all training experiments (2 GPUs)
+#   ./part_5_4.sh --tests-only               # helper tests only (no training, CPU)
+#   ./part_5_4.sh --train-only               # all training experiments, skip tests
+#   ./part_5_4.sh --ablation-only            # ablation runs only (n128/256/512/1024), skip full/filtered
+#   ./part_5_4.sh --smoke-test               # single-GPU local smoke test (no eval, no wandb)
+#   ./part_5_4.sh --filter-source both       # filtered runs: run both auto+repo for comparison (default)
+#   ./part_5_4.sh --filter-source auto       # filtered run: compute via r1_zero_reward_fn only (4542 examples)
+#   ./part_5_4.sh --filter-source repo       # filtered run: use pre-downloaded repo file only (3496 examples)
 #
 # WHAT IT DOES:
 #   1. Resolves model and data paths (cluster → local assets → HuggingFace)
@@ -39,13 +42,17 @@ TESTS_ONLY=false
 TRAIN_ONLY=false
 ABLATION_ONLY=false
 SMOKE_TEST=false
-for arg in "$@"; do
-    case "$arg" in
-        --tests-only)    TESTS_ONLY=true ;;
-        --train-only)    TRAIN_ONLY=true ;;
-        --ablation-only) ABLATION_ONLY=true; TRAIN_ONLY=true ;;
-        --smoke-test)    SMOKE_TEST=true ;;
+FILTER_SOURCE="both"   # both = run auto + repo | auto = r1_zero_reward_fn only | repo = repo file only
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --tests-only)        TESTS_ONLY=true ;;
+        --train-only)        TRAIN_ONLY=true ;;
+        --ablation-only)     ABLATION_ONLY=true; TRAIN_ONLY=true ;;
+        --smoke-test)        SMOKE_TEST=true ;;
+        --filter-source)     FILTER_SOURCE="$2"; shift ;;
+        --filter-source=*)   FILTER_SOURCE="${1#--filter-source=}" ;;
     esac
+    shift
 done
 
 # --- Model path ---
@@ -164,13 +171,27 @@ if [ "${TESTS_ONLY}" = false ]; then
             --run_name "sft_full"
         echo ""
 
-        # run_name "sft_filtered" + --filter_correct → train_sft.py keeps "sft_filtered"
-        # (does not double-append since name already ends with _filtered)
-        echo "--- SFT with correct-answer-filtered dataset ---"
-        ${TRAIN_CMD} \
-            --filter_correct \
-            --run_name "sft_filtered"
-        echo ""
+        # --- auto: filter at runtime via r1_zero_reward_fn (4542 examples) ---
+        if [ "${FILTER_SOURCE}" = "auto" ] || [ "${FILTER_SOURCE}" = "both" ]; then
+            echo "--- SFT with filtered dataset (auto: r1_zero_reward_fn, ~4542 examples) ---"
+            ${TRAIN_CMD} \
+                --filter_correct \
+                --run_name "sft_filtered"
+            echo ""
+        fi
+
+        # --- repo: use pre-downloaded repo filtered file (3496 examples, strict string match) ---
+        if [ "${FILTER_SOURCE}" = "repo" ] || [ "${FILTER_SOURCE}" = "both" ]; then
+            echo "--- SFT with filtered dataset (repo: strict string match, 3496 examples) ---"
+            FILTERED_DATA="${ROOT}/data/math/sft_filtered_repo.jsonl"
+            if [ ! -f "${FILTERED_DATA}" ]; then
+                echo "ERROR: ${FILTERED_DATA} not found. Download it first from HuggingFace."; exit 1
+            fi
+            ${TRAIN_CMD} \
+                --data     "${FILTERED_DATA}" \
+                --run_name "sft_filtered_repo"
+            echo ""
+        fi
     fi
 
     echo "==> All training experiments done. Results at ${OUTPUT}"
