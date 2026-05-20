@@ -26,10 +26,11 @@ ABLATION_LABELS = {
     "sft_n1024": "1024",
     "sft_full": "Full dataset",
 }
-FILTER_RUNS = {"sft_full", "sft_filtered"}
+FILTER_RUNS = {"sft_full", "sft_filtered", "sft_filtered_repo"}
 FILTER_LABELS = {
-    "sft_full": "Full (unfiltered)",
-    "sft_filtered": "Correct-answer filtered",
+    "sft_full": "Full (unfiltered, 4836)",
+    "sft_filtered": "Filtered — r1_zero_reward_fn (4542)",
+    "sft_filtered_repo": "Filtered — repo string match (3496)",
 }
 
 
@@ -88,7 +89,7 @@ def plot_filtered_comparison(runs: dict, output_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(7, 4))
 
     plotted = False
-    for run_name in ["sft_full", "sft_filtered"]:
+    for run_name in ["sft_full", "sft_filtered", "sft_filtered_repo"]:
         if run_name not in runs:
             continue
         records = runs[run_name]
@@ -105,7 +106,7 @@ def plot_filtered_comparison(runs: dict, output_dir: Path) -> None:
 
     ax.set_xlabel("Training step")
     ax.set_ylabel("Validation accuracy")
-    ax.set_title("SFT — Full Dataset vs Correct-Answer Filtered")
+    ax.set_title("SFT — Full Dataset vs Filtered Variants")
     ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1.0))
     ax.legend(loc="lower right")
     ax.grid(True, alpha=0.3)
@@ -122,7 +123,7 @@ def print_summary(runs: dict) -> None:
     print("\nFinal validation accuracy per run:")
     print(f"  {'Run':<25} {'Steps':>6}  {'Final acc':>10}  {'Peak acc':>10}")
     print("  " + "-" * 57)
-    for run_name in ABLATION_ORDER + ["sft_filtered"]:
+    for run_name in ABLATION_ORDER + ["sft_filtered", "sft_filtered_repo"]:
         if run_name not in runs:
             continue
         records = runs[run_name]
