@@ -468,3 +468,87 @@ wandb.define_metric("eval/*",  step_metric="eval_step")
 **(b)** Filter the SFT dataset to only examples where the response contains the correct answer. Run SFT on the full filtered dataset.
 
 **Output:** Filtered dataset size and validation accuracy curve. Compare to unfiltered SFT results.
+
+---
+
+## Section 5: Expert Iteration
+
+### Algorithm: Expert Iteration
+
+```
+Input: initial policy model π_θ_init; training dataset D_train; number of EI steps n_ei_steps;
+       number of rollouts per question G; SFT epochs per EI step n_sft_epochs;
+       SFT batch size D_b; sampling temperature T
+1: policy model π_θ ← π_θ_init
+2: for step = 1, …, n_ei_steps do
+3:     rollout dataset D_rollout ← {}
+4:     for each question q in D_train do
+5:         generate G responses r_1, …, r_G using π_θ with temperature T
+6:         for each response r_i do
+7:             reward ← r1_zero_reward_fn(r_i, ground_truth(q))
+8:             if reward > 0 then
+9:                 add (q, r_i) to D_rollout
+10:            end if
+11:        end for
+12:    end for
+13:    fine-tune π_θ on D_rollout for n_sft_epochs epochs using batch size D_b
+14: end for
+Output: π_θ
+```
+
+**Goal:** Starting from the base model (Qwen 2.5 Math 1.5B), improve mathematical reasoning through an iterative rollout-filter-finetune loop. Each Expert Iteration (EI) step generates G responses per training question, keeps only those with correct answers (verified via the rule-based reward function), and fine-tunes the model on this filtered dataset. Repeating this loop bootstraps reasoning capabilities without human-written traces.
+
+**Training data:** `data/math/train.jsonl` — 7499 `{problem, solution}` examples.
+
+**Base model:** Qwen 2.5 Math 1.5B (same as SFT; do not warm-start from the SFT checkpoint).
+
+---
+
+### 5.1 vLLM Generation for Expert Iteration
+
+Use vLLM with the following sampling configuration for rollouts (set `min_tokens=4` to prevent degenerate empty responses):
+
+```python
+sampling_params = SamplingParams(
+    temperature=sampling_temperature,
+    max_tokens=max_tokens,
+    min_tokens=4,
+    n=G,
+    stop=["</answer>"],
+    include_stop_str_in_output=True,
+)
+```
+
+Setting `n=G` generates G independent responses per prompt in a single vLLM call, which is more efficient than G separate calls.
+
+---
+
+### 5.2 Expert Iteration Experiment (5 points, ~4 H100 hrs)
+
+Using the SFT helper methods from Section 4 and the Expert Iteration algorithm above, run the following experiment:
+
+**Setup:** Run Expert Iteration for `n_ei_steps = 5` steps. After each EI step (rollout + fine-tune), evaluate the current policy on the MATH validation set and record validation accuracy.
+
+**Experiment:** Vary at least one of the following hyperparameters and report the effect on validation accuracy:
+
+- Number of rollouts per question: **G ∈ {1, 4, 16}** (more rollouts → richer filtered dataset per step)
+- SFT epochs per EI step: varying `n_sft_epochs`
+- SFT batch size: **D_b ∈ {512, 1024, 2048}**
+
+Use gradient clipping with clip value 1.0.
+
+**Logging:** Log validation accuracy after each EI step. Optionally log token entropy and average response length as diagnostic signals.
+
+**(a)** Run the Expert Iteration experiment. Report validation accuracy curves across EI steps for each hyperparameter configuration tested.
+
+**Target:** ≥ 15% validation accuracy after 5 EI steps.
+
+**Output:** Validation accuracy curves (one curve per configuration).
+
+**(b)** In 2 sentences, compare Expert Iteration to SFT from Section 4. Does the data source (model-generated vs. human/R1-generated) matter? Does the iterative loop help?
+
+**Output:** 2-sentence comparison.
+
+**(c)** Plot token entropy over the course of Expert Iteration training. Does entropy increase, decrease, or stay flat? Compare to the SFT entropy trajectory.
+
+**Output:** Entropy plot and 1–2 sentence interpretation.
