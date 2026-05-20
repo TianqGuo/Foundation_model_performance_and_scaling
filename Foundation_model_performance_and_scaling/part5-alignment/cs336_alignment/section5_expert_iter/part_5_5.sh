@@ -96,7 +96,8 @@ echo ""
 # Smoke test: single GPU, 32 questions, 1 EI step, no eval
 # ---------------------------------------------------------------------------
 if [ "${SMOKE_TEST}" = true ]; then
-    echo "==> [smoke-test] EI smoke test (32 questions, G=1, 1 step, no eval)"
+    echo "==> [smoke-test] EI smoke test (32 questions, G=1, 1 step)"
+    echo "    Single-GPU mode: vLLM and policy share cuda:0 (auto-detected)"
     uv run python "${ROOT}/cs336_alignment/section5_expert_iter/train_expert_iter.py" \
         --model    "${MODEL}" \
         --data     "${DATA}" \
@@ -105,7 +106,7 @@ if [ "${SMOKE_TEST}" = true ]; then
         --max_train_examples 32 \
         --n_ei_steps 1 \
         --G 1 \
-        --skip_eval \
+        --n_eval_examples 50 \
         --no_wandb \
         --run_name "ei_smoke"
     echo "==> Smoke test done. Results at ${OUTPUT}"

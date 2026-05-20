@@ -149,8 +149,12 @@ def train(args: argparse.Namespace) -> None:
     if not torch.cuda.is_available():
         raise SystemExit("ERROR: CUDA not available. EI training requires GPU(s).")
     n_gpus = torch.cuda.device_count()
-    use_vllm = n_gpus >= 2 and not args.skip_eval
-    print(f"GPUs: {n_gpus}  |  vLLM rollout+eval: {use_vllm}")
+    # Single-GPU mode: share cuda:0 for both policy and vLLM (lower memory utilization)
+    single_gpu = n_gpus == 1
+    if single_gpu:
+        args.vllm_device = args.train_device
+    use_vllm = not args.skip_eval
+    print(f"GPUs: {n_gpus}  |  single_gpu: {single_gpu}  |  vLLM rollout+eval: {use_vllm}")
 
     run_name = args.run_name or f"ei_g{args.G}"
     if not args.no_wandb:
@@ -174,11 +178,16 @@ def train(args: argparse.Namespace) -> None:
     policy.train()
     print(f"Policy on {args.train_device}")
 
-    # vLLM on second GPU
+    # vLLM: second GPU for full runs, same GPU for single-GPU smoke tests
     vllm_model = None
     if use_vllm:
-        print(f"Initializing vLLM on {args.vllm_device} ...")
-        vllm_model = init_vllm(args.model, args.vllm_device, args.seed)
+        # Single-GPU: reduce vLLM memory to leave room for policy gradients
+        gpu_memory_utilization = 0.5 if single_gpu else 0.85
+        print(f"Initializing vLLM on {args.vllm_device} (mem_util={gpu_memory_utilization}) ...")
+        vllm_model = init_vllm(
+            args.model, args.vllm_device, args.seed,
+            gpu_memory_utilization=gpu_memory_utilization,
+        )
         print("vLLM ready")
 
     # Prompt template
