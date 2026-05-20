@@ -138,7 +138,13 @@ def train(args: argparse.Namespace) -> None:
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from vllm import SamplingParams
     from cs336_alignment.section4_sft.helpers import log_generations
-    from cs336_alignment.section4_sft.train_sft import init_vllm, load_policy_into_vllm_instance
+    from cs336_alignment.section4_sft.train_sft import init_vllm
+
+def load_policy_into_vllm_instance(policy, llm) -> None:
+    # Route through CPU to avoid cross-GPU (cuda:0 → cuda:1) P2P transfer hangs
+    state_dict = {k: v.cpu() for k, v in policy.state_dict().items()}
+    llm_model = llm.llm_engine.model_executor.driver_worker.model_runner.model
+    llm_model.load_weights(state_dict.items())
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
