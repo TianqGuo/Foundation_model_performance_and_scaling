@@ -713,3 +713,292 @@ The ratio `π_θ / π_{θ_old}` is the importance weight — it corrects for the
 - Off-policy rollouts (multiple updates per batch)
 - Group baseline: for each question, the baseline is the mean reward across its G rollouts
 - Clipped importance weights (same clipping as PPO) to bound policy divergence
+
+---
+
+## Section 7 — Group Relative Policy Optimization (GRPO)
+
+GRPO is the policy gradient variant used to train DeepSeek R1 and related reasoning models. It avoids the need for a separate value network by using the model's own group of rollouts as a self-contained baseline.
+
+---
+
+### 7.1 GRPO Algorithm
+
+#### Advantage Estimation
+
+For a question `q`, sample G outputs `{o^(i)}_{i=1}^G ~ π_θ(·|q)` and compute reward `r^(i) = R(q, o^(i))` for each. The **group-normalized advantage** for output `i` is:
+
+**Standard (DeepSeekMath / DeepSeek R1):**
+```
+A^(i) = (r^(i) - mean(r^(1), ..., r^(G))) / (std(r^(1), ..., r^(G)) + advantage_eps)
+```
+
+**Dr. GRPO simplified variant** (removes std normalization, which can over-reward low-variance groups):
+```
+A^(i) = r^(i) - mean(r^(1), ..., r^(G))
+```
+
+`advantage_eps` is a small constant (e.g. 1e-6) to prevent division by zero. `A^(i)` is the same for all tokens in response `o^(i)` — one scalar per rollout, not per token.
+
+#### High-Level Training Loop (Algorithm 3)
+
+```
+Input: initial policy π_{θ_init}, reward function R, questions D
+1: π_θ ← π_{θ_init}
+2: for step = 1, ..., n_grpo_steps:
+3:     sample batch D_b from D
+4:     set old policy π_{θ_old} ← π_θ
+5:     sample G outputs {o^(i)} ~ π_{θ_old}(·|q) for each q ∈ D_b
+6:     compute rewards {r^(i)} via R(q, o^(i))
+7:     compute advantages A^(i) via group normalization
+8:     for train_step = 1, ..., n_train_steps_per_rollout_batch:
+9:         update π_θ by maximizing GRPO-Clip objective (Eq. 29)
+10:    end for
+11: end for
+Output: π_θ
+```
+
+#### GRPO-Clip Objective
+
+The full objective combines off-policy importance weighting, group-normalized advantages, and PPO-style clipping:
+
+```
+J_GRPO-Clip(θ) = E_{q, {o^(i)}} [
+  (1/G) Σ_i (1/|o^(i)|) Σ_t
+    min(
+      ratio_t^(i) · A^(i),
+      clip(ratio_t^(i), 1-ε, 1+ε) · A^(i)
+    )
+]
+
+where ratio_t^(i) = π_θ(o_t^(i) | q, o_{<t}^(i)) / π_{θ_old}(o_t^(i) | q, o_{<t}^(i))
+```
+
+**Clipping intuition — rewritten as `g(ε, A^(i))`:**
+
+| Advantage sign | Per-token objective | Effect |
+|---|---|---|
+| `A^(i) > 0` | `min(ratio, 1+ε) · A^(i)` | Increase token prob, but stop incentivizing once ratio > 1+ε |
+| `A^(i) < 0` | `max(ratio, 1-ε) · A^(i)` | Decrease token prob, but stop once ratio < 1-ε |
+
+The clip prevents `π_θ` from straying too far from `π_{θ_old}`. Without it, multiple gradient steps on the same rollout batch would cause the policy to over-optimize on stale data.
+
+---
+
+### 7.2 Implementation
+
+All implementations go in `cs336_alignment/section6_grpo/` (or equivalent section folder). Each function below has a corresponding adapter in `tests/adapters.py` and a pytest test.
+
+---
+
+#### 7.2.1 `compute_group_normalized_rewards` (2 points)
+
+Compute per-rollout rewards and normalize within groups.
+
+```python
+def compute_group_normalized_rewards(
+    reward_fn,               # Callable[[str, str], dict[str, float]]
+    rollout_responses,       # list[str], length = n_prompts * group_size
+    repeated_ground_truths,  # list[str], length = n_prompts * group_size
+    group_size,              # int, G
+    advantage_eps,           # float, small constant for std normalization
+    normalize_by_std,        # bool, True = standard GRPO, False = Dr. GRPO
+) -> tuple[torch.Tensor, torch.Tensor, dict[str, float]]:
+    # Returns:
+    #   advantages   shape (rollout_batch_size,)  — group-normalized rewards
+    #   raw_rewards  shape (rollout_batch_size,)  — unnormalized rewards
+    #   metadata     dict of stats to log (mean, std, min/max of rewards, etc.)
+```
+
+**Key detail:** `rollout_responses` and `repeated_ground_truths` are both length `n_prompts * G`, laid out as `[q1_r1, q1_r2, ..., q1_rG, q2_r1, ...]`. Group i spans indices `[i*G : (i+1)*G]`.
+
+Test: `uv run pytest -k test_compute_group_normalized_rewards`
+
+---
+
+#### 7.2.2 `compute_naive_policy_gradient_loss` (1 point)
+
+Simple policy gradient loss: multiply per-token log-probs by the advantage (negated, so minimizing = gradient ascent).
+
+```python
+def compute_naive_policy_gradient_loss(
+    raw_rewards_or_advantages: torch.Tensor,  # shape (batch_size, 1)
+    policy_log_probs: torch.Tensor,           # shape (batch_size, sequence_length)
+) -> torch.Tensor:                            # shape (batch_size, sequence_length)
+    # per-token loss = -A^(i) * log π_θ(o_t | q, o_{<t})
+    # broadcast advantages over sequence_length dimension
+```
+
+Used for both `no_baseline` (A = raw reward) and `reinforce_with_baseline` (A = group-normalized reward).
+
+Test: `uv run pytest -k test_compute_naive_policy_gradient_loss`
+
+---
+
+#### 7.2.3 `compute_grpo_clip_loss` (2 points)
+
+GRPO-Clip loss with importance weighting and clipping.
+
+```python
+def compute_grpo_clip_loss(
+    advantages: torch.Tensor,      # shape (batch_size, 1)
+    policy_log_probs: torch.Tensor,  # shape (batch_size, sequence_length) — current policy
+    old_log_probs: torch.Tensor,     # shape (batch_size, sequence_length) — old policy
+    cliprange: float,                # ε, e.g. 0.2
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    # loss shape (batch_size, sequence_length)
+    # metadata: clip fraction per token (was the clipped term the min?)
+```
+
+**Implementation:**
+1. Compute `ratio = exp(policy_log_probs - old_log_probs)` (importance weight, in log space for stability)
+2. Compute `clipped_ratio = clip(ratio, 1-ε, 1+ε)`
+3. Per-token loss = `-min(ratio * A, clipped_ratio * A)`
+4. Broadcast advantages over sequence length
+
+Test: `uv run pytest -k test_compute_grpo_clip_loss`
+
+---
+
+#### 7.2.4 `compute_policy_gradient_loss` — wrapper (1 point)
+
+Dispatcher that routes to the correct loss function based on `loss_type`.
+
+```python
+def compute_policy_gradient_loss(
+    policy_log_probs: torch.Tensor,                             # (batch_size, seq_len)
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+    raw_rewards: torch.Tensor | None = None,                    # (batch_size, 1)
+    advantages: torch.Tensor | None = None,                     # (batch_size, 1)
+    old_log_probs: torch.Tensor | None = None,                  # (batch_size, seq_len)
+    cliprange: float | None = None,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    # Dispatches:
+    #   no_baseline              → compute_naive_policy_gradient_loss(raw_rewards, ...)
+    #   reinforce_with_baseline  → compute_naive_policy_gradient_loss(advantages, ...)
+    #   grpo_clip                → compute_grpo_clip_loss(advantages, ..., old_log_probs, ε)
+```
+
+Test: `uv run pytest -k test_compute_policy_gradient_loss`
+
+---
+
+#### 7.2.5 `masked_mean` (1 point)
+
+Average over response tokens only (ignore prompt and padding positions).
+
+```python
+def masked_mean(
+    tensor: torch.Tensor,    # data to average
+    mask: torch.Tensor,      # same shape; 1 = response token, 0 = prompt/padding
+    dim: int | None = None,  # dimension to reduce; None = mean over all masked elements
+) -> torch.Tensor:
+```
+
+Used to reduce per-token losses of shape `(batch_size, seq_len)` to per-example scalars, and also for per-token entropy and clip fraction statistics.
+
+Test: `uv run pytest -k test_masked_mean`
+
+---
+
+#### 7.2.6 `grpo_microbatch_train_step` (3 points)
+
+Single microbatch forward + backward pass for GRPO.
+
+```python
+def grpo_microbatch_train_step(
+    policy_log_probs: torch.Tensor,       # (batch_size, seq_len)
+    response_mask: torch.Tensor,          # (batch_size, seq_len)
+    gradient_accumulation_steps: int,
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+    raw_rewards: torch.Tensor | None = None,     # (batch_size, 1)
+    advantages: torch.Tensor | None = None,      # (batch_size, 1)
+    old_log_probs: torch.Tensor | None = None,   # (batch_size, seq_len)
+    cliprange: float | None = None,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    # 1. Call compute_policy_gradient_loss → per-token loss (batch_size, seq_len)
+    # 2. Apply masked_mean over sequence dim → scalar loss per example
+    # 3. Average over batch dim
+    # 4. Divide by gradient_accumulation_steps
+    # 5. Call loss.backward()
+    # Returns: (scalar loss, metadata dict)
+```
+
+Test: `uv run pytest -k test_grpo_microbatch_train_step`
+
+---
+
+#### 7.2.7 `grpo_train_loop` (5 points)
+
+Complete GRPO training loop. Implements Algorithm 3 using all the primitives above.
+
+**Default hyperparameters:**
+
+```python
+n_grpo_steps                = 200
+learning_rate               = 1e-5
+advantage_eps               = 1e-6
+rollout_batch_size          = 256
+group_size                  = 8          # G
+sampling_temperature        = 1.0
+sampling_min_tokens         = 4
+sampling_max_tokens         = 1024
+epochs_per_rollout_batch    = 1          # on-policy default
+train_batch_size            = 256        # = rollout_batch_size for on-policy
+gradient_accumulation_steps = 128        # microbatch size = 2
+gpu_memory_utilization      = 0.85
+loss_type                   = "reinforce_with_baseline"
+use_std_normalization       = True
+
+optimizer = torch.optim.AdamW(
+    policy.parameters(), lr=learning_rate, weight_decay=0.0, betas=(0.9, 0.95)
+)
+```
+
+**Key relationships:**
+```python
+assert train_batch_size % gradient_accumulation_steps == 0
+micro_train_batch_size = train_batch_size // gradient_accumulation_steps  # = 2
+
+assert rollout_batch_size % group_size == 0
+n_prompts_per_rollout_batch = rollout_batch_size // group_size  # = 32 questions × 8 rollouts
+
+assert train_batch_size >= group_size
+n_microbatches_per_rollout_batch = rollout_batch_size // micro_train_batch_size  # = 128
+```
+
+**Implementation notes:**
+- Use the `r1_zero` prompt template; stop generation at `</answer>`
+- Gradient clipping with clip value 1.0
+- For off-policy (multiple epochs per rollout batch): compute old log-probs once before the epoch loop and detach; do not recompute per epoch
+- `grpo_clip` requires off-policy mode; `reinforce_with_baseline` and `no_baseline` work on-policy
+- Evaluate on ≥ 1024 validation examples every 5–10 steps (CoT eval is noisy; small subsets mislead)
+- Use `typer` for argument parsing
+
+**Metrics to log per optimizer step:**
+- Loss
+- Gradient norm
+- Token entropy
+- Train rewards (total, format, answer)
+- Clip fraction (off-policy only)
+
+**Deliverable:** training runs showing validation reward improving over steps, plus a few example rollouts at different points in training to illustrate qualitative improvement.
+
+---
+
+### 7.3 GRPO Experiment (Section 7.3)
+
+Run GRPO on Qwen 2.5 Math 1.5B (base model, not SFT checkpoint) and report:
+
+**(a)** Validation reward curve over training steps.
+
+**(b)** A few sampled rollouts at early, mid, and late training — do the generations look more structured/correct over time?
+
+**(c) Ablation:** Compare the three loss types:
+- `no_baseline` — raw reward, no normalization
+- `reinforce_with_baseline` — group-normalized reward (with and without std normalization)
+- `grpo_clip` — full GRPO-Clip (off-policy, multiple gradient steps per rollout batch)
+
+Report validation reward curves for each variant.
+
+**Target:** ≥ 15% validation accuracy after GRPO training.
