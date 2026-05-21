@@ -6,15 +6,45 @@ with verified rewards on the MATH competition dataset.
 
 ---
 
-## What This Project Does
+## Section 1 — Overview
 
-Starting from a base model pretrained on math data, the pipeline progressively
-improves mathematical reasoning:
+This project explores a progression of techniques for improving mathematical reasoning in a small language model. Starting from a base model with no instruction-following or reasoning format knowledge, the pipeline applies increasingly powerful training methods to close the gap toward state-of-the-art reasoning performance.
 
-1. **Measure** zero-shot baseline performance on MATH using the r1_zero prompt
-2. **Fine-tune** on `gpt-oss-120b` chain-of-thought reasoning traces (SFT)
-3. **Bootstrap** reasoning via Expert Iteration: rollout → filter correct → fine-tune
-4. **Optimize** with GRPO: policy gradient with group-normalized verified rewards
+**Model:** [Qwen 2.5 Math 1.5B Base](https://huggingface.co/Qwen/Qwen2.5-Math-1.5B) — a 1.5B-parameter model continually pretrained from Qwen 2.5 1.5B on high-quality synthetic math data. Small enough to iterate quickly; strong enough to show meaningful reasoning improvements.
+
+**Dataset:** [MATH](https://arxiv.org/abs/2103.03874) — 12K competition-level math problems (algebra, geometry, number theory, etc.) with verified ground-truth answers. Evaluation uses string-match reward rather than cross-entropy, directly measuring whether the model produces correct answers.
+
+**Pipeline:**
+
+| Section | Method | Starting point | Key idea |
+|---------|--------|---------------|----------|
+| §3 | Zero-shot baseline | Base model | Measure format compliance and accuracy before any training |
+| §4 | Supervised fine-tuning | `gpt-oss-120b` reasoning traces | Teach format and reasoning from teacher-generated data |
+| §5 | Expert Iteration | Base model | Self-generate training data; keep correct rollouts; iterate |
+| §6 | GRPO | Base model | Policy gradient with group-normalized verified rewards |
+
+---
+
+## Section 2 — Background
+
+### Chain-of-Thought Reasoning
+
+Language models benefit significantly from generating explicit intermediate reasoning steps before producing a final answer — a technique known as chain-of-thought (CoT) prompting. Early work used a scratchpad to decompose arithmetic into steps; later work showed that prompting a model to "think step by step" substantially improves performance even without fine-tuning. This project uses the `r1_zero` prompt format which elicits `<think>...</think> <answer>...</answer>` structured outputs.
+
+### Expert Iteration and STaR
+
+The Self-Taught Reasoner (STaR) [Zelikman et al., 2022] frames reasoning improvement as a bootstrapping loop: sample chains-of-thought from the current model, keep those leading to correct answers, fine-tune on them, repeat. This is a form of Expert Iteration [Anthony et al., 2017] where the model generates its own curriculum — no human-written reasoning traces required. Correctness is verified automatically via string matching against ground-truth answers.
+
+### Reasoning RL with Verified Rewards
+
+Recent models (OpenAI o1/o3, DeepSeek R1, Kimi k1.5) apply policy gradient methods with verified rewards — using math correctness or unit test results as the reward signal rather than human preference. This approach has demonstrated remarkable gains on competition math and coding. Crucially, even models as small as 1.5B parameters show strong improvements from reasoning RL, confirming that the technique is not limited to frontier-scale models.
+
+### Reward Function
+
+All sections use the DrGRPO reward function from Liu et al. [2025]:
+- **Format reward (0.5):** response contains both `<think>` and `<answer>` tags
+- **Answer reward (0.5):** extracted answer matches ground truth (sympy-based equivalence)
+- **Combined reward:** sum of the two; 1.0 = correct format and correct answer
 
 ---
 
@@ -177,6 +207,84 @@ All seven experiments ran on 2× A100 40 GB GPUs. Target was ≥ 15% validation 
 
 ---
 
+---
+
+## Section 5 — Expert Iteration
+
+Bootstraps mathematical reasoning from the base model (no teacher-generated data) using the Expert Iteration (STaR) algorithm: each step generates G rollouts per training question via vLLM, keeps those with reward > 0, fine-tunes the policy on the filtered set, then syncs the updated weights back to vLLM for the next step. Experiments vary G ∈ {1, 4} to measure the effect of rollout budget.
+
+### Architecture
+
+Two GPUs run in parallel with distinct roles:
+- **cuda:0 (PyTorch)** — trainable policy: forward pass, backward pass, gradient accumulation, optimizer step
+- **cuda:1 (vLLM)** — inference engine: batch rollout generation and validation evaluation
+
+After each training phase, updated weights are copied `cuda:0 → CPU → cuda:1` (CPU intermediate avoids cross-GPU CUDA stream deadlock when vLLM holds its KV cache buffers). This sync runs twice per EI step — once before rollout, once before eval.
+
+### Usage
+
+```bash
+cd cs336_alignment/section5_expert_iter
+./part_5_5.sh                  # all 3 EI runs (G=1, 4, 16) on 2 GPUs
+./part_5_5.sh --G 1            # single run with G=1
+./part_5_5.sh --G 4            # single run with G=4
+./part_5_5.sh --smoke-test     # single-GPU smoke test (32 questions, 1 step)
+```
+
+Default hyperparameters: `lr=2e-5`, `micro_batch_size=2`, `gradient_accumulation_steps=32`, `n_ei_steps=5`, `max_response_tokens=1024`.
+
+**Generate plots after training:**
+
+```bash
+uv run python cs336_alignment/section5_expert_iter/plot_ei_results.py \
+    --results results/section5
+```
+
+**Output files:**
+- `results/section5/eval_metrics_{run_name}.jsonl` — per EI step metrics (accuracy, entropy, rollout size)
+- `results/section5/ei_accuracy.png` — validation accuracy curves
+- `results/section5/ei_entropy.png` — token entropy curves
+- `results/section5/ei_rollout_size.png` — filtered rollout dataset size per step
+
+### Results
+
+Both experiments ran on 2× A100 SXM4 40 GB GPUs, starting from the base model with no teacher-generated data.
+
+**Per-step validation accuracy:**
+
+| EI Step | G=1 Accuracy | G=4 Accuracy | G=1 Rollouts | G=4 Rollouts |
+|---------|-------------|-------------|-------------|-------------|
+| 1 | 35.5% | 41.0% | 652 (8.7%) | 2,557 (8.5%) |
+| 2 | 45.0% | 44.5% | 2,452 (32.7%) | 10,036 (33.5%) |
+| 3 | 46.0% | 45.0% | 3,067 (40.9%) | 13,030 (43.4%) |
+| 4 | **48.5%** | 46.5% | 3,291 (43.9%) | 14,299 (47.7%) |
+| 5 | 47.5% | **52.5%** | 3,406 (45.4%) | 15,117 (50.4%) |
+
+**Key findings:**
+- Self-bootstrapping works: the fraction of training questions with at least one correct rollout grows from ~8.7% (step 1) to ~45–50% (step 5) for both G values — the model generates progressively better training data for itself
+- G=4 final accuracy (52.5%) clearly exceeds G=1 (47.5%) and is still rising at step 5, while G=1 plateaued around step 3–4 — larger rollout budget provides richer training signal especially on harder questions
+- Token entropy drops sharply after step 2–3 and stabilizes around 0.10–0.11 nats, indicating the model converges on a consistent reasoning format without collapsing
+- Format rate converges to 90–95% by step 5, compared to ~84% at step 1 when the base model has no r1_zero format knowledge
+- EI G=4 (52.5%) vs SFT full (53.5% final, 60.0% peak): near-competitive with SFT despite using no teacher data — the gap would likely close further with more EI steps or larger G
+
+**Accuracy and entropy curves:**
+
+![EI accuracy](results/section5/ei_accuracy.png)
+
+![EI entropy](results/section5/ei_entropy.png)
+
+**Rollout dataset growth per step:**
+
+![EI rollout size](results/section5/ei_rollout_size.png)
+
+**Wandb eval metrics and training loss:**
+
+![EI eval metrics](results/section5/ei_eval.png)
+
+![EI training loss](results/section5/ei_train_loss.png)
+
+---
+
 ## Repository Layout
 
 ```
@@ -191,7 +299,10 @@ part5-alignment/
 │   │   ├── train_sft.py            # Full SFT training loop
 │   │   ├── plot_sft_results.py     # Accuracy curve plots from eval_metrics_*.jsonl
 │   │   └── part_5_4.sh
-│   ├── section5_expert_iter/       # Expert Iteration (STaR) — coming next
+│   ├── section5_expert_iter/       # Expert Iteration (STaR) — rollout-filter-finetune loop
+│   │   ├── train_expert_iter.py    # EI training loop
+│   │   ├── plot_ei_results.py      # Accuracy/entropy/rollout-size curves
+│   │   └── part_5_5.sh
 │   └── section6_grpo/              # GRPO with verified rewards — coming next
 ├── data/                           # Datasets (gitignored)
 │   ├── math/                       # MATH competition dataset
@@ -199,7 +310,8 @@ part5-alignment/
 ├── assets/                         # Downloaded model checkpoints (gitignored)
 ├── results/
 │   ├── section3/                   # zero_shot_eval.jsonl, zero_shot_analysis.md
-│   └── section4/                   # dataset_info.json, eval_metrics_*.jsonl, final_eval.json
+│   ├── section4/                   # dataset_info.json, eval_metrics_*.jsonl, final_eval.json
+│   └── section5/                   # eval_metrics_*.jsonl, ei_accuracy.png, ei_entropy.png
 ├── tests/
 │   ├── adapters.py                 # Connects implementations to test suite
 │   ├── test_sft.py                 # Section 4 helper tests (10 tests)
