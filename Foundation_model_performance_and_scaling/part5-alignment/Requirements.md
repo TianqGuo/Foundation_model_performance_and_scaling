@@ -552,3 +552,164 @@ Use gradient clipping with clip value 1.0.
 **(c)** Plot token entropy over the course of Expert Iteration training. Does entropy increase, decrease, or stay flat? Compare to the SFT entropy trajectory.
 
 **Output:** Entropy plot and 1–2 sentence interpretation.
+
+---
+
+## Section 6 — Primer on Policy Gradients
+
+An exciting finding in language model research is that performing RL against verified rewards with strong base models can lead to significant improvements in reasoning capabilities [OpenAI et al., 2024; DeepSeek-AI et al., 2025]. The strongest open reasoning models (DeepSeek R1, Kimi k1.5) were trained using policy gradients — a powerful RL algorithm that can optimize arbitrary reward functions.
+
+This primer closely follows OpenAI's Spinning Up in Deep RL [Achiam, 2018] and Nathan Lambert's RLHF Book [Lambert, 2024].
+
+---
+
+### 6.1 Language Models as Policies
+
+A causal language model with parameters θ defines a probability distribution over the next token `a_t ∈ V` given the current text prefix `s_t` (the state/observation). In RL terms:
+
+- **State `s_t`**: everything generated so far (prompt + tokens emitted up to step t)
+- **Action `a_t`**: the next token to emit
+- **Policy `π_θ`**: the LM itself — `a_t ~ π_θ(· | s_t)`, where `π_θ(a_t | s_t) = softmax(f_θ(s_t))[a_t]`
+
+Two primitive operations are needed:
+1. **Sampling**: draw `a_t ~ π_θ(· | s_t)` (normal autoregressive generation)
+2. **Scoring**: evaluate `log π_θ(a_t | s_t)` (a forward pass with the logits)
+
+The episode ends when the model emits `</answer>` or hits the max token budget.
+
+---
+
+### 6.2 Trajectories
+
+A trajectory (also called episode or rollout) is the full sequence of states and actions:
+
+```
+τ = (s_0, a_0, s_1, a_1, ..., s_T, a_T)
+```
+
+Key mechanics:
+- **Initial state `s_0`**: drawn from a distribution over formatted prompts ρ_0
+- **State transitions**: deterministic — `s_{t+1} = s_t ∥ a_t` (just concatenation)
+- **T**: length of the trajectory; `a_T` is the end-of-text token or the last token before the budget runs out
+
+Because transitions are deterministic in LLM settings, the only source of randomness is the sampling of each action from the model's distribution.
+
+---
+
+### 6.3 Rewards and Return
+
+A scalar reward `r_t = R(s_t, a_t)` judges the quality of each action. For verified math:
+
+- All intermediate tokens get `r_t = 0`
+- The final token gets: `r_T = 1` if correct, `0` otherwise
+
+The **return** `R(τ)` aggregates rewards over the full trajectory. Two common forms:
+
+| Form | Formula | When to use |
+|------|---------|-------------|
+| Undiscounted (finite horizon) | `R(τ) = Σ_{t=0}^{T} r_t` | Natural episode end (our case) |
+| Discounted (infinite horizon) | `R(τ) = Σ_{t=0}^{∞} γ^t r_t` | No natural end, discounts far-future rewards |
+
+For MATH, we use the undiscounted form. Because only the terminal token has nonzero reward, `R(τ)` simply equals `r_T` (1 or 0).
+
+**Objective:** maximize expected return over trajectories drawn from the current policy:
+
+```
+J(θ) = E_{τ ~ π_θ} [R(τ)]
+θ* = argmax_θ J(θ)
+```
+
+---
+
+### 6.4 Vanilla Policy Gradient (REINFORCE)
+
+We want to do gradient ascent on `J(θ)`:
+
+```
+θ_{k+1} = θ_k + α ∇_θ J(θ_k)
+```
+
+The challenge: `J(θ)` involves an expectation over trajectories, and the trajectories are sampled (not differentiable). The **log-derivative trick** resolves this.
+
+**Key identity (REINFORCE):**
+
+```
+∇_θ J(π_θ) = E_{τ ~ π_θ} [ Σ_{t=0}^{T} ∇_θ log π_θ(a_t | s_t) · R(τ) ]
+```
+
+**Derivation in plain steps:**
+
+1. Write `J(θ)` as a sum over all possible trajectories weighted by their probability:
+   `J(θ) = Σ_τ P(τ|θ) R(τ)`
+
+2. Push the gradient inside the sum:
+   `∇_θ J(θ) = Σ_τ ∇_θ P(τ|θ) R(τ)`
+
+3. Apply the log-derivative trick `∇P = P ∇ log P` to convert `∇P(τ|θ)` into `P(τ|θ) ∇ log P(τ|θ)`, which puts things back into expectation form:
+   `= E_{τ ~ π_θ} [ ∇_θ log P(τ|θ) R(τ) ]`
+
+4. Expand `log P(τ|θ) = log ρ_0(s_0) + Σ_t log P(s_{t+1}|s_t, a_t) + Σ_t log π_θ(a_t|s_t)`.
+   The environment terms (ρ_0 and transition probabilities) don't depend on θ, so their gradients are zero. Only the policy log-probs survive:
+   `∇_θ log P(τ|θ) = Σ_t ∇_θ log π_θ(a_t | s_t)`
+
+**Intuition:** the gradient increases the log-probability of every token in trajectories that got reward 1, and decreases it for trajectories that got reward 0. Correct paths become more likely; wrong paths become less likely.
+
+**Sample estimate (used in practice):** collect N rollouts, compute:
+
+```
+ĝ = (1/N) Σ_{i=1}^{N} Σ_{t=0}^{T} ∇_θ log π_θ(a_t^(i) | s_t^(i)) · R(τ^(i))
+```
+
+Then update `θ ← θ + α ĝ`.
+
+**PyTorch implementation note:** we don't implement this gradient directly. Instead we define a scalar `pg_loss` such that `pg_loss.backward()` produces `ĝ`:
+
+```
+pg_loss = (1/N) Σ_{i,t} log π_θ(a_t^(i) | s_t^(i)) · (R(τ^(i)) - b(s_t^(i)))
+```
+
+**Important:** `pg_loss` is not a meaningful evaluation metric. Only report train/validation rewards.
+
+---
+
+### 6.5 Policy Gradient Baselines
+
+**Problem:** vanilla REINFORCE has high variance. If many rollouts all get reward 1 (or all get 0), the gradient estimate has high noise and converges slowly.
+
+**Solution:** subtract a **baseline** `b(s_t)` from the return:
+
+```
+∇_θ J(π_θ) = E_{τ ~ π_θ} [ Σ_t ∇_θ log π_θ(a_t|s_t) · (R(τ) - b(s_t)) ]
+```
+
+**Why this is still unbiased:** the baseline term subtracts `E[ Σ_t ∇_θ log π_θ(a_t|s_t) · b(s_t) ]`. For any fixed `s_t`, the inner expectation over `a_t` is `E_{a_t ~ π_θ}[∇_θ log π_θ(a_t|s_t)]`, which is always zero (the score function identity). So the baseline adds zero in expectation — it reduces variance without adding bias.
+
+**Common choices:**
+- `b(s_t) = V^π(s_t)` — the on-policy value function (expected return from state `s_t`)
+- `b = mean(R(τ))` over the current batch — simple mean baseline used in GRPO
+- `b(s_t) = mean reward for the same question` — the group baseline used in GRPO
+
+The quantity `R(τ) - b(s_t)` is the **advantage**: how much better this trajectory was compared to the baseline expectation.
+
+---
+
+### 6.6 Off-Policy Policy Gradient
+
+**Problem with on-policy learning:** after each gradient update, all old rollouts become stale — the current policy has changed. We must discard them and regenerate, which is expensive (inference >> training for large models).
+
+**Off-policy solution:** reuse rollouts collected from an older policy `π_{θ_old}` to update the current policy `π_θ`. Correct for the mismatch using **importance weights**:
+
+```
+ĝ_off-policy = (1/N) Σ_{i,t} [π_θ(a_t^(i)|s_t^(i)) / π_{θ_old}(a_t^(i)|s_t^(i))] · ∇_θ log π_θ(a_t^(i)|s_t^(i)) · R(τ^(i))
+```
+
+The ratio `π_θ / π_{θ_old}` is the importance weight — it corrects for the fact that we collected data under `π_{θ_old}` but we're updating `π_θ`. This estimator is unbiased as long as the two policies aren't too different.
+
+**Practical benefit:** take multiple gradient steps per batch of rollouts, amortizing the expensive vLLM inference cost across many updates.
+
+**Key constraint:** if `π_θ` drifts too far from `π_{θ_old}`, the importance weights become large and the estimate becomes unreliable. PPO and GRPO address this with a clipping mechanism that prevents the ratio from exceeding `[1-ε, 1+ε]`.
+
+**Connection to GRPO (Section 7):** GRPO uses:
+- Off-policy rollouts (multiple updates per batch)
+- Group baseline: for each question, the baseline is the mean reward across its G rollouts
+- Clipped importance weights (same clipping as PPO) to bound policy divergence
