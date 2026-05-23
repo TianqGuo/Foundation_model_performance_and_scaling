@@ -174,9 +174,9 @@ def train(args: argparse.Namespace) -> None:
     use_two_gpus = n_gpus >= 2 and not args.skip_eval
     train_device = args.train_device
     vllm_device = args.vllm_device if use_two_gpus else args.train_device
-    vllm_mem = args.gpu_memory_utilization if use_two_gpus else 0.45
+    vllm_mem = args.gpu_memory_utilization if use_two_gpus else 0.30
     if not use_two_gpus:
-        print("INFO: single-GPU mode — vLLM shares cuda:0 with policy.")
+        print("INFO: single-GPU mode — vLLM shares cuda:0 with policy (vllm_mem=0.30).")
 
     # --- wandb ---
     if not args.no_wandb:
@@ -197,6 +197,9 @@ def train(args: argparse.Namespace) -> None:
     policy = AutoModelForCausalLM.from_pretrained(
         args.model, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2"
     ).to(train_device)
+    if args.gradient_checkpointing:
+        policy.gradient_checkpointing_enable()
+        print("Gradient checkpointing enabled.")
     policy.train()
 
     # --- vLLM ---
@@ -376,9 +379,12 @@ def train(args: argparse.Namespace) -> None:
                     )
 
                 except RuntimeError as e:
-                    if "out of memory" in str(e).lower():
-                        print(f"WARNING: OOM at mb_start={mb_start}, skipping")
-                        torch.cuda.empty_cache()
+                    if "out of memory" in str(e).lower() or "cuda error" in str(e).lower():
+                        print(f"WARNING: OOM at mb_start={mb_start}, skipping microbatch")
+                        try:
+                            torch.cuda.empty_cache()
+                        except RuntimeError:
+                            pass
                         optimizer.zero_grad()
                         microbatch_count = 0
                         continue
