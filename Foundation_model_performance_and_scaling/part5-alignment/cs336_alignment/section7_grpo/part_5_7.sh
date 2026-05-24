@@ -80,9 +80,11 @@ elif [ -d "${LOCAL_MODEL}" ]; then
     MODEL_PATH="${LOCAL_MODEL}"
     echo "Using local model: ${MODEL_PATH}"
 else
-    echo "ERROR: Model not found at ${CLUSTER_MODEL} or ${LOCAL_MODEL}"
-    echo "Run get_assets.sh first to download Qwen2.5-Math-1.5B."
-    exit 1
+    echo "INFO: Model not found locally. Downloading from HuggingFace..."
+    mkdir -p "${ROOT}/assets"
+    uv run huggingface-cli download Qwen/Qwen2.5-Math-1.5B \
+        --local-dir "${LOCAL_MODEL}"
+    MODEL_PATH="${LOCAL_MODEL}"
 fi
 
 # ---------------------------------------------------------------------------
