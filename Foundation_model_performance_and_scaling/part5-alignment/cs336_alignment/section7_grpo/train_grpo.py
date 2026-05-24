@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from unittest.mock import patch
@@ -338,6 +339,10 @@ def train(args: argparse.Namespace) -> None:
 
         policy.train()
 
+        # Accumulators across all epochs in this GRPO step (for JSONL logging)
+        step_grad_norms: list[float] = []
+        step_clip_fracs: list[float] = []
+
         # --- Training epochs on this rollout batch ---
         for epoch in range(args.epochs_per_rollout_batch):
             perm = list(range(rollout_bs))
@@ -416,10 +421,12 @@ def train(args: argparse.Namespace) -> None:
                     optimizer.zero_grad()
                     train_step += 1
                     microbatch_count = 0
+                    step_grad_norms.append(grad_norm)
 
                     avg_loss = epoch_loss / max(n_mb, 1)
                     avg_clip = epoch_clip_frac / max(n_mb, 1)
                     avg_ent = epoch_entropy / max(n_mb, 1)
+                    step_clip_fracs.append(avg_clip)
                     print(
                         f"  train_step={train_step} loss={avg_loss:.4f} "
                         f"grad_norm={grad_norm:.3f} entropy={avg_ent:.3f}"
@@ -470,11 +477,14 @@ def train(args: argparse.Namespace) -> None:
                 "grpo_step": grpo_step,
                 "train_step": train_step,
                 "eval_step": eval_step,
+                "timestamp": time.time(),
                 "accuracy": metrics["accuracy"],
                 "format_rate": metrics["format_rate"],
                 "avg_reward": metrics["avg_reward"],
                 "avg_token_entropy": metrics["avg_token_entropy"],
                 "avg_response_length": metrics["avg_response_length"],
+                "avg_grad_norm": float(sum(step_grad_norms) / len(step_grad_norms)) if step_grad_norms else 0.0,
+                "avg_clip_frac": float(sum(step_clip_fracs) / len(step_clip_fracs)) if step_clip_fracs else 0.0,
             }) + "\n")
             metrics_file.flush()
             if not args.no_wandb:
