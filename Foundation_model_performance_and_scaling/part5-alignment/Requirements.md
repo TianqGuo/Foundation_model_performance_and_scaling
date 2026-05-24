@@ -1002,3 +1002,193 @@ Run GRPO on Qwen 2.5 Math 1.5B (base model, not SFT checkpoint) and report:
 Report validation reward curves for each variant.
 
 **Target:** ≥ 15% validation accuracy after GRPO training.
+
+---
+
+## Section 8 — GRPO Experiments
+
+Each experiment below uses 2 GPUs (one for vLLM rollout generation, one for policy training). GPU hour estimates are rough guides. Runs may be stopped early if a configuration clearly diverges or is suboptimal before 200 GRPO steps.
+
+---
+
+### 8.1 Learning Rate Sweep (`grpo_learning_rate`) — 2 points, ~6 H100 hrs
+
+Starting from the default hyperparameters (Section 7.2.7), sweep over learning rates and measure final validation answer rewards.
+
+**Deliverables:**
+- Validation reward curves for each learning rate tested.
+- A model checkpoint that achieves at least **25% validation accuracy** on MATH.
+- A 2-sentence discussion on any other trends observed in logged metrics.
+
+> The best learning rate from this sweep should be used for all subsequent experiments.
+
+---
+
+### 8.2 Effect of Baselining (`grpo_baselines`) — 2 points, ~2 H100 hrs
+
+Using the tuned learning rate and on-policy default (`epochs_per_rollout_batch=1`), compare the following loss types:
+
+- `no_baseline` — raw reward, no centering
+- `reinforce_with_baseline` — group-mean-centered reward
+
+Both runs use `use_std_normalization=True` (the default).
+
+**Deliverables:**
+- Validation reward curves for each loss type.
+- A 2-sentence discussion on any other trends observed in logged metrics.
+
+> Use the best-performing loss type for subsequent experiments.
+
+---
+
+### 8.3 Length Normalization
+
+#### 8.3.1 Conceptual Analysis (`think_about_length_normalization`) — 1 point
+
+Two approaches to aggregating per-token losses differ in how they assign credit:
+
+- **`masked_mean`**: average the loss over the unmasked (response) tokens in each sequence.
+- **`masked_normalize` with `constant_normalizer`**: sum over unmasked tokens and divide by a fixed scalar (e.g., max sequence length), rather than the per-example token count.
+
+The difference is illustrated with a batch of two responses — 4 tokens and 7 tokens — where the per-token loss is `ratio * advantage`:
+
+```python
+from cs336_alignment.section4_sft.helpers import masked_mean, masked_normalize
+
+ratio = torch.tensor([
+    [1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1],
+], requires_grad=True)
+advs = torch.tensor([
+    [2, 2, 2, 2, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2, 2],
+])
+masks = torch.tensor([
+    [1, 1, 1, 1, 0, 0, 0],   # 4-token response
+    [1, 1, 1, 1, 1, 1, 1],   # 7-token response
+])
+
+max_gen_len = 7
+masked_mean_result      = masked_mean(ratio * advs, masks, dim=1)
+masked_normalize_result = masked_normalize(ratio * advs, masks, dim=1, constant_normalizer=max_gen_len)
+
+# masked_mean       → tensor([2., 2.])
+# masked_normalize  → tensor([1.1429, 2.0000])
+
+masked_mean_result.mean().backward()
+# ratio.grad:
+# [[0.2500, 0.2500, 0.2500, 0.2500, 0.0000, 0.0000, 0.0000],
+#  [0.1429, 0.1429, 0.1429, 0.1429, 0.1429, 0.1429, 0.1429]]
+
+ratio.grad.zero_()
+masked_normalize_result.mean().backward()
+# ratio.grad:
+# [[0.1429, 0.1429, 0.1429, 0.1429, 0.0000, 0.0000, 0.0000],
+#  [0.1429, 0.1429, 0.1429, 0.1429, 0.1429, 0.1429, 0.1429]]
+```
+
+With `masked_mean`, each token in the shorter response receives a larger gradient (0.25) than each token in the longer one (0.143). With `masked_normalize` using a fixed `constant_normalizer`, every token receives equal weight regardless of response length.
+
+> **Note on parameter naming:** the spec PDF uses `constant_normalizer` in its code examples, but the existing implementation in `cs336_alignment/section4_sft/helpers.py` and the test adapter both use `normalize_constant`. These are the same parameter. The code examples above reflect the PDF; when running them against the actual implementation, use `normalize_constant=max_gen_len` instead.
+
+**Deliverable:** A written comparison (no training runs needed) of the two approaches. Discuss pros and cons of each and describe any specific settings or examples where one seems preferable.
+
+---
+
+#### 8.3.2 Empirical Comparison (`grpo_length_normalization`) — 2 points, ~2 H100 hrs
+
+Run end-to-end GRPO training twice — once with `masked_mean` and once with `masked_normalize` — and compare results.
+
+**Deliverables:**
+- Validation answer reward curves for both approaches.
+- Commentary on findings, including any metrics with a noticeable trend (especially gradient norm as a stability indicator).
+
+> Fix to the better-performing length normalization for subsequent experiments.
+
+---
+
+### 8.4 Effect of Group Standard Deviation Normalization (`grpo_group_standard_deviation`) — 2 points, ~2 H100 hrs
+
+Compare `use_std_normalization=True` (standard GRPO, divides advantage by group std) versus `use_std_normalization=False` (Dr. GRPO, advantage = reward − group mean only).
+
+Background: dividing by per-group std can introduce an unintended bias — questions where all rollouts score similarly (all correct or all wrong) receive artificially amplified gradients. The Dr. GRPO variant avoids this by omitting the std normalization.
+
+**Deliverables:**
+- Validation answer reward curves for both settings.
+- Commentary on findings, including any metrics with a noticeable trend (especially gradient norm).
+
+> Fix to the better-performing group normalization for subsequent experiments.
+
+---
+
+### 8.5 Off-Policy GRPO
+
+#### 8.5.1 Implementation (`grpo_off_policy`)
+
+Off-policy GRPO takes multiple gradient steps per rollout batch, amortizing the cost of expensive vLLM generation across many updates.
+
+**Implementation requirements** (may already be present from Section 7.2.7):
+
+- **Multiple epochs per rollout batch** — controlled by `rollout_batch_size`, `epochs_per_rollout_batch`, and `train_batch_size`.
+- **`old_log_probs` precomputation** — after each rollout generation phase and before the inner gradient loop, compute per-token log-probs of the rollout responses under the current policy using `torch.inference_mode()`. These are the reference `π_{θ_old}` for importance weighting.
+- **Loss type** — use `grpo_clip` for all off-policy runs.
+
+> Adjust `gradient_accumulation_steps` proportionally when changing `train_batch_size` to keep per-microbatch memory usage constant.
+
+---
+
+#### 8.5.2 Off-Policy Hyperparameter Sweep (`grpo_off_policy_sweep`) — 4 points, ~12 H100 hrs
+
+Fix `rollout_batch_size=256`. Sweep over a range of `epochs_per_rollout_batch` and `train_batch_size` values.
+
+**Approach:**
+1. **Broad sweep** (< 50 GRPO steps): explore the performance landscape across a wider range.
+2. **Focused sweep** (200 GRPO steps): run the most promising configurations to convergence.
+
+**Deliverables:**
+- A brief experiment log explaining the chosen sweep ranges and rationale.
+- Validation answer reward curves reported against both number of validation steps and wall-clock time.
+- Comparison against the on-policy baseline (`epochs_per_rollout_batch=1`, `train_batch_size=256`).
+- Commentary on any trends in entropy, response length, and other logged metrics. Compare the entropy trajectory to what was observed in the Expert Iteration experiments.
+
+---
+
+#### 8.5.3 Clip Ablation in Off-Policy Setting (`grpo_off_policy_clip_ablation`) — 2 points, ~2 H100 hrs
+
+Implement a new loss type **`grpo_no_clip`** — off-policy importance-weighted policy gradient without PPO-style clipping:
+
+```
+per-token loss = -(π_θ(o_t | q, o_{<t}) / π_{θ_old}(o_t | q, o_{<t})) * A^(i)
+```
+
+This is equivalent to `grpo_clip` with `cliprange=∞`. It tests whether the clipping mechanism is necessary for stability in the off-policy setting.
+
+**Deliverables:**
+- Implementation of `grpo_no_clip` loss type in `compute_policy_gradient_loss` and the adapter.
+- Validation answer reward curves comparing `grpo_clip` and `grpo_no_clip` using the best-performing off-policy hyperparameters from §8.5.2.
+- Commentary on findings compared to the clipped run, including entropy, response length, and gradient norm.
+
+---
+
+### 8.6 Prompt Ablation (`grpo_prompt_ablation`) — 2 points, ~2 H100 hrs
+
+The choice of prompt during RL training has a significant effect on model behavior, depending on how the base model was pretrained.
+
+Compare two prompts using the best hyperparameters found above:
+
+| Prompt | File | Reward function |
+|--------|------|-----------------|
+| **R1-Zero** (default) | `cs336_alignment/prompts/r1_zero.prompt` | `r1_zero_reward_fn` |
+| **Question-only** | `cs336_alignment/prompts/question_only.prompt` | `question_only_reward_fn` (in `cs336_alignment/drgrpo_grader.py`) |
+
+The question-only prompt is simply:
+```
+{question}
+```
+
+Use the same prompt for both training and validation when running the question-only experiment.
+
+**Deliverables:**
+- Validation answer reward curves for both prompts.
+- Commentary comparing the two runs, including entropy, response length, and gradient norm trends.
+- An explanation of the observed differences, considering how Qwen 2.5 Math 1.5B was pretrained.
