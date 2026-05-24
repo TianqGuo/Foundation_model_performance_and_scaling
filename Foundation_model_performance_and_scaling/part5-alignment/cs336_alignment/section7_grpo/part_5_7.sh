@@ -37,6 +37,7 @@ ROOT="$(cd ../.. && pwd)"
 # Defaults
 # ---------------------------------------------------------------------------
 SMOKE_TEST=0
+DRY_RUN=0
 LOSS_TYPE="reinforce_with_baseline"
 OFF_POLICY=0
 NO_STD=0
@@ -51,6 +52,7 @@ EXTRA_ARGS=""
 for arg in "$@"; do
     case $arg in
         --smoke-test)          SMOKE_TEST=1 ;;
+        --dry-run)             DRY_RUN=1 ;;
         --off-policy)          OFF_POLICY=1 ;;
         --no-std)              NO_STD=1 ;;
         --loss-type=*)         LOSS_TYPE="${arg#*=}" ;;
@@ -114,14 +116,8 @@ mkdir -p "${OUTPUT_DIR}"
 # ---------------------------------------------------------------------------
 # Build run arguments
 # ---------------------------------------------------------------------------
-RUN_NAME="grpo_${LOSS_TYPE}"
-[ "${NO_STD}" -eq 1 ]               && RUN_NAME="${RUN_NAME}_nostd"
-[ "${LENGTH_NORM}" != "masked_mean" ] && RUN_NAME="${RUN_NAME}_${LENGTH_NORM}"
-[ "${PROMPT_TYPE}" != "r1_zero" ]    && RUN_NAME="${RUN_NAME}_${PROMPT_TYPE}"
-LR_TAG=$(echo "${LR}" | sed 's/[^0-9e.-]//g')
-[ "${LR}" != "1e-5" ]               && RUN_NAME="${RUN_NAME}_lr${LR_TAG}"
 
-# Resolve epochs_per_rollout_batch
+# Resolve derived hyperparameters first
 if [ -n "${EPOCHS}" ]; then
     EPOCHS_PER_ROLLOUT="${EPOCHS}"
 elif [ "${OFF_POLICY}" -eq 1 ]; then
@@ -129,13 +125,20 @@ elif [ "${OFF_POLICY}" -eq 1 ]; then
 else
     EPOCHS_PER_ROLLOUT=1
 fi
-[ "${EPOCHS_PER_ROLLOUT}" -gt 1 ] && RUN_NAME="${RUN_NAME}_e${EPOCHS_PER_ROLLOUT}"
 
-# Resolve train batch size and gradient accumulation
 RESOLVED_TRAIN_BS="${TRAIN_BATCH_SIZE:-256}"
 # Keep micro_bs=2: grad_accum = train_bs / 2
 DEFAULT_GRAD_ACCUM=$(( RESOLVED_TRAIN_BS / 2 ))
 RESOLVED_GRAD_ACCUM="${GRAD_ACCUM:-${DEFAULT_GRAD_ACCUM}}"
+
+# Build run name — LR always included so runs from different sections never collide
+LR_TAG=$(echo "${LR}" | sed 's/[^0-9e.-]//g')
+RUN_NAME="grpo_${LOSS_TYPE}_lr${LR_TAG}"
+[ "${EPOCHS_PER_ROLLOUT}" -gt 1 ]       && RUN_NAME="${RUN_NAME}_e${EPOCHS_PER_ROLLOUT}"
+[ "${RESOLVED_TRAIN_BS}" != "256" ]     && RUN_NAME="${RUN_NAME}_bs${RESOLVED_TRAIN_BS}"
+[ "${NO_STD}" -eq 1 ]                   && RUN_NAME="${RUN_NAME}_nostd"
+[ "${LENGTH_NORM}" != "masked_mean" ]   && RUN_NAME="${RUN_NAME}_${LENGTH_NORM}"
+[ "${PROMPT_TYPE}" != "r1_zero" ]       && RUN_NAME="${RUN_NAME}_${PROMPT_TYPE}"
 
 # Optional flags
 STD_ARG=""
@@ -201,10 +204,21 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "=== Starting GRPO training ==="
+echo "  run_name    : ${RUN_NAME}"
 echo "  loss_type   : ${LOSS_TYPE}"
-echo "  off_policy  : ${OFF_POLICY}"
+echo "  lr          : ${LR}"
+echo "  length_norm : ${LENGTH_NORM}"
+echo "  prompt_type : ${PROMPT_TYPE}"
+echo "  epochs/batch: ${EPOCHS_PER_ROLLOUT}"
 echo "  output      : ${OUTPUT_DIR}"
 echo ""
+
+if [ "${DRY_RUN}" -eq 1 ]; then
+    echo "[DRY RUN] uv run python train_grpo.py ${COMMON_ARGS[*]}"
+    echo ""
+    echo "Done (dry run). No training was performed."
+    exit 0
+fi
 
 uv run python "${ROOT}/cs336_alignment/section7_grpo/train_grpo.py" "${COMMON_ARGS[@]}"
 
