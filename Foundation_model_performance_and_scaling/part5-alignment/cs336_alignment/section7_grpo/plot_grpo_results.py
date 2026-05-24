@@ -36,6 +36,15 @@ def _save(fig, ax, path: Path) -> None:
     print(f"Results saved to {path}")
 
 
+def _get_xs(metrics: list[dict], x_key: str) -> list[float]:
+    if x_key == "wall_clock_hours":
+        t0 = metrics[0].get("timestamp")
+        if t0 is None:
+            return []
+        return [(m["timestamp"] - t0) / 3600.0 for m in metrics if "timestamp" in m]
+    return [m[x_key] for m in metrics if x_key in m]
+
+
 def plot_metric_curves(
     runs: dict[str, list[dict]],
     key: str,
@@ -46,12 +55,17 @@ def plot_metric_curves(
     xlabel: str = "GRPO Step",
 ) -> None:
     fig, ax = _make_fig(title, xlabel, ylabel)
+    any_data = False
     for label, metrics in runs.items():
-        xs = [m[x_key] for m in metrics if x_key in m and key in m]
-        ys = [m[key] for m in metrics if x_key in m and key in m]
-        if xs:
+        xs = _get_xs(metrics, x_key)
+        ys = [m[key] for m in metrics if key in m]
+        if xs and ys and len(xs) == len(ys):
             ax.plot(xs, ys, marker="o", markersize=4, label=label)
-    _save(fig, ax, output_path)
+            any_data = True
+    if any_data:
+        _save(fig, ax, output_path)
+    else:
+        plt.close(fig)
 
 
 def main() -> None:
@@ -61,8 +75,8 @@ def main() -> None:
     parser.add_argument("--output_dir", default="results/section8",
                         help="Directory to save plots")
     parser.add_argument("--x_axis", default="grpo_step",
-                        choices=["grpo_step", "eval_step"],
-                        help="X-axis for plots (grpo_step or eval_step)")
+                        choices=["grpo_step", "eval_step", "wall_clock_hours"],
+                        help="X-axis: grpo_step, eval_step, or wall_clock_hours")
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir)
@@ -87,19 +101,37 @@ def main() -> None:
         return
 
     x_key = args.x_axis
-    xlabel = "GRPO Step" if x_key == "grpo_step" else "Eval Step"
+    xlabel_map = {
+        "grpo_step": "GRPO Step",
+        "eval_step": "Eval Step",
+        "wall_clock_hours": "Wall-Clock Time (hours)",
+    }
+    xlabel = xlabel_map[x_key]
+    suffix = "" if x_key == "grpo_step" else f"_{x_key}"
 
-    plot_metric_curves(runs, "accuracy", "Validation Accuracy", "Accuracy",
-                       output_dir / "grpo_accuracy.png", x_key, xlabel)
+    plot_metric_curves(runs, "accuracy",
+                       "Validation Accuracy", "Accuracy",
+                       output_dir / f"grpo_accuracy{suffix}.png", x_key, xlabel)
 
-    plot_metric_curves(runs, "avg_reward", "Validation Avg Reward", "Avg Reward",
-                       output_dir / "grpo_reward.png", x_key, xlabel)
+    plot_metric_curves(runs, "avg_reward",
+                       "Validation Avg Reward", "Avg Reward",
+                       output_dir / f"grpo_reward{suffix}.png", x_key, xlabel)
 
-    plot_metric_curves(runs, "avg_token_entropy", "Token Entropy over Training", "Avg Token Entropy",
-                       output_dir / "grpo_entropy.png", x_key, xlabel)
+    plot_metric_curves(runs, "avg_token_entropy",
+                       "Token Entropy over Training", "Avg Token Entropy",
+                       output_dir / f"grpo_entropy{suffix}.png", x_key, xlabel)
 
-    plot_metric_curves(runs, "avg_response_length", "Response Length over Training", "Avg Response Length (tokens)",
-                       output_dir / "grpo_response_length.png", x_key, xlabel)
+    plot_metric_curves(runs, "avg_response_length",
+                       "Response Length over Training", "Avg Response Length (tokens)",
+                       output_dir / f"grpo_response_length{suffix}.png", x_key, xlabel)
+
+    plot_metric_curves(runs, "avg_grad_norm",
+                       "Gradient Norm over Training", "Avg Grad Norm",
+                       output_dir / f"grpo_grad_norm{suffix}.png", x_key, xlabel)
+
+    plot_metric_curves(runs, "avg_clip_frac",
+                       "Clip Fraction over Training (off-policy only)", "Avg Clip Fraction",
+                       output_dir / f"grpo_clip_frac{suffix}.png", x_key, xlabel)
 
 
 if __name__ == "__main__":
