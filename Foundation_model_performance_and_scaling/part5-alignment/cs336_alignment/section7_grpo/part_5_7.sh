@@ -104,12 +104,14 @@ if [ "${SMOKE_TEST}" -eq 1 ]; then
         --rollout_batch_size 16
         --train_batch_size 16
         --gradient_accumulation_steps 8
+        --max_response_tokens 256
         --n_eval_examples 32
         --eval_interval 1
         --loss_type "${LOSS_TYPE}"
         --run_name "${RUN_NAME}_smoke"
         --no_wandb
         --skip_eval
+        --gradient_checkpointing
         ${EPOCHS_ARG}
         ${EXTRA_ARGS}
     )

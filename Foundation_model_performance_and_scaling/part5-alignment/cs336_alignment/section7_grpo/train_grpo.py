@@ -531,6 +531,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradient_accumulation_steps", type=int, default=128)
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--advantage_eps", type=float, default=1e-6)
+    parser.add_argument("--gradient_checkpointing", action="store_true", default=False,
+                        help="Enable gradient checkpointing to reduce activation memory (~single-GPU runs)")
     parser.add_argument("--use_std_normalization", action="store_true", default=True)
     parser.add_argument("--no_std_normalization", dest="use_std_normalization", action="store_false")
     parser.add_argument(
