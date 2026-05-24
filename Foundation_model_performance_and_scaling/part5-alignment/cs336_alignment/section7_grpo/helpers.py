@@ -96,9 +96,29 @@ def compute_grpo_clip_loss(
     return loss, {"is_clipped": is_clipped.float()}
 
 
+def compute_grpo_no_clip_loss(
+    advantages: torch.Tensor,
+    policy_log_probs: torch.Tensor,
+    old_log_probs: torch.Tensor,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    """Off-policy importance-weighted loss without PPO-style clipping.
+
+    Args:
+        advantages:       (batch_size, 1)
+        policy_log_probs: (batch_size, sequence_length) — current policy
+        old_log_probs:    (batch_size, sequence_length) — rollout policy (detached)
+    Returns:
+        loss (batch_size, sequence_length), empty metadata dict
+    """
+    log_ratio = policy_log_probs - old_log_probs.detach()
+    ratio = log_ratio.exp()
+    loss = -(ratio * advantages)
+    return loss, {}
+
+
 def compute_policy_gradient_loss(
     policy_log_probs: torch.Tensor,
-    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip", "grpo_no_clip"],
     raw_rewards: torch.Tensor | None = None,
     advantages: torch.Tensor | None = None,
     old_log_probs: torch.Tensor | None = None,
@@ -114,6 +134,9 @@ def compute_policy_gradient_loss(
     elif loss_type == "grpo_clip":
         assert advantages is not None and old_log_probs is not None and cliprange is not None
         return compute_grpo_clip_loss(advantages, policy_log_probs, old_log_probs, cliprange)
+    elif loss_type == "grpo_no_clip":
+        assert advantages is not None and old_log_probs is not None
+        return compute_grpo_no_clip_loss(advantages, policy_log_probs, old_log_probs)
     else:
         raise ValueError(f"Unknown loss_type: {loss_type!r}")
 
@@ -146,17 +169,20 @@ def grpo_microbatch_train_step(
     policy_log_probs: torch.Tensor,
     response_mask: torch.Tensor,
     gradient_accumulation_steps: int,
-    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip", "grpo_no_clip"],
     raw_rewards: torch.Tensor | None = None,
     advantages: torch.Tensor | None = None,
     old_log_probs: torch.Tensor | None = None,
     cliprange: float | None = None,
+    length_norm: Literal["masked_mean", "masked_normalize"] = "masked_mean",
+    max_response_tokens: int | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Forward + backward pass for one GRPO microbatch.
 
-    Computes per-token loss, takes masked mean over response tokens,
-    averages over the batch, scales by 1/gradient_accumulation_steps,
-    and calls loss.backward(). Returns the detached scalar loss.
+    Computes per-token loss, reduces over response tokens (masked_mean or
+    masked_normalize), averages over the batch, scales by
+    1/gradient_accumulation_steps, and calls loss.backward().
+    Returns the detached scalar loss.
     """
     per_token_loss, metadata = compute_policy_gradient_loss(
         policy_log_probs=policy_log_probs,
@@ -168,7 +194,15 @@ def grpo_microbatch_train_step(
     )
 
     # (batch_size, seq_len) → (batch_size,) → scalar
-    per_example_loss = masked_mean(per_token_loss, response_mask, dim=1)
+    if length_norm == "masked_normalize":
+        from cs336_alignment.section4_sft.helpers import masked_normalize
+        assert max_response_tokens is not None, "max_response_tokens required for masked_normalize"
+        per_example_loss = masked_normalize(
+            per_token_loss, response_mask, normalize_constant=max_response_tokens, dim=1
+        )
+    else:
+        per_example_loss = masked_mean(per_token_loss, response_mask, dim=1)
+
     loss = per_example_loss.mean() / gradient_accumulation_steps
     loss.backward()
 

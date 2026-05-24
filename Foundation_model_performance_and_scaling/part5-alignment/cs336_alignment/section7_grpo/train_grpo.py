@@ -16,7 +16,7 @@ from unittest.mock import patch
 import torch
 import torch.nn.functional as F
 
-from cs336_alignment.drgrpo_grader import r1_zero_reward_fn
+from cs336_alignment.drgrpo_grader import question_only_reward_fn, r1_zero_reward_fn
 
 if TYPE_CHECKING:
     from vllm import LLM, SamplingParams
@@ -124,8 +124,12 @@ def run_eval(
     eval_sampling_params: SamplingParams,
     device: str,
     n_eval: int = 1024,
+    reward_fn=None,
 ) -> dict:
     from cs336_alignment.section4_sft.helpers import log_generations
+
+    if reward_fn is None:
+        reward_fn = r1_zero_reward_fn
 
     subset = random.sample(val_examples, min(n_eval, len(val_examples)))
     prompts = [prompt_template.format(question=ex.get("problem", ex.get("question", ""))) for ex in subset]
@@ -136,7 +140,7 @@ def run_eval(
         vllm_model=vllm_model,
         policy_model=policy,
         tokenizer=tokenizer,
-        reward_fn=r1_zero_reward_fn,
+        reward_fn=reward_fn,
         prompts=prompts,
         ground_truths=ground_truths,
         sampling_params=eval_sampling_params,
@@ -209,9 +213,13 @@ def train(args: argparse.Namespace) -> None:
         vllm_model = init_vllm(args.model, vllm_device, args.seed, vllm_mem)
         print("vLLM ready")
 
-    # --- Prompt template ---
-    prompt_path = Path(__file__).parent.parent / "prompts" / "r1_zero.prompt"
+    # --- Prompt template and reward function ---
+    prompt_file = "question_only.prompt" if args.prompt_type == "question_only" else "r1_zero.prompt"
+    prompt_path = Path(__file__).parent.parent / "prompts" / prompt_file
     prompt_template = prompt_path.read_text()
+    reward_fn = question_only_reward_fn if args.prompt_type == "question_only" else r1_zero_reward_fn
+    if args.prompt_type == "question_only":
+        print("Using question_only prompt and reward function.")
 
     # --- Data ---
     train_examples = load_jsonl(Path(args.data))
@@ -225,18 +233,19 @@ def train(args: argparse.Namespace) -> None:
         print(f"Val examples: {len(val_examples)}")
 
     # --- Sampling params ---
+    stop_tokens = ["</answer>"] if args.prompt_type == "r1_zero" else []
     rollout_params = SamplingParams(
         temperature=args.temperature,
         max_tokens=args.max_response_tokens,
         min_tokens=4,
         n=args.group_size,
-        stop=["</answer>"],
+        stop=stop_tokens,
         include_stop_str_in_output=True,
     )
     eval_params = SamplingParams(
         temperature=0.0,
         max_tokens=args.max_response_tokens,
-        stop=["</answer>"],
+        stop=stop_tokens,
         include_stop_str_in_output=True,
     )
 
@@ -264,7 +273,7 @@ def train(args: argparse.Namespace) -> None:
 
     train_step = 0
     eval_step = 0
-    needs_old_lp = (args.loss_type == "grpo_clip") or (args.epochs_per_rollout_batch > 1)
+    needs_old_lp = (args.loss_type in ("grpo_clip", "grpo_no_clip")) or (args.epochs_per_rollout_batch > 1)
 
     # -----------------------------------------------------------------------
     # GRPO loop
@@ -296,7 +305,7 @@ def train(args: argparse.Namespace) -> None:
 
         # --- Compute rewards and advantages ---
         advantages, raw_rewards, reward_meta = compute_group_normalized_rewards(
-            reward_fn=r1_zero_reward_fn,
+            reward_fn=reward_fn,
             rollout_responses=rollout_responses,
             repeated_ground_truths=rollout_gts,
             group_size=args.group_size,
@@ -376,6 +385,8 @@ def train(args: argparse.Namespace) -> None:
                         advantages=mb_adv if args.loss_type != "no_baseline" else None,
                         old_log_probs=mb_old_lp,
                         cliprange=args.cliprange,
+                        length_norm=args.length_norm,
+                        max_response_tokens=args.max_response_tokens,
                     )
 
                 except RuntimeError as e:
@@ -412,7 +423,7 @@ def train(args: argparse.Namespace) -> None:
                     print(
                         f"  train_step={train_step} loss={avg_loss:.4f} "
                         f"grad_norm={grad_norm:.3f} entropy={avg_ent:.3f}"
-                        + (f" clip_frac={avg_clip:.3f}" if args.loss_type == "grpo_clip" else "")
+                        + (f" clip_frac={avg_clip:.3f}" if args.loss_type in ("grpo_clip", "grpo_no_clip") else "")
                     )
 
                     if not args.no_wandb:
@@ -424,7 +435,7 @@ def train(args: argparse.Namespace) -> None:
                             "train/fraction_correct": reward_meta["fraction_correct"],
                             "train_step": train_step,
                         }
-                        if args.loss_type == "grpo_clip":
+                        if args.loss_type in ("grpo_clip", "grpo_no_clip"):
                             log_dict["train/clip_fraction"] = avg_clip
                         wandb.log(log_dict)
 
@@ -444,6 +455,7 @@ def train(args: argparse.Namespace) -> None:
                     policy, vllm_model, tokenizer,
                     val_examples, prompt_template, eval_params,
                     train_device, args.n_eval_examples,
+                    reward_fn=reward_fn,
                 )
             policy.train()
             eval_step += 1
@@ -486,6 +498,7 @@ def train(args: argparse.Namespace) -> None:
                 policy, vllm_model, tokenizer,
                 val_examples, prompt_template, eval_params,
                 train_device, n_eval=min(2048, len(val_examples)),
+                reward_fn=reward_fn,
             )
         print(f"Final accuracy: {final['accuracy']:.4f}")
         (output_path / "final_eval.json").write_text(
@@ -538,9 +551,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--loss_type",
         default="reinforce_with_baseline",
-        choices=["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+        choices=["no_baseline", "reinforce_with_baseline", "grpo_clip", "grpo_no_clip"],
     )
     parser.add_argument("--cliprange", type=float, default=0.2)
+    parser.add_argument(
+        "--length_norm",
+        default="masked_mean",
+        choices=["masked_mean", "masked_normalize"],
+        help="Per-example loss aggregation: masked_mean or masked_normalize by max_response_tokens",
+    )
+    parser.add_argument(
+        "--prompt_type",
+        default="r1_zero",
+        choices=["r1_zero", "question_only"],
+        help="Prompt template and reward function to use",
+    )
     # Generation
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--max_response_tokens", type=int, default=1024)

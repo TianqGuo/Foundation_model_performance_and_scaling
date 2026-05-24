@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# USAGE:   bash part_5_7.sh [--smoke-test] [--loss-type TYPE] [--off-policy]
+# USAGE:   bash part_5_7.sh [OPTIONS]
 #
 # WHAT IT DOES:
 #   Runs GRPO training on MATH using Qwen 2.5 Math 1.5B (base model).
@@ -12,11 +12,22 @@
 #   assets/grpo_<run_name>/                         — saved model checkpoint
 #   results/section7/grpo_accuracy.png              — accuracy curves
 #
+# OPTIONS:
+#   --smoke-test              3 GRPO steps on 64 examples (single GPU OK)
+#   --loss-type=TYPE          no_baseline | reinforce_with_baseline (default) |
+#                             grpo_clip | grpo_no_clip
+#   --off-policy              epochs_per_rollout_batch=4 (required for grpo_clip/no_clip)
+#   --no-std                  disable group std normalization (Dr. GRPO variant)
+#   --length-norm=TYPE        masked_mean (default) | masked_normalize
+#   --prompt-type=TYPE        r1_zero (default) | question_only
+#   --lr=VALUE                learning rate (default: 1e-5)
+#   --epochs=N                epochs_per_rollout_batch (overrides --off-policy)
+#   --train-batch-size=N      train_batch_size (default: 256)
+#   --grad-accum=N            gradient_accumulation_steps (default: 128)
+#
 # NOTES:
-#   Default run requires 2× H100s (~6-8 hrs for 200 steps).
-#   --smoke-test runs 3 GRPO steps on 64 train examples (single GPU OK).
-#   --loss-type  choices: reinforce_with_baseline (default), no_baseline, grpo_clip
-#   --off-policy sets epochs_per_rollout_batch=4 (required for grpo_clip).
+#   Full runs require 2× H100s.
+#   For off-policy sweeps, adjust --epochs, --train-batch-size, and --grad-accum together.
 
 set -e
 cd "$(dirname "$0")"
@@ -28,15 +39,28 @@ ROOT="$(cd ../.. && pwd)"
 SMOKE_TEST=0
 LOSS_TYPE="reinforce_with_baseline"
 OFF_POLICY=0
+NO_STD=0
+LENGTH_NORM="masked_mean"
+PROMPT_TYPE="r1_zero"
+LR="1e-5"
+EPOCHS=""           # empty = use default (1 on-policy, 4 off-policy)
+TRAIN_BATCH_SIZE=""
+GRAD_ACCUM=""
 EXTRA_ARGS=""
 
 for arg in "$@"; do
     case $arg in
-        --smoke-test)   SMOKE_TEST=1 ;;
-        --off-policy)   OFF_POLICY=1 ;;
-        --loss-type=*)  LOSS_TYPE="${arg#*=}" ;;
-        --loss-type)    shift; LOSS_TYPE="$1" ;;
-        *)              EXTRA_ARGS="$EXTRA_ARGS $arg" ;;
+        --smoke-test)          SMOKE_TEST=1 ;;
+        --off-policy)          OFF_POLICY=1 ;;
+        --no-std)              NO_STD=1 ;;
+        --loss-type=*)         LOSS_TYPE="${arg#*=}" ;;
+        --length-norm=*)       LENGTH_NORM="${arg#*=}" ;;
+        --prompt-type=*)       PROMPT_TYPE="${arg#*=}" ;;
+        --lr=*)                LR="${arg#*=}" ;;
+        --epochs=*)            EPOCHS="${arg#*=}" ;;
+        --train-batch-size=*)  TRAIN_BATCH_SIZE="${arg#*=}" ;;
+        --grad-accum=*)        GRAD_ACCUM="${arg#*=}" ;;
+        *)                     EXTRA_ARGS="$EXTRA_ARGS $arg" ;;
     esac
 done
 
@@ -78,18 +102,44 @@ fi
 
 TRAIN_DATA="${DATA_DIR}/train.jsonl"
 VAL_DATA="${DATA_DIR}/validation.jsonl"
-OUTPUT_DIR="${ROOT}/results/section7"
+# Smoke tests → results/section7 (quick local checks)
+# Full runs   → results/section8 (all Section 8 experiments)
+if [ "${SMOKE_TEST}" -eq 1 ]; then
+    OUTPUT_DIR="${ROOT}/results/section7"
+else
+    OUTPUT_DIR="${ROOT}/results/section8"
+fi
 mkdir -p "${OUTPUT_DIR}"
 
 # ---------------------------------------------------------------------------
 # Build run arguments
 # ---------------------------------------------------------------------------
 RUN_NAME="grpo_${LOSS_TYPE}"
-EPOCHS_ARG=""
-if [ "${OFF_POLICY}" -eq 1 ]; then
-    EPOCHS_ARG="--epochs_per_rollout_batch 4"
-    RUN_NAME="${RUN_NAME}_offpolicy"
+[ "${NO_STD}" -eq 1 ]               && RUN_NAME="${RUN_NAME}_nostd"
+[ "${LENGTH_NORM}" != "masked_mean" ] && RUN_NAME="${RUN_NAME}_${LENGTH_NORM}"
+[ "${PROMPT_TYPE}" != "r1_zero" ]    && RUN_NAME="${RUN_NAME}_${PROMPT_TYPE}"
+LR_TAG=$(echo "${LR}" | sed 's/[^0-9e.-]//g')
+[ "${LR}" != "1e-5" ]               && RUN_NAME="${RUN_NAME}_lr${LR_TAG}"
+
+# Resolve epochs_per_rollout_batch
+if [ -n "${EPOCHS}" ]; then
+    EPOCHS_PER_ROLLOUT="${EPOCHS}"
+elif [ "${OFF_POLICY}" -eq 1 ]; then
+    EPOCHS_PER_ROLLOUT=4
+else
+    EPOCHS_PER_ROLLOUT=1
 fi
+[ "${EPOCHS_PER_ROLLOUT}" -gt 1 ] && RUN_NAME="${RUN_NAME}_e${EPOCHS_PER_ROLLOUT}"
+
+# Resolve train batch size and gradient accumulation
+RESOLVED_TRAIN_BS="${TRAIN_BATCH_SIZE:-256}"
+# Keep micro_bs=2: grad_accum = train_bs / 2
+DEFAULT_GRAD_ACCUM=$(( RESOLVED_TRAIN_BS / 2 ))
+RESOLVED_GRAD_ACCUM="${GRAD_ACCUM:-${DEFAULT_GRAD_ACCUM}}"
+
+# Optional flags
+STD_ARG=""
+[ "${NO_STD}" -eq 1 ] && STD_ARG="--no_std_normalization"
 
 if [ "${SMOKE_TEST}" -eq 1 ]; then
     echo "=== SMOKE TEST MODE ==="
@@ -107,12 +157,15 @@ if [ "${SMOKE_TEST}" -eq 1 ]; then
         --max_response_tokens 256
         --n_eval_examples 32
         --eval_interval 1
+        --epochs_per_rollout_batch "${EPOCHS_PER_ROLLOUT}"
         --loss_type "${LOSS_TYPE}"
+        --length_norm "${LENGTH_NORM}"
+        --prompt_type "${PROMPT_TYPE}"
         --run_name "${RUN_NAME}_smoke"
         --no_wandb
         --skip_eval
         --gradient_checkpointing
-        ${EPOCHS_ARG}
+        ${STD_ARG}
         ${EXTRA_ARGS}
     )
 else
@@ -124,18 +177,21 @@ else
         --n_grpo_steps 200
         --group_size 8
         --rollout_batch_size 256
-        --train_batch_size 256
-        --gradient_accumulation_steps 128
-        --lr 1e-5
+        --train_batch_size "${RESOLVED_TRAIN_BS}"
+        --gradient_accumulation_steps "${RESOLVED_GRAD_ACCUM}"
+        --lr "${LR}"
         --advantage_eps 1e-6
         --temperature 1.0
         --max_response_tokens 1024
         --gpu_memory_utilization 0.85
         --n_eval_examples 1024
         --eval_interval 5
+        --epochs_per_rollout_batch "${EPOCHS_PER_ROLLOUT}"
         --loss_type "${LOSS_TYPE}"
+        --length_norm "${LENGTH_NORM}"
+        --prompt_type "${PROMPT_TYPE}"
         --run_name "${RUN_NAME}"
-        ${EPOCHS_ARG}
+        ${STD_ARG}
         ${EXTRA_ARGS}
     )
 fi

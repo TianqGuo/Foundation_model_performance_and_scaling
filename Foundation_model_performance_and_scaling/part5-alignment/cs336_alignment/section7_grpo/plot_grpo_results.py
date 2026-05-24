@@ -19,61 +19,50 @@ def load_metrics(path: Path) -> list[dict]:
     return metrics
 
 
-def plot_accuracy_curves(runs: dict[str, list[dict]], output_path: Path) -> None:
+def _make_fig(title: str, xlabel: str, ylabel: str) -> tuple:
     fig, ax = plt.subplots(figsize=(9, 5))
-    for label, metrics in runs.items():
-        steps = [m["grpo_step"] for m in metrics]
-        acc = [m["accuracy"] for m in metrics]
-        ax.plot(steps, acc, marker="o", markersize=4, label=label)
-    ax.set_xlabel("GRPO Step")
-    ax.set_ylabel("Validation Accuracy")
-    ax.set_title("GRPO Validation Accuracy")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.grid(True, alpha=0.3)
+    return fig, ax
+
+
+def _save(fig, ax, path: Path) -> None:
     ax.legend()
-    ax.grid(True, alpha=0.3)
     fig.tight_layout()
-    fig.savefig(output_path, dpi=150)
+    fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"Results saved to {output_path}")
+    print(f"Results saved to {path}")
 
 
-def plot_reward_curves(runs: dict[str, list[dict]], output_path: Path) -> None:
-    fig, ax = plt.subplots(figsize=(9, 5))
+def plot_metric_curves(
+    runs: dict[str, list[dict]],
+    key: str,
+    title: str,
+    ylabel: str,
+    output_path: Path,
+    x_key: str = "grpo_step",
+    xlabel: str = "GRPO Step",
+) -> None:
+    fig, ax = _make_fig(title, xlabel, ylabel)
     for label, metrics in runs.items():
-        steps = [m["grpo_step"] for m in metrics]
-        reward = [m["avg_reward"] for m in metrics]
-        ax.plot(steps, reward, marker="o", markersize=4, label=label)
-    ax.set_xlabel("GRPO Step")
-    ax.set_ylabel("Validation Avg Reward")
-    ax.set_title("GRPO Validation Reward")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=150)
-    plt.close(fig)
-    print(f"Results saved to {output_path}")
-
-
-def plot_entropy_curve(metrics: list[dict], output_path: Path) -> None:
-    steps = [m["grpo_step"] for m in metrics]
-    entropy = [m.get("avg_token_entropy", 0.0) for m in metrics]
-    fig, ax = plt.subplots(figsize=(9, 4))
-    ax.plot(steps, entropy, marker="o", markersize=4, color="steelblue")
-    ax.set_xlabel("GRPO Step")
-    ax.set_ylabel("Avg Token Entropy")
-    ax.set_title("Token Entropy over GRPO Training")
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=150)
-    plt.close(fig)
-    print(f"Results saved to {output_path}")
+        xs = [m[x_key] for m in metrics if x_key in m and key in m]
+        ys = [m[key] for m in metrics if x_key in m and key in m]
+        if xs:
+            ax.plot(xs, ys, marker="o", markersize=4, label=label)
+    _save(fig, ax, output_path)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot GRPO training results")
-    parser.add_argument("--results_dir", default="results/section7",
+    parser.add_argument("--results_dir", default="results/section8",
                         help="Directory containing eval_metrics_*.jsonl files")
-    parser.add_argument("--output_dir", default="results/section7",
+    parser.add_argument("--output_dir", default="results/section8",
                         help="Directory to save plots")
+    parser.add_argument("--x_axis", default="grpo_step",
+                        choices=["grpo_step", "eval_step"],
+                        help="X-axis for plots (grpo_step or eval_step)")
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir)
@@ -97,13 +86,20 @@ def main() -> None:
         print("No data to plot.")
         return
 
-    plot_accuracy_curves(runs, output_dir / "grpo_accuracy.png")
-    plot_reward_curves(runs, output_dir / "grpo_reward.png")
+    x_key = args.x_axis
+    xlabel = "GRPO Step" if x_key == "grpo_step" else "Eval Step"
 
-    # Entropy for first run only (or all if they have it)
-    first_label, first_data = next(iter(runs.items()))
-    if any("avg_token_entropy" in m for m in first_data):
-        plot_entropy_curve(first_data, output_dir / f"grpo_entropy_{first_label}.png")
+    plot_metric_curves(runs, "accuracy", "Validation Accuracy", "Accuracy",
+                       output_dir / "grpo_accuracy.png", x_key, xlabel)
+
+    plot_metric_curves(runs, "avg_reward", "Validation Avg Reward", "Avg Reward",
+                       output_dir / "grpo_reward.png", x_key, xlabel)
+
+    plot_metric_curves(runs, "avg_token_entropy", "Token Entropy over Training", "Avg Token Entropy",
+                       output_dir / "grpo_entropy.png", x_key, xlabel)
+
+    plot_metric_curves(runs, "avg_response_length", "Response Length over Training", "Avg Response Length (tokens)",
+                       output_dir / "grpo_response_length.png", x_key, xlabel)
 
 
 if __name__ == "__main__":
