@@ -397,17 +397,17 @@ bash cs336_alignment/section7_grpo/part_5_8_1.sh --dry-run    # print commands o
 
 **Accuracy curves:**
 
-![LR sweep accuracy](results/section8/grpo_accuracy.png)
+![LR sweep accuracy](results/section8/lr_sweep_grpo_accuracy.png)
 
 **Reward curves:**
 
-![LR sweep reward](results/section8/grpo_reward.png)
+![LR sweep reward](results/section8/lr_sweep_grpo_reward.png)
 
 **Entropy and gradient norm:**
 
-![LR sweep entropy](results/section8/grpo_entropy.png)
+![LR sweep entropy](results/section8/lr_sweep_grpo_entropy.png)
 
-![LR sweep grad norm](results/section8/grpo_grad_norm.png)
+![LR sweep grad norm](results/section8/lr_sweep_grpo_grad_norm.png)
 
 **Best LR for §8.2+:** `1e-5`
 

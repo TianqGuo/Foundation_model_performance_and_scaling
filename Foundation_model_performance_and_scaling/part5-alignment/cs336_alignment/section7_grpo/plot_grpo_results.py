@@ -77,6 +77,12 @@ def main() -> None:
     parser.add_argument("--x_axis", default="grpo_step",
                         choices=["grpo_step", "eval_step", "wall_clock_hours"],
                         help="X-axis: grpo_step, eval_step, or wall_clock_hours")
+    parser.add_argument("--runs", default="",
+                        help="Comma-separated exact run labels to include (default: all). "
+                             "Labels match the part after 'eval_metrics_' in the filename.")
+    parser.add_argument("--output_prefix", default="",
+                        help="Prefix for output plot filenames, e.g. 'lr_sweep_' -> "
+                             "'lr_sweep_grpo_accuracy.png'")
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir)
@@ -88,9 +94,15 @@ def main() -> None:
         print(f"No eval_metrics_*.jsonl files found in {results_dir}")
         return
 
+    run_filter: set[str] = set()
+    if args.runs:
+        run_filter = {r.strip() for r in args.runs.split(",") if r.strip()}
+
     runs: dict[str, list[dict]] = {}
     for f in metric_files:
         label = f.stem.replace("eval_metrics_", "")
+        if run_filter and label not in run_filter:
+            continue
         data = load_metrics(f)
         if data:
             runs[label] = data
@@ -107,31 +119,32 @@ def main() -> None:
         "wall_clock_hours": "Wall-Clock Time (hours)",
     }
     xlabel = xlabel_map[x_key]
-    suffix = "" if x_key == "grpo_step" else f"_{x_key}"
+    axis_suffix = "" if x_key == "grpo_step" else f"_{x_key}"
+    p = args.output_prefix
 
     plot_metric_curves(runs, "accuracy",
                        "Validation Accuracy", "Accuracy",
-                       output_dir / f"grpo_accuracy{suffix}.png", x_key, xlabel)
+                       output_dir / f"{p}grpo_accuracy{axis_suffix}.png", x_key, xlabel)
 
     plot_metric_curves(runs, "avg_reward",
                        "Validation Avg Reward", "Avg Reward",
-                       output_dir / f"grpo_reward{suffix}.png", x_key, xlabel)
+                       output_dir / f"{p}grpo_reward{axis_suffix}.png", x_key, xlabel)
 
     plot_metric_curves(runs, "avg_token_entropy",
                        "Token Entropy over Training", "Avg Token Entropy",
-                       output_dir / f"grpo_entropy{suffix}.png", x_key, xlabel)
+                       output_dir / f"{p}grpo_entropy{axis_suffix}.png", x_key, xlabel)
 
     plot_metric_curves(runs, "avg_response_length",
                        "Response Length over Training", "Avg Response Length (tokens)",
-                       output_dir / f"grpo_response_length{suffix}.png", x_key, xlabel)
+                       output_dir / f"{p}grpo_response_length{axis_suffix}.png", x_key, xlabel)
 
     plot_metric_curves(runs, "avg_grad_norm",
                        "Gradient Norm over Training", "Avg Grad Norm",
-                       output_dir / f"grpo_grad_norm{suffix}.png", x_key, xlabel)
+                       output_dir / f"{p}grpo_grad_norm{axis_suffix}.png", x_key, xlabel)
 
     plot_metric_curves(runs, "avg_clip_frac",
                        "Clip Fraction over Training (off-policy only)", "Avg Clip Fraction",
-                       output_dir / f"grpo_clip_frac{suffix}.png", x_key, xlabel)
+                       output_dir / f"{p}grpo_clip_frac{axis_suffix}.png", x_key, xlabel)
 
 
 if __name__ == "__main__":

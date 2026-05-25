@@ -68,10 +68,13 @@ for LR in "${LRS[@]}"; do
     echo ""
 done
 
+LR_RUNS="grpo_reinforce_with_baseline_lr3e-6,grpo_reinforce_with_baseline_lr1e-5,grpo_reinforce_with_baseline_lr3e-5,grpo_reinforce_with_baseline_lr1e-4"
+[ "${SMOKE_TEST}" -eq 1 ] && LR_RUNS="${LR_RUNS}_smoke,grpo_reinforce_with_baseline_smoke"
+
 echo "========================================"
-echo "  Plotting all learning rate curves"
+echo "  Plotting §8.1 learning rate curves"
 echo "========================================"
-PLOT_CMD="uv run python ${PLOT} --results_dir ${RESULTS_DIR} --output_dir ${RESULTS_DIR}"
+PLOT_CMD="uv run python ${PLOT} --results_dir ${RESULTS_DIR} --output_dir ${RESULTS_DIR} --output_prefix lr_sweep_ --runs ${LR_RUNS}"
 if [ "${DRY_RUN}" -eq 1 ]; then
     echo "[DRY RUN] ${PLOT_CMD}"
 else
