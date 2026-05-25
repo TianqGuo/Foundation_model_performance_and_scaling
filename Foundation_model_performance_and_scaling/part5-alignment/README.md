@@ -448,11 +448,51 @@ bash cs336_alignment/section7_grpo/part_5_8_2.sh --dry-run
 
 ---
 
-### §8.3–§8.6 — Planned Experiments
+---
+
+### §8.3 — Length Normalization
+
+#### §8.3.1 — Conceptual Analysis
+
+`masked_mean` averages per-token loss over the response tokens of each sequence — every token contributes equally *within* its sequence, and every sequence contributes equally to the batch mean regardless of length. `masked_normalize` divides the token loss sum by a fixed constant (`max_response_tokens`), so longer responses produce a larger per-example loss and dominate the batch gradient.
+
+`masked_mean` is preferable when response length is not expected to correlate with correctness, as it gives stable, length-neutral gradient estimates. `masked_normalize` is preferable when longer reasoning chains should receive proportionally more credit — but it risks incentivising verbosity or padding, and produces higher gradient variance when response lengths differ substantially within a batch.
+
+#### §8.3.2 — Empirical Comparison
+
+```bash
+bash cs336_alignment/section7_grpo/part_5_8_3.sh             # full run (~1.5 hrs)
+bash cs336_alignment/section7_grpo/part_5_8_3.sh --smoke-test
+bash cs336_alignment/section7_grpo/part_5_8_3.sh --dry-run
+```
+
+**Results:**
+
+| Run | Best Acc | Best Step | Final Acc | Final Entropy | Grad Norm | Avg Resp Len |
+|-----|----------|-----------|-----------|---------------|-----------|--------------|
+| **`masked_mean`** | **50.6%** | **145** | **47.3%** | **0.158** | **6.78** | **234.5** |
+| `masked_normalize` | 48.5% | 140 | 46.2% | 0.681 | 10.56 | 214.8 |
+
+**Key findings:**
+- `masked_mean` outperforms `masked_normalize` on both peak (50.6% vs 48.5%) and final accuracy (47.3% vs 46.2%)
+- `masked_normalize` produces significantly higher token entropy (0.681 vs 0.158) — the policy is less committed to a consistent output format, consistent with noisier gradient estimates
+- Gradient norm is higher for `masked_normalize` (10.56 vs 6.78), reflecting the larger and more variable per-example loss scale introduced by the fixed normalizer
+- `masked_normalize` also converges to slightly shorter average responses (214.8 vs 234.5 tokens), suggesting the longer-response incentive did not materialise and may have introduced instability instead
+
+**Conclusion:** `masked_mean` is the better length normalization and is used for §8.4+.
+
+**Accuracy and reward curves:**
+
+![Length norm accuracy](results/section8/length_norm/grpo_accuracy.png)
+
+![Length norm reward](results/section8/length_norm/grpo_reward.png)
+
+---
+
+### §8.4–§8.6 — Planned Experiments
 
 | Section | Experiment | Runs |
 |---------|-----------|------|
-| §8.3 | Length normalization | masked_mean vs masked_normalize |
 | §8.4 | Std normalization (Dr. GRPO) | with std vs without std |
 | §8.5 | Off-policy training | grpo_clip epochs=4, epochs=2 bs=128; clip vs no-clip ablation |
 | §8.6 | Prompt format | r1_zero vs question_only |
