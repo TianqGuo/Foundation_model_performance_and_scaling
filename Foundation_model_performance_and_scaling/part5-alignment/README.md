@@ -413,14 +413,48 @@ bash cs336_alignment/section7_grpo/part_5_8_1.sh --dry-run    # print commands o
 
 ---
 
-### §8.2–§8.6 — Planned Experiments
+---
+
+### §8.2 — Effect of Baselining
+
+Compares `no_baseline` (raw reward, no centering) against `reinforce_with_baseline` (group-mean-centered reward) at the best LR (`1e-5`), both on-policy.
+
+```bash
+bash cs336_alignment/section7_grpo/part_5_8_2.sh             # full run (~1.5 hrs)
+bash cs336_alignment/section7_grpo/part_5_8_2.sh --smoke-test
+bash cs336_alignment/section7_grpo/part_5_8_2.sh --dry-run
+```
+
+**Results:**
+
+| Run | Best Acc | Best Step | Final Acc | Final Entropy | Grad Norm |
+|-----|----------|-----------|-----------|---------------|-----------|
+| `no_baseline` | 34.9% | 40 | 32.1% | 0.258 | 0.34 |
+| **`reinforce_with_baseline`** | **50.6%** | **145** | **47.3%** | **0.158** | **6.78** |
+
+**Key findings:**
+- `reinforce_with_baseline` outperforms `no_baseline` by ~15 percentage points — group-mean centering dramatically reduces gradient variance and enables consistent learning
+- `no_baseline` is essentially flat throughout training: accuracy bounces between 30–35% with no trend, and grad norm of 0.34 indicates the policy barely moves
+- Without centering, high-reward and low-reward responses within a group receive similar-magnitude updates; there is no contrastive signal distinguishing good from bad rollouts
+- Higher entropy in `no_baseline` (0.258 vs 0.158) confirms the policy has not committed to any reasoning format — consistent with near-zero learning signal
+
+**Conclusion:** `reinforce_with_baseline` is the better loss type and is used for §8.3+.
+
+**Accuracy and reward curves:**
+
+![Baselines accuracy](results/section8/baselines/grpo_accuracy.png)
+
+![Baselines reward](results/section8/baselines/grpo_reward.png)
+
+---
+
+### §8.3–§8.6 — Planned Experiments
 
 | Section | Experiment | Runs |
 |---------|-----------|------|
-| §8.2 | Loss type baselines | no_baseline, reinforce_with_baseline, grpo_clip (best LR) |
 | §8.3 | Length normalization | masked_mean vs masked_normalize |
 | §8.4 | Std normalization (Dr. GRPO) | with std vs without std |
-| §8.5 | Off-policy training | grpo_clip epochs=4, epochs=2 bs=128 vs on-policy; clip vs no-clip |
+| §8.5 | Off-policy training | grpo_clip epochs=4, epochs=2 bs=128; clip vs no-clip ablation |
 | §8.6 | Prompt format | r1_zero vs question_only |
 
 Results will be added here as experiments complete.
