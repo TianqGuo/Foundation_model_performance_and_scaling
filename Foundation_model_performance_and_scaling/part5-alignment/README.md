@@ -21,7 +21,8 @@ This project explores a progression of techniques for improving mathematical rea
 | §3 | Zero-shot baseline | Base model | Measure format compliance and accuracy before any training |
 | §4 | Supervised fine-tuning | `gpt-oss-120b` reasoning traces | Teach format and reasoning from teacher-generated data |
 | §5 | Expert Iteration | Base model | Self-generate training data; keep correct rollouts; iterate |
-| §6 | GRPO | Base model | Policy gradient with group-normalized verified rewards |
+| §7 | GRPO (implementation) | Base model | Policy gradient with group-normalized verified rewards |
+| §8 | GRPO (experiments) | §7 implementation | Sweep LR, loss type, length norm, std norm, off-policy, prompt format |
 
 ---
 
@@ -285,6 +286,147 @@ Both experiments ran on 2× A100 SXM4 40 GB GPUs, starting from the base model w
 
 ---
 
+## Section 7 — GRPO Implementation
+
+Implements the Group Relative Policy Optimization primitives used by all Section 8 experiments. GRPO eliminates the need for a separate critic/value network by normalizing advantages within a group of G rollouts sampled for the same question.
+
+### GRPO Primitives (`helpers.py`)
+
+| Function | Description |
+|----------|-------------|
+| `compute_group_normalized_rewards` | Normalize G rewards per question by group mean (and optionally std) |
+| `compute_grpo_clip_loss` | PPO-style clipped surrogate loss (off-policy) |
+| `compute_grpo_no_clip_loss` | Importance-weighted loss without clipping: `−(ratio × A)` |
+| `compute_policy_gradient_loss` | Dispatcher for all four loss types |
+| `grpo_microbatch_train_step` | Single microbatch step: log-prob computation, loss, backward pass |
+
+Supports four loss types via `--loss_type`:
+
+| Loss type | Description |
+|-----------|-------------|
+| `no_baseline` | REINFORCE without baseline — raw rewards as advantages |
+| `reinforce_with_baseline` | Group mean subtracted; optionally divided by group std |
+| `grpo_clip` | PPO-clipped importance-weighted loss (off-policy) |
+| `grpo_no_clip` | Importance-weighted loss without clipping (off-policy ablation) |
+
+Supports two length normalization strategies via `--length_norm`:
+
+| Strategy | Description |
+|----------|-------------|
+| `masked_mean` | Average per-token loss over response tokens (default) |
+| `masked_normalize` | Divide token loss sum by `max_response_tokens` (constant normalizer; longer responses get more gradient signal) |
+
+### Training Loop (`train_grpo.py`)
+
+Each GRPO step:
+1. **Rollout** — sample G=8 responses per question via vLLM
+2. **Reward** — score each response with `r1_zero_reward_fn` (format + answer correctness)
+3. **Advantage** — group-normalize rewards within each question's G rollouts
+4. **Train** — one (on-policy) or multiple (off-policy) epochs over the rollout batch with gradient accumulation
+5. **Eval** — validate every 5 steps on 1024 held-out examples
+
+Logs per-step to JSONL: step, accuracy, reward, token entropy, response length, grad norm, clip fraction, and wall-clock timestamp (for elapsed-time plots).
+
+### Usage
+
+```bash
+cd cs336_alignment/section7_grpo
+
+# Smoke test (3 steps, 64 examples — single GPU OK)
+bash part_5_7.sh --smoke-test
+
+# Dry-run: print the command without running
+bash part_5_7.sh --dry-run --loss-type=grpo_clip --off-policy
+
+# Full run (2× A100 required)
+bash part_5_7.sh --lr=1e-5
+bash part_5_7.sh --lr=1e-5 --loss-type=grpo_clip --off-policy
+bash part_5_7.sh --lr=1e-5 --no-std            # Dr. GRPO variant
+bash part_5_7.sh --lr=1e-5 --prompt-type=question_only
+```
+
+**Plotting (any subset of runs):**
+
+```bash
+uv run python cs336_alignment/section7_grpo/plot_grpo_results.py \
+    --results_dir results/section8/lr_sweep \
+    --output_dir  results/section8/lr_sweep \
+    --x_axis grpo_step          # or eval_step, wall_clock_hours
+```
+
+**Output files:**
+- `results/section8/<group>/eval_metrics_<run_name>.jsonl` — per-eval-step metrics (live append)
+- `results/section8/<group>/grpo_accuracy.png` — accuracy comparison across runs in that group
+- `results/section8/<group>/grpo_reward.png`, `grpo_entropy.png`, `grpo_grad_norm.png`, `grpo_response_length.png`, `grpo_clip_frac.png`
+
+---
+
+## Section 8 — GRPO Experiments
+
+Six ablation groups exploring what makes GRPO training effective. All full runs use 200 GRPO steps, G=8 rollouts, 1024 validation examples, `max_response_tokens=1024`, on 2× A100 80 GB GPUs (~1.5 hrs per run).
+
+Results are organized by experiment group under `results/section8/`.
+
+---
+
+### §8.1 — Learning Rate Sweep
+
+Sweeps four log-spaced learning rates with `reinforce_with_baseline` (on-policy) to identify the best LR for all subsequent experiments.
+
+```bash
+bash cs336_alignment/section7_grpo/part_5_8_1.sh             # full sweep
+bash cs336_alignment/section7_grpo/part_5_8_1.sh --smoke-test # 3 steps each, local
+bash cs336_alignment/section7_grpo/part_5_8_1.sh --dry-run    # print commands only
+```
+
+**Results:**
+
+| LR | Peak Accuracy | Peak Step | Final Accuracy | Grad Norm (final) |
+|----|--------------|-----------|----------------|-------------------|
+| 3e-6 | 32.0% | 195 | 30.0% | 1.1 |
+| **1e-5** | **50.6%** | **145** | **47.3%** | **6.8** |
+| 3e-5 | 41.6% | 5 | 31.5% | 8.3 |
+| 1e-4 | 42.0% | 5 | 18.1% | 47.5 |
+
+**Key findings:**
+- `lr=1e-5` achieves the best final accuracy (47.3%) and highest peak (50.6%), well above the ≥25% target
+- `lr=3e-6` is too conservative — still improving at step 195 but has not converged
+- `lr=3e-5` peaks immediately (step 5) then degrades steadily; rising entropy (0.38) indicates the policy drifts toward uniform outputs
+- `lr=1e-4` catastrophically collapses — grad norm of 47.5 signals training instability; accuracy falls to 18.1% by the end
+- Higher LR → earlier peak → stronger policy collapse; the sweet spot is `lr=1e-5`
+
+**Accuracy curves:**
+
+![LR sweep accuracy](results/section8/grpo_accuracy.png)
+
+**Reward curves:**
+
+![LR sweep reward](results/section8/grpo_reward.png)
+
+**Entropy and gradient norm:**
+
+![LR sweep entropy](results/section8/grpo_entropy.png)
+
+![LR sweep grad norm](results/section8/grpo_grad_norm.png)
+
+**Best LR for §8.2+:** `1e-5`
+
+---
+
+### §8.2–§8.6 — Planned Experiments
+
+| Section | Experiment | Runs |
+|---------|-----------|------|
+| §8.2 | Loss type baselines | no_baseline, reinforce_with_baseline, grpo_clip (best LR) |
+| §8.3 | Length normalization | masked_mean vs masked_normalize |
+| §8.4 | Std normalization (Dr. GRPO) | with std vs without std |
+| §8.5 | Off-policy training | grpo_clip epochs=4, epochs=2 bs=128 vs on-policy; clip vs no-clip |
+| §8.6 | Prompt format | r1_zero vs question_only |
+
+Results will be added here as experiments complete.
+
+---
+
 ## Repository Layout
 
 ```
@@ -303,7 +445,12 @@ part5-alignment/
 │   │   ├── train_expert_iter.py    # EI training loop
 │   │   ├── plot_ei_results.py      # Accuracy/entropy/rollout-size curves
 │   │   └── part_5_5.sh
-│   └── section6_grpo/              # GRPO with verified rewards — coming next
+│   └── section7_grpo/              # GRPO with verified rewards
+│       ├── helpers.py              # GRPO primitives (loss types, advantage, microbatch step)
+│       ├── train_grpo.py           # Full GRPO training loop
+│       ├── plot_grpo_results.py    # Metric curves from eval_metrics_*.jsonl
+│       ├── part_5_7.sh             # Single GRPO run (all flags)
+│       └── part_5_8_1.sh           # §8.1 LR sweep (4 runs + overlaid plots)
 ├── data/                           # Datasets (gitignored)
 │   ├── math/                       # MATH competition dataset
 │   └── gsm8k/                      # GSM8K (local smoke-test fallback)
@@ -311,11 +458,19 @@ part5-alignment/
 ├── results/
 │   ├── section3/                   # zero_shot_eval.jsonl, zero_shot_analysis.md
 │   ├── section4/                   # dataset_info.json, eval_metrics_*.jsonl, final_eval.json
-│   └── section5/                   # eval_metrics_*.jsonl, ei_accuracy.png, ei_entropy.png
+│   ├── section5/                   # eval_metrics_*.jsonl, ei_accuracy.png, ei_entropy.png
+│   ├── section7/                   # Smoke-test JSONL and plots
+│   └── section8/                   # Full experiment results, organized by group
+│       ├── lr_sweep/               # §8.1: eval_metrics_*_lr*.jsonl + comparison plots
+│       ├── baselines/              # §8.2: loss type comparison
+│       ├── length_norm/            # §8.3
+│       ├── std_norm/               # §8.4
+│       ├── off_policy/             # §8.5
+│       └── prompt_ablation/        # §8.6
 ├── tests/
 │   ├── adapters.py                 # Connects implementations to test suite
-│   ├── test_sft.py                 # Section 4 helper tests (10 tests)
-│   └── test_grpo.py                # Section 6 helper tests
+│   ├── test_sft.py                 # Section 4 helper tests
+│   └── test_grpo.py                # Section 7 GRPO helper tests (14 tests)
 └── Requirements.md                 # Full technical spec for all sections
 ```
 
