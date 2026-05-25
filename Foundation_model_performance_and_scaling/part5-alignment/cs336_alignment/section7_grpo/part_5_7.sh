@@ -225,10 +225,4 @@ fi
 uv run python "${ROOT}/cs336_alignment/section7_grpo/train_grpo.py" "${COMMON_ARGS[@]}"
 
 echo ""
-echo "=== Plotting results ==="
-uv run python "${ROOT}/cs336_alignment/section7_grpo/plot_grpo_results.py" \
-    --results_dir "${OUTPUT_DIR}" \
-    --output_dir "${OUTPUT_DIR}"
-
-echo ""
 echo "Done. Results in ${OUTPUT_DIR}"
