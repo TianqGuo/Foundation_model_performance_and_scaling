@@ -1,9 +1,9 @@
 {
-  "accuracy": 0.1826171875,
-  "format_rate": 0.3046875,
-  "avg_reward": 0.1826171875,
-  "avg_token_entropy": 0.060398019105196,
-  "avg_response_length": 398.26806640625,
-  "avg_response_length_correct": 125.05614973262033,
-  "avg_response_length_incorrect": 459.30824372759855
+  "accuracy": 0.31787109375,
+  "format_rate": 0.94921875,
+  "avg_reward": 0.31787109375,
+  "avg_token_entropy": 0.4190943896770477,
+  "avg_response_length": 119.59130859375,
+  "avg_response_length_correct": 91.07066052227343,
+  "avg_response_length_incorrect": 132.88188976377953
 }
