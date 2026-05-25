@@ -106,10 +106,10 @@ fi
 
 TRAIN_DATA="${DATA_DIR}/train.jsonl"
 VAL_DATA="${DATA_DIR}/validation.jsonl"
-# Smoke tests → results/section7 (quick local checks)
+# Smoke tests → results/section7/smoke (quick local checks)
 # Full runs   → results/section8 (all Section 8 experiments)
 if [ "${SMOKE_TEST}" -eq 1 ]; then
-    OUTPUT_DIR="${ROOT}/results/section7"
+    OUTPUT_DIR="${ROOT}/results/section7/smoke"
 else
     OUTPUT_DIR="${ROOT}/results/section8"
 fi

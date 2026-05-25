@@ -397,17 +397,17 @@ bash cs336_alignment/section7_grpo/part_5_8_1.sh --dry-run    # print commands o
 
 **Accuracy curves:**
 
-![LR sweep accuracy](results/section8/lr_sweep_grpo_accuracy.png)
+![LR sweep accuracy](results/section8/lr_sweep/grpo_accuracy.png)
 
 **Reward curves:**
 
-![LR sweep reward](results/section8/lr_sweep_grpo_reward.png)
+![LR sweep reward](results/section8/lr_sweep/grpo_reward.png)
 
 **Entropy and gradient norm:**
 
-![LR sweep entropy](results/section8/lr_sweep_grpo_entropy.png)
+![LR sweep entropy](results/section8/lr_sweep/grpo_entropy.png)
 
-![LR sweep grad norm](results/section8/lr_sweep_grpo_grad_norm.png)
+![LR sweep grad norm](results/section8/lr_sweep/grpo_grad_norm.png)
 
 **Best LR for §8.2+:** `1e-5`
 
@@ -459,14 +459,16 @@ part5-alignment/
 │   ├── section3/                   # zero_shot_eval.jsonl, zero_shot_analysis.md
 │   ├── section4/                   # dataset_info.json, eval_metrics_*.jsonl, final_eval.json
 │   ├── section5/                   # eval_metrics_*.jsonl, ei_accuracy.png, ei_entropy.png
-│   ├── section7/                   # Smoke-test JSONL and plots
-│   └── section8/                   # Full experiment results, organized by group
-│       ├── lr_sweep/               # §8.1: eval_metrics_*_lr*.jsonl + comparison plots
-│       ├── baselines/              # §8.2: loss type comparison
-│       ├── length_norm/            # §8.3
-│       ├── std_norm/               # §8.4
-│       ├── off_policy/             # §8.5
-│       └── prompt_ablation/        # §8.6
+│   ├── section7/
+│   │   └── smoke/                  # Smoke-test JSONL and plots
+│   └── section8/                   # Full experiment JSONL (flat) + plots by group
+│       ├── eval_metrics_*.jsonl    # All run data (flat, uniquely named)
+│       ├── lr_sweep/               # §8.1 comparison plots
+│       ├── baselines/              # §8.2 comparison plots
+│       ├── length_norm/            # §8.3 comparison plots
+│       ├── std_norm/               # §8.4 comparison plots
+│       ├── off_policy/             # §8.5 comparison plots
+│       └── prompt_ablation/        # §8.6 comparison plots
 ├── tests/
 │   ├── adapters.py                 # Connects implementations to test suite
 │   ├── test_sft.py                 # Section 4 helper tests

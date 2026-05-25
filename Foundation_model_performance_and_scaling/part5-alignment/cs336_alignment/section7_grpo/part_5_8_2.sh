@@ -76,11 +76,12 @@ echo ""
 
 BASELINE_RUNS="grpo_no_baseline_lr${BEST_LR},grpo_reinforce_with_baseline_lr${BEST_LR}"
 [ "${SMOKE_TEST}" -eq 1 ] && BASELINE_RUNS="grpo_no_baseline_lr${BEST_LR}_smoke,grpo_reinforce_with_baseline_lr${BEST_LR}_smoke"
+PLOT_OUTPUT_DIR="${RESULTS_DIR}/baselines"
 
 echo "========================================"
 echo "  Plotting §8.2 comparison"
 echo "========================================"
-PLOT_CMD="uv run python ${PLOT} --results_dir ${RESULTS_DIR} --output_dir ${RESULTS_DIR} --output_prefix baselines_ --runs ${BASELINE_RUNS}"
+PLOT_CMD="uv run python ${PLOT} --results_dir ${RESULTS_DIR} --output_dir ${PLOT_OUTPUT_DIR} --runs ${BASELINE_RUNS}"
 if [ "${DRY_RUN}" -eq 1 ]; then
     echo "[DRY RUN] ${PLOT_CMD}"
 else
