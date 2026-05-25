@@ -454,9 +454,9 @@ bash cs336_alignment/section7_grpo/part_5_8_2.sh --dry-run
 
 #### §8.3.1 — Conceptual Analysis
 
-`masked_mean` averages per-token loss over the response tokens of each sequence — every token contributes equally *within* its sequence, and every sequence contributes equally to the batch mean regardless of length. `masked_normalize` divides the token loss sum by a fixed constant (`max_response_tokens`), so longer responses produce a larger per-example loss and dominate the batch gradient.
+`masked_mean` averages per-token loss over the response tokens of each sequence — tokens in shorter responses receive a larger per-token gradient weight (÷4 for a 4-token response vs ÷7 for a 7-token response), implicitly up-weighting brevity. `masked_normalize` divides by a fixed constant (`max_response_tokens`), giving every token the same gradient weight regardless of response length, though longer responses produce a larger per-example loss and contribute more to the batch gradient.
 
-`masked_mean` is preferable when response length is not expected to correlate with correctness, as it gives stable, length-neutral gradient estimates. `masked_normalize` is preferable when longer reasoning chains should receive proportionally more credit — but it risks incentivising verbosity or padding, and produces higher gradient variance when response lengths differ substantially within a batch.
+`masked_normalize` is conceptually better suited for long reasoning RL — each token gets equal credit regardless of sequence length, so longer correct reasoning chains receive proportional reinforcement. In practice however, GRPO rollouts produce highly variable response lengths (e.g. 50–900 tokens), so `masked_normalize` can give a long response ~18× more gradient weight than a short one. This length imbalance introduces gradient noise and instability, which is why `masked_mean`'s sequence-level stability wins empirically despite being theoretically less fair at the token level.
 
 #### §8.3.2 — Empirical Comparison
 
