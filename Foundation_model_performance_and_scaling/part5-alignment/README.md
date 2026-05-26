@@ -43,9 +43,9 @@ Recent models (OpenAI o1/o3, DeepSeek R1, Kimi k1.5) apply policy gradient metho
 ### Reward Function
 
 All sections use the DrGRPO reward function from Liu et al. [2025]:
-- **Format reward (0.5):** response contains both `<think>` and `<answer>` tags
-- **Answer reward (0.5):** extracted answer matches ground truth (sympy-based equivalence)
-- **Combined reward:** sum of the two; 1.0 = correct format and correct answer
+- **Format reward:** 1.0 if response contains both `<think>` and `<answer>` tags, 0.0 otherwise (tracked separately as `format_rate`)
+- **Answer reward:** 1.0 if extracted answer matches ground truth (sympy-based equivalence), 0.0 otherwise
+- **Combined reward:** 1.0 only when both format and answer are correct, 0.0 otherwise — no partial credit
 
 ---
 
@@ -357,7 +357,7 @@ uv run python cs336_alignment/section7_grpo/plot_grpo_results.py \
 **Output files:**
 - `results/section8/<group>/eval_metrics_<run_name>.jsonl` — per-eval-step metrics (live append)
 - `results/section8/<group>/grpo_accuracy.png` — accuracy comparison across runs in that group
-- `results/section8/<group>/grpo_reward.png`, `grpo_entropy.png`, `grpo_grad_norm.png`, `grpo_response_length.png`, `grpo_clip_frac.png`
+- `results/section8/<group>/grpo_format_rate.png`, `grpo_entropy.png`, `grpo_grad_norm.png`, `grpo_response_length.png`, `grpo_clip_frac.png`
 
 ---
 
@@ -399,9 +399,9 @@ bash cs336_alignment/section7_grpo/part_5_8_1.sh --dry-run    # print commands o
 
 ![LR sweep accuracy](results/section8/lr_sweep/grpo_accuracy.png)
 
-**Reward curves:**
+**Format compliance rate:**
 
-![LR sweep reward](results/section8/lr_sweep/grpo_reward.png)
+![LR sweep format rate](results/section8/lr_sweep/grpo_format_rate.png)
 
 **Entropy and gradient norm:**
 
@@ -440,11 +440,15 @@ bash cs336_alignment/section7_grpo/part_5_8_2.sh --dry-run
 
 **Conclusion:** `reinforce_with_baseline` is the better loss type and is used for §8.3+.
 
-**Accuracy and reward curves:**
+**Accuracy and format compliance rate:**
 
 ![Baselines accuracy](results/section8/baselines/grpo_accuracy.png)
 
-![Baselines reward](results/section8/baselines/grpo_reward.png)
+![Baselines format rate](results/section8/baselines/grpo_format_rate.png)
+
+![Baselines entropy](results/section8/baselines/grpo_entropy.png)
+
+![Baselines grad norm](results/section8/baselines/grpo_grad_norm.png)
 
 ---
 
@@ -481,11 +485,15 @@ bash cs336_alignment/section7_grpo/part_5_8_3.sh --dry-run
 
 **Conclusion:** `masked_mean` is the better length normalization and is used for §8.4+.
 
-**Accuracy and reward curves:**
+**Accuracy and format compliance rate:**
 
 ![Length norm accuracy](results/section8/length_norm/grpo_accuracy.png)
 
-![Length norm reward](results/section8/length_norm/grpo_reward.png)
+![Length norm format rate](results/section8/length_norm/grpo_format_rate.png)
+
+![Length norm entropy](results/section8/length_norm/grpo_entropy.png)
+
+![Length norm grad norm](results/section8/length_norm/grpo_grad_norm.png)
 
 ---
 
@@ -516,11 +524,15 @@ bash cs336_alignment/section7_grpo/part_5_8_4.sh --dry-run
 
 **Conclusion:** `with_std` (standard GRPO) is the better normalization and is used for §8.5+.
 
-**Accuracy and reward curves:**
+**Accuracy and format compliance rate:**
 
 ![Std norm accuracy](results/section8/std_norm/grpo_accuracy.png)
 
-![Std norm reward](results/section8/std_norm/grpo_reward.png)
+![Std norm format rate](results/section8/std_norm/grpo_format_rate.png)
+
+![Std norm entropy](results/section8/std_norm/grpo_entropy.png)
+
+![Std norm grad norm](results/section8/std_norm/grpo_grad_norm.png)
 
 ---
 
