@@ -489,11 +489,45 @@ bash cs336_alignment/section7_grpo/part_5_8_3.sh --dry-run
 
 ---
 
-### §8.4–§8.6 — Planned Experiments
+---
+
+### §8.4 — Effect of Group Standard Deviation Normalization
+
+Compares standard GRPO (`use_std_normalization=True`, divides advantage by group std) against Dr. GRPO (`use_std_normalization=False`, advantage = reward − group mean only) at the best LR (`1e-5`) with `reinforce_with_baseline` and `masked_mean`.
+
+```bash
+bash cs336_alignment/section7_grpo/part_5_8_4.sh             # full run (~1.5 hrs)
+bash cs336_alignment/section7_grpo/part_5_8_4.sh --smoke-test
+bash cs336_alignment/section7_grpo/part_5_8_4.sh --dry-run
+```
+
+**Results:**
+
+| Run | Best Acc | Best Step | Final Acc | Final Entropy | Grad Norm |
+|-----|----------|-----------|-----------|---------------|-----------|
+| **`with_std` (standard GRPO)** | **50.6%** | **145** | **47.3%** | 0.158 | 6.78 |
+| `no_std` (Dr. GRPO) | 48.1% | 145 | 46.5% | **0.097** | **3.42** |
+
+**Key findings:**
+- `with_std` outperforms `no_std` on both peak (50.6% vs 48.1%) and final accuracy (47.3% vs 46.5%), though the gap is modest (~1 point)
+- `no_std` produces a lower grad norm (3.42 vs 6.78) and lower entropy (0.097 vs 0.158) — the policy converges to a tighter output distribution, consistent with the Dr. GRPO motivation of avoiding artificially amplified gradients on easy groups
+- Both trajectories are stable with no collapse: accuracy improves steadily from ~31% at step 5 to ~46–47% by step 200
+- Dividing by group std (`with_std`) scales the advantage by the spread of rewards within each group — on questions where rollouts vary widely in correctness, this amplification provides stronger learning signal and better separates good from bad responses, which explains the accuracy edge
+
+**Conclusion:** `with_std` (standard GRPO) is the better normalization and is used for §8.5+.
+
+**Accuracy and reward curves:**
+
+![Std norm accuracy](results/section8/std_norm/grpo_accuracy.png)
+
+![Std norm reward](results/section8/std_norm/grpo_reward.png)
+
+---
+
+### §8.5–§8.6 — Planned Experiments
 
 | Section | Experiment | Runs |
 |---------|-----------|------|
-| §8.4 | Std normalization (Dr. GRPO) | with std vs without std |
 | §8.5 | Off-policy training | grpo_clip epochs=4, epochs=2 bs=128; clip vs no-clip ablation |
 | §8.6 | Prompt format | r1_zero vs question_only |
 
