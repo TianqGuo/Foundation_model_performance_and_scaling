@@ -536,14 +536,89 @@ bash cs336_alignment/section7_grpo/part_5_8_4.sh --dry-run
 
 ---
 
-### §8.5–§8.6 — Planned Experiments
+### §8.5 — Off-Policy GRPO
 
-| Section | Experiment | Runs |
-|---------|-----------|------|
-| §8.5 | Off-policy training | grpo_clip epochs=4, epochs=2 bs=128; clip vs no-clip ablation |
-| §8.6 | Prompt format | r1_zero vs question_only |
+Off-policy GRPO reuses each rollout batch for multiple gradient updates, amortising the cost of vLLM generation. The key hyperparameters are `epochs_per_rollout_batch` (how many passes over a batch) and `train_batch_size` (mini-batch size within each epoch). All runs use `grpo_clip` at `lr=1e-5`.
 
-Results will be added here as experiments complete.
+#### §8.5.1 — Broad Sweep (50 GRPO steps)
+
+Three configs were compared at 50 steps to quickly identify the most promising direction before committing to full 200-step runs:
+
+| Config | epochs | bs | grad updates/step | Peak Acc | Final Acc | Final Entropy |
+|--------|--------|----|-------------------|----------|-----------|---------------|
+| on-policy | 1 | 256 | 1 | 43.9% | 41.4% | 0.184 |
+| off-policy | 4 | 256 | 4 | 48.6% | 48.6% | 0.112 |
+| **off-policy** | **4** | **128** | **8** | **50.1%** | **50.1%** | **0.148** |
+
+Both off-policy configs outperform on-policy. `epochs=4, bs=128` wins with 8 gradient updates per GRPO step — more updates per rollout translates directly to better accuracy within the same number of generation cycles.
+
+![Sweep accuracy](results/section8/off_policy/sweep_grpo_accuracy.png)
+
+![Sweep accuracy vs wall-clock](results/section8/off_policy/sweep_grpo_accuracy_wall_clock_hours.png)
+
+![Sweep wandb eval](results/section8/off_policy/wandb_50_steps_eval.png)
+
+#### §8.5.2 — Focused Runs (200 GRPO steps)
+
+The sweep winner (`epochs=4, bs=128`) and the on-policy baseline (`epochs=1, bs=256`) were run to convergence:
+
+| Config | Peak Acc | Peak Step | Final Acc | Final Entropy | Grad Norm (max) | Clip Frac (final) |
+|--------|----------|-----------|-----------|---------------|-----------------|-------------------|
+| on-policy (e1, bs256) | 45.7% | 80 | 40.1% | 0.265 | 47,104 | 0.255 |
+| **off-policy (e4, bs128)** | **54.6%** | **90** | **52.5%** | **0.035** | 7,045,248 | 0.622 |
+
+**Key findings:**
+- Off-policy delivers **+9 pt peak accuracy** (54.6% vs 45.7%) and **+12 pt final accuracy**
+- Both runs peak around step 80–90 and then decline, indicating over-optimisation in later steps
+- Gradient norms explode in later training (reaching 47K and 7M respectively) — a known instability pattern in GRPO/PPO at longer runs
+- Off-policy entropy collapses to 0.035 (near-deterministic) while on-policy stays more diverse (0.265); the high clip fraction (62.2%) confirms the policy drifts far from the rollout policy within 4 epochs
+- **Compared to Expert Iteration**: EI entropy was stable or slowly declining across steps; GRPO off-policy entropy collapses sharply in later training, reflecting the more aggressive gradient updates that push the policy toward a narrow mode
+
+![Focused accuracy](results/section8/off_policy/focused_grpo_accuracy.png)
+
+![Focused accuracy vs wall-clock](results/section8/off_policy/focused_grpo_accuracy_wall_clock_hours.png)
+
+![Focused entropy](results/section8/off_policy/focused_grpo_entropy.png)
+
+![Focused grad norm](results/section8/off_policy/focused_grpo_grad_norm.png)
+
+![Focused clip frac](results/section8/off_policy/focused_grpo_clip_frac.png)
+
+![Focused wandb eval](results/section8/off_policy/wandb_200_steps_bs128_ep4_eval.png)
+
+#### §8.5.3 — Clip Ablation
+
+`grpo_no_clip` removes the PPO clipping mechanism, using raw importance weights (π_θ / π_θ_old) with no bound:
+
+| Config | Peak Acc | Peak Step | Final Acc | Final Entropy | Grad Norm (max) | Clip Frac |
+|--------|----------|-----------|-----------|---------------|-----------------|-----------|
+| **grpo_clip** | **54.6%** | **90** | **52.5%** | 0.035 | 7,045,248 | 0.004–0.622 |
+| grpo_no_clip | 48.1% | 160 | 44.5% | 0.166 | 11,454,022,541,186 | 0.000 |
+
+**Key findings:**
+- `grpo_clip` outperforms `grpo_no_clip` by **+6.5 pt peak** and **+8 pt final accuracy**
+- Without clipping, importance weights grow unbounded as the policy drifts across 4 epochs per GRPO step, causing catastrophic gradient explosion (11 trillion vs 7 million)
+- `grpo_no_clip` **format rate degrades** from 81.5% → 77.7% — destructive updates are overwriting previously learned format structure; this does not happen with clipping
+- `grpo_no_clip` maintains higher entropy (0.166 vs 0.035) as a side effect of instability, not genuine exploration
+- The clip is essential for off-policy stability: without it, the unconstrained importance weights make multi-epoch updates destructive rather than beneficial
+
+![Clip ablation accuracy](results/section8/off_policy/clip_grpo_accuracy.png)
+
+![Clip ablation grad norm](results/section8/off_policy/clip_grpo_grad_norm.png)
+
+![Clip ablation clip frac](results/section8/off_policy/clip_grpo_clip_frac.png)
+
+![Clip ablation entropy](results/section8/off_policy/clip_grpo_entropy.png)
+
+![Clip ablation wandb](results/section8/off_policy/wandb_clip_and_no_clip_eval.png)
+
+**Conclusion:** Off-policy GRPO with `epochs=4, bs=128` (8 gradient updates per GRPO step) and PPO-style clipping is the strongest configuration tested, achieving 54.6% peak accuracy — the best result across all §8 experiments. PPO clipping is not optional in this setting.
+
+---
+
+### §8.6 — Prompt Ablation (Planned)
+
+Comparison of `r1_zero` vs `question_only` prompts using the best hyperparameters from §8.5.
 
 ---
 
