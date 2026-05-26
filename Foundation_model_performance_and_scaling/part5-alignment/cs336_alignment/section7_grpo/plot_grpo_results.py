@@ -126,9 +126,9 @@ def main() -> None:
                        "Validation Accuracy", "Accuracy",
                        output_dir / f"{p}grpo_accuracy{axis_suffix}.png", x_key, xlabel)
 
-    plot_metric_curves(runs, "avg_reward",
-                       "Validation Avg Reward", "Avg Reward",
-                       output_dir / f"{p}grpo_reward{axis_suffix}.png", x_key, xlabel)
+    plot_metric_curves(runs, "format_rate",
+                       "Format Compliance Rate", "Format Rate",
+                       output_dir / f"{p}grpo_format_rate{axis_suffix}.png", x_key, xlabel)
 
     plot_metric_curves(runs, "avg_token_entropy",
                        "Token Entropy over Training", "Avg Token Entropy",
