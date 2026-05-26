@@ -47,6 +47,7 @@ LR="1e-5"
 EPOCHS=""           # empty = use default (1 on-policy, 4 off-policy)
 TRAIN_BATCH_SIZE=""
 GRAD_ACCUM=""
+STEPS=""            # empty = 200 (full run); set to override, appends _s{N} to run name
 EXTRA_ARGS=""
 
 for arg in "$@"; do
@@ -62,6 +63,7 @@ for arg in "$@"; do
         --epochs=*)            EPOCHS="${arg#*=}" ;;
         --train-batch-size=*)  TRAIN_BATCH_SIZE="${arg#*=}" ;;
         --grad-accum=*)        GRAD_ACCUM="${arg#*=}" ;;
+        --steps=*)             STEPS="${arg#*=}" ;;
         *)                     EXTRA_ARGS="$EXTRA_ARGS $arg" ;;
     esac
 done
@@ -135,12 +137,14 @@ RESOLVED_GRAD_ACCUM="${GRAD_ACCUM:-${DEFAULT_GRAD_ACCUM}}"
 
 # Build run name — LR always included so runs from different sections never collide
 LR_TAG=$(echo "${LR}" | sed 's/[^0-9e.-]//g')
+RESOLVED_STEPS="${STEPS:-200}"
 RUN_NAME="grpo_${LOSS_TYPE}_lr${LR_TAG}"
 [ "${EPOCHS_PER_ROLLOUT}" -gt 1 ]       && RUN_NAME="${RUN_NAME}_e${EPOCHS_PER_ROLLOUT}"
 [ "${RESOLVED_TRAIN_BS}" != "256" ]     && RUN_NAME="${RUN_NAME}_bs${RESOLVED_TRAIN_BS}"
 [ "${NO_STD}" -eq 1 ]                   && RUN_NAME="${RUN_NAME}_nostd"
 [ "${LENGTH_NORM}" != "masked_mean" ]   && RUN_NAME="${RUN_NAME}_${LENGTH_NORM}"
 [ "${PROMPT_TYPE}" != "r1_zero" ]       && RUN_NAME="${RUN_NAME}_${PROMPT_TYPE}"
+[ -n "${STEPS}" ]                       && RUN_NAME="${RUN_NAME}_s${STEPS}"
 
 # Optional flags
 STD_ARG=""
@@ -179,7 +183,7 @@ else
         --data "${TRAIN_DATA}"
         --val_data "${VAL_DATA}"
         --output "${OUTPUT_DIR}"
-        --n_grpo_steps 200
+        --n_grpo_steps "${RESOLVED_STEPS}"
         --group_size 8
         --rollout_batch_size 256
         --train_batch_size "${RESOLVED_TRAIN_BS}"
