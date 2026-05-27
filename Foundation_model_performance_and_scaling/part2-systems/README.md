@@ -7,13 +7,15 @@ A deep-dive into the systems side of large language model training — benchmark
 | Section | Topic |
 |---------|-------|
 | Part 1 | Attention benchmarking — memory and latency vs sequence length |
-| Part 2 | FlashAttention — IO-aware attention implementation and speedup |
+| Part 2 | FlashAttention — PyTorch, Triton, and optimized Triton implementations |
 | Part 3 | Memory profiling — activation and optimizer state analysis |
+| Part 3b | GPU kernel profiling with Nsight Systems |
 | Part 4 | Mixed precision training (BF16) |
 | Part 5 | `torch.compile` benchmarking |
 | Part 6 | Distributed communication — all-reduce backends |
-| Part 7 | Distributed Data Parallel (DDP) — naive, flat, overlapped |
+| Part 7 | Distributed Data Parallel (DDP) — naive, flat, overlapped, bucketed |
 | Part 8 | Optimizer state sharding (ZeRO-style) |
+| Part 9 | 4D Parallelism — memory and communication accounting for 220B-parameter models |
 
 ---
 
@@ -43,14 +45,23 @@ Full results: `results/attention_benchmarking/` · H100 results: `results/attent
 
 ## Part 2: FlashAttention
 
-Implemented IO-aware FlashAttention (tiled SRAM kernel) and benchmarked against standard attention.
+Implemented IO-aware FlashAttention in three progressively optimized variants:
 
-**Key result:** FlashAttention gives ~5x forward speedup at small sequence lengths; maintains this advantage at longer sequences. H100 results show FlashAttention handles `seq_len=16384` successfully where standard attention OOMs on smaller GPUs.
+1. **PyTorch reference** (`flash_attention_pytorch.py`) — tiled SRAM algorithm using standard PyTorch ops
+2. **Triton kernel** (`flash_attention_triton.py`) — custom Triton GPU kernel for direct tile-level control
+3. **Optimized Triton kernel** (`flash_attention_triton_optimized.py`) — further optimized tile scheduling and memory access patterns
 
-| Metric | Standard | FlashAttention | Speedup |
-|--------|----------|----------------|---------|
-| Forward (seq=128, d=16, bf16) | 0.031 ms | 0.006 ms | ~5× |
-| Forward (seq=4096, d=128, fp32) | varies | varies | ~2–5× |
+**Key result:** Forward speedup grows with sequence length — from ~5× at short sequences to over 10× at `seq_len=16384`, and the optimized Triton kernel reaches ~16× at `seq_len=65536`. Standard attention OOMs at `seq_len=16384` on RTX 4090; FlashAttention handles it comfortably.
+
+**Forward pass speedup (d_model=16, BF16, causal):**
+
+| seq_len | Standard (ms) | FlashAttention (ms) | Speedup |
+|---------|--------------|---------------------|---------|
+| 128 | 0.031 | 0.006 | ~5× |
+| 4,096 | 0.22 | 0.050 | ~4.4× |
+| 8,192 | 0.71 | 0.094 | ~7.5× |
+| 16,384 | 2.60 | 0.25 | ~10.4× |
+| 65,536 | 39.8 | 3.1 | ~12.7× |
 
 Full results: `results/flash_attention/`
 
@@ -131,7 +142,7 @@ Full results: `results/mixed_precision/` · `results/memory_profiling/`
 
 Benchmarked `torch.compile` speedup across model sizes (128M–2.7B) and context lengths.
 
-**Key result:** Small models (128M, ctx=128) get ~6× speedup. Large models (969M+) see <1% benefit — the overhead from large matrix operations dominates and compile overhead becomes negligible but so do gains.
+**Key result:** Small models (128M, ctx=128) get ~5× speedup. Large models (969M+) see <1% benefit — the overhead from large matrix operations dominates and kernel launch savings become negligible.
 
 | Model | ctx | Vanilla (ms) | Compiled (ms) | Speedup |
 |-------|-----|-------------|---------------|---------|
@@ -140,7 +151,7 @@ Benchmarked `torch.compile` speedup across model sizes (128M–2.7B) and context
 | medium (423M) | 512 | 277 ms | 279 ms | 1.0× |
 | 2.7B | 512 | 1,438 ms | 1,436 ms | 1.0× |
 
-Full results: `results/torch_compile_benchmarking/`
+Full results: `results/torch_compile_benchmarking/` · H200 results: `results/torch_compile_benchmarking/H200_results/`
 
 ---
 
@@ -167,7 +178,7 @@ Full results: `results/distributed_communication/`
 
 ## Part 7: Distributed Data Parallel (DDP)
 
-Implemented and benchmarked three DDP variants on a 2B-parameter (XL) model across 2 GPUs:
+Implemented and benchmarked four DDP variants on a 2B-parameter (XL) model across 2 GPUs:
 
 | Implementation | Avg step time | Speedup vs naive |
 |----------------|--------------|-----------------|
@@ -183,7 +194,7 @@ Also benchmarked bucket sizes for bucketed DDP:
 | 100 MB (98 buckets) | 993 ms |
 | 1,000 MB (8 buckets) | **980 ms** |
 
-Larger buckets reduce all-reduce call overhead. Full results: `results/ddp_overlap_individual/` · `results/ddp_bucketed/`
+Larger buckets reduce all-reduce call overhead. Full results: `results/naive_ddp/` · `results/flat_ddp/` · `results/ddp_overlap_individual/` · `results/ddp_bucketed/`
 
 ---
 
@@ -202,21 +213,58 @@ Full results: `results/optimizer_sharding/`
 
 ---
 
+## Part 9: 4D Parallelism — Memory and Communication Accounting
+
+Analyzed memory and communication requirements for training a 220B-parameter dense model using combinations of Data Parallelism (DP), Fully-Sharded Data Parallelism (FSDP), Tensor Parallelism (TP), and Pipeline Parallelism (PP).
+
+**XXL model configuration:** d_model=16,384, d_ff=53,248, 126 layers — ~220B parameters.
+
+**Single-device memory breakdown (FP32):**
+
+| Component | Memory |
+|-----------|--------|
+| Master weights | 880 GB |
+| Gradients | 880 GB |
+| AdamW optimizer states | 1,760 GB |
+| **Total** | **3,520 GB** |
+
+At 80 GB per H100, this requires a minimum of 44 GPUs just to hold the model.
+
+**FSDP sharding:** For typical training (batch=4, seq_len=2048), fitting under 95 GB per device requires ≥156 FSDP shards. With minimal activations, ≥38 devices suffice.
+
+**Compute-bound batch size** on a 16 FSDP × 4 TP TPU v5p mesh: computation time (1,956 s) vastly exceeds communication time (1.38 s), confirming the setup is compute-bound at per-device batch size 1.
+
+Full analysis: `cs336_systems/4d_parallelism/COMMUNICATION_ACCOUNTING.md`
+
+---
+
 ## Repository Layout
 
 ```
 part2-systems/
 ├── cs336_systems/              # Implementation
-│   ├── attention/              # FlashAttention kernel
-│   ├── distributed/            # DDP, all-reduce, optimizer sharding
-│   └── benchmarks/             # Benchmarking scripts
+│   ├── attention_benchmarking/ # Part 1 — standard attention benchmark
+│   ├── flash_attention/        # Part 2 — PyTorch, Triton, and optimized Triton implementations
+│   ├── memory_profiling/       # Part 3 — memory snapshot and profiling scripts
+│   ├── nsight_systems_profiler/# Part 3b — Nsight Systems profiling and analysis
+│   ├── mixed_precision/        # Part 4 — BF16 benchmarking
+│   ├── torch_compile_benchmarking/ # Part 5 — torch.compile benchmarking
+│   ├── profiling_benchmarking/ # Shared forward/backward timing utilities
+│   ├── distributed_communication/  # Part 6 — all-reduce backends
+│   ├── naive_ddp/              # Part 7 — naive DDP implementation
+│   ├── flat_ddp/               # Part 7 — flat (single-bucket) DDP
+│   ├── ddp_overlap_individual/ # Part 7 — per-parameter comm/compute overlap
+│   ├── ddp_bucketed/           # Part 7 — bucketed DDP
+│   ├── optimizer_sharding/     # Part 8 — ZeRO Stage 1 optimizer sharding
+│   └── 4d_parallelism/         # Part 9 — 4D parallelism accounting
 ├── cs336-basics/               # Base LM implementation (from Part 1)
 ├── results/
 │   ├── attention_benchmarking/ # Part 1 — attention benchmark CSVs + H100 results
 │   ├── flash_attention/        # Part 2 — FlashAttention benchmark CSVs
 │   ├── memory_profiling/       # Part 3 — memory snapshots and summaries
+│   ├── nsight_profiles/        # Part 3b — Nsight profiles and kernel summaries
 │   ├── mixed_precision/        # Part 4 — BF16 benchmark CSV
-│   ├── torch_compile_benchmarking/ # Part 5 — compile benchmark CSVs
+│   ├── torch_compile_benchmarking/ # Part 5 — compile benchmark CSVs + H200 results
 │   ├── distributed_communication/  # Part 6 — all-reduce plots and analysis
 │   ├── naive_ddp/              # Part 7 — naive DDP results
 │   ├── flat_ddp/               # Part 7 — flat DDP results
