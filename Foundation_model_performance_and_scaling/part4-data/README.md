@@ -103,9 +103,11 @@ Training curves (wandb):
 │   ├── CC/                     # Downloaded WET files
 │   ├── filtered/               # Post-filter documents + filter_stats.json
 │   ├── tokenized/              # train.bin (GPT-2 tokenized)
+│   ├── wiki/                   # Wikipedia data for quality classifier training
 │   └── paloma/                 # Paloma validation set
 ├── results/                    # Written analysis and evaluation outputs
 │   ├── filtering_cc/           # Per-stage filter analysis
+│   ├── leaderboard/            # Part 4 inspection outputs
 │   └── screenshots/            # Training curves (wandb)
 ├── setup_vm.sh                 # One-shot cloud VM setup script
 ├── get_assets.sh               # Download classifier model weights
