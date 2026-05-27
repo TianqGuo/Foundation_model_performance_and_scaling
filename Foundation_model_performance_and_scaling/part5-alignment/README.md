@@ -658,6 +658,14 @@ Compares two prompts using the best hyperparameters from §8.5 (`grpo_clip`, `lr
 
 ![Prompt clip frac](results/section8/prompt_ablation/prompt_grpo_clip_frac.png)
 
+**W&B training dashboard:**
+
+![Prompt ablation wandb eval](results/section8/prompt_ablation/wandb_prompt_ablation_eval.png)
+
+![Prompt ablation wandb grpo](results/section8/prompt_ablation/wandb_prompt_ablation_grpo.png)
+
+![Prompt ablation wandb train](results/section8/prompt_ablation/wandb_prompt_ablation_train.png)
+
 **Conclusion:** `question_only` is the stronger prompt for this model, achieving 71.1% peak accuracy — the best result across all §8 experiments. The prompt choice is not cosmetic; it determines how far the base model's pretrained knowledge is from the target RL behaviour, directly setting the ceiling for what RL can achieve and how stably it trains.
 
 ---
