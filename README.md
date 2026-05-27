@@ -107,7 +107,7 @@ Optimized a 28.8M-parameter model on OpenWebText within a 1.5-hour compute budge
 
 ### Attention Benchmarking & FlashAttention
 
-Standard attention memory grows quadratically with sequence length — `seq_len=16384` OOMs on RTX 4090. FlashAttention keeps Q/K/V tiles in SRAM and eliminates the O(seq_len²) HBM read/write, handling all sequence lengths with ~2–5× forward speedup.
+Standard attention memory grows quadratically with sequence length — `seq_len=16384` OOMs on RTX 4090. FlashAttention keeps Q/K/V tiles in SRAM and eliminates the O(seq_len²) HBM read/write. Implemented in three variants (PyTorch reference, Triton kernel, optimized Triton). Forward speedup grows with sequence length — ~5× at seq=128, reaching ~10–13× at seq=16384–65536.
 
 ### Memory Profiling — 2.7B Parameter Model
 
@@ -130,7 +130,9 @@ BF16 speedup grows with model size — dominant at 2.7B where compute, not memor
 | Model | FP32 (ms) | BF16 (ms) | Speedup |
 |-------|-----------|-----------|---------|
 | small (128M) | 102 | 123 | 0.83× |
+| medium (423M) | 267 | 290 | 0.92× |
 | large (969M) | 557 | 540 | 1.03× |
+| xl (2B) | 1,053 | 883 | 1.19× |
 | 2.7B | 1,348 | 722 | **1.87×** |
 
 ### `torch.compile`
@@ -157,13 +159,21 @@ NCCL+CUDA is ~300× faster than gloo+CPU for all-reduce at 100 MB:
 
 ### Distributed Data Parallel (DDP)
 
-Three variants benchmarked on a 2B-parameter (XL) model across 2 GPUs:
+Four variants benchmarked on a 2B-parameter (XL) model across 2 GPUs:
 
 | Implementation | Avg step time | vs naive |
 |----------------|--------------|---------|
 | Naive DDP | 808.66 ms | 1.00× |
 | Flat DDP (single bucket) | 790.91 ms | 1.02× |
 | Overlap individual | 799.28 ms | 1.01× |
+
+Bucketed DDP — larger buckets reduce all-reduce call overhead:
+
+| Bucket size | Avg step time |
+|-------------|--------------|
+| 1 MB (435 buckets) | 1,004 ms |
+| 100 MB (98 buckets) | 993 ms |
+| 1,000 MB (8 buckets) | **980 ms** |
 
 The speedups are intentionally modest: at 2 GPUs with a 2B-parameter model, compute dominates and gradient communication is a small fraction of total step time — leaving little headroom for overlap to exploit. The value of these implementations is scalability: as world size grows (8, 64, 256 GPUs), the all-reduce communication grows proportionally while per-GPU compute stays fixed, and comm/compute overlap becomes the dominant source of efficiency gains.
 
