@@ -32,7 +32,7 @@ The model follows a pre-norm GPT-2 style design with three modern upgrades:
 
 ## Part 4: Architecture Ablations
 
-Trained five variants of a 17M-parameter model on TinyStories (327.68M tokens each) to isolate the contribution of each architectural choice.
+Trained five variants of a 22.7M-parameter model on TinyStories (327.68M tokens each) to isolate the contribution of each architectural choice.
 
 | Variant | Change | Best Val Loss |
 |---------|--------|---------------|

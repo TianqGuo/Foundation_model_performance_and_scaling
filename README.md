@@ -9,7 +9,7 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 | Part | Topic | Key Result | Details |
 |---|---|---|---|
 | [Part 1](#part-1-tokenizer--transformer) | Tokenizer + Transformer | 4.68 val loss on OpenWebText in 1.5 hrs; ablations isolate impact of SwiGLU, RMSNorm, RoPE | [README](Foundation_model_performance_and_scaling/part1-basics/README.md) |
-| [Part 2](#part-2-gpu-optimization--distributed-training) | GPU Optimization & Distributed Training | BF16 gives 1.87× speedup at 2.7B; NCCL 200× faster than CPU all-reduce at 100 MB | [README](Foundation_model_performance_and_scaling/part2-systems/README.md) |
+| [Part 2](#part-2-gpu-optimization--distributed-training) | GPU Optimization & Distributed Training | BF16 gives 1.87× speedup at 2.7B; NCCL ~300× faster than CPU all-reduce at 100 MB | [README](Foundation_model_performance_and_scaling/part2-systems/README.md) |
 | [Part 3](#part-3-scaling-laws) | Scaling Laws | N_opt = 1.16 × C^0.469 — predicts ~70B params at 10²³ FLOPs (matches Chinchilla) | [README](Foundation_model_performance_and_scaling/part3-scaling/README.md) |
 | [Part 4](#part-4-data-pipeline--training) | Data Pipeline & Training | Filtered 1.29M docs from 16.4M CC records; trained 85M-param model to 4.3 eval loss on Paloma | [README](Foundation_model_performance_and_scaling/part4-data/README.md) |
 | [Part 5](#part-5-alignment--reasoning-rl) | Alignment & Reasoning RL | Zero-shot 2.5% → SFT 65.0% → Expert Iteration 52.5% → GRPO 71.1% (question_only prompt, off-policy e4 bs128) | [README](Foundation_model_performance_and_scaling/part5-alignment/README.md) |
@@ -62,17 +62,23 @@ Isolated the impact of each architectural choice by training 5 variants of a 22.
 
 ### Batch Size Sweep
 
-Swept batch sizes 1–256 at a constant 327.68M token budget:
+Swept batch sizes 1–512 at a constant 327.68M token budget:
 
 | Batch size | Training time | Best val loss |
 |------------|---------------|---------------|
-| 1 | 7.22h | 1.382 |
+| 1 | 7.22h | 1.378 |
 | **8** | **3.06h** | **1.320** |
 | 32 | 2.11h | 1.390 |
-| 64 | 1.67h | 1.435 |
-| 256 | 7.56h | 1.599 |
+| 64 | 1.67h | 1.434 |
+| 128 | 1.43h | 1.487 |
+| 256 | 7.56h | 1.591 |
+| 512 | OOM | — |
 
 Batch=8 wins — at a fixed token budget, smaller batches mean more gradient updates.
+
+### Learning Rate Sweep
+
+Swept 7 learning rates (1e-4 to 1e-2) at the same token budget. Optimal at lr=3e-3 (val loss 1.317); performance degrades sharply below 3e-4 and above 6e-3.
 
 ![Batch size sweep](Foundation_model_performance_and_scaling/part1-basics/pics/Pic1.png)
 
