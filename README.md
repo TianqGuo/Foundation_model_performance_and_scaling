@@ -430,4 +430,3 @@ uv run pytest
 - Achiam, 2018 — [Spinning Up in Deep Reinforcement Learning](https://spinningup.openai.com)
 - Lambert, 2024 — [Reinforcement Learning from Human Feedback](https://rlhfbook.com)
 - Stanford CS336 Spring 2025 — [Language Models from Scratch](https://github.com/stanford-cs336)
-- Stanford CS336 Spring 2025 — [Language Models from Scratch, Part 5 (project specification and starter code)](https://github.com/stanford-cs336/assignment5-alignment)
