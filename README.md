@@ -310,9 +310,51 @@ Full ablation study across six dimensions using Qwen 2.5 Math 1.5B (base model, 
 
 **Prompt × pretraining alignment:** the single largest accuracy jump in the entire study comes from switching prompts. `question_only` starts at 60.7% accuracy (vs 36.0% for r1_zero) because Qwen 2.5 Math 1.5B was pretrained on natural math text, not on `<think>…</think><answer>…</answer>` structured output. With an aligned prompt, RL updates are tiny (grad norm max 0.186), clip fraction near 0, and entropy stays stable — the policy barely needs to move to improve. This illustrates a general principle: **RL fine-tuning performance is bounded by the distance between the base model's pretrained distribution and the target behaviour**.
 
-![GRPO off-policy accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/off_policy/focused_grpo_accuracy.png)
+#### §8.1 — Learning Rate Sweep
 
-![GRPO prompt ablation accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/prompt_ablation/prompt_grpo_accuracy.png)
+![LR sweep accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/lr_sweep/grpo_accuracy.png)
+
+![LR sweep grad norm](Foundation_model_performance_and_scaling/part5-alignment/results/section8/lr_sweep/grpo_grad_norm.png)
+
+#### §8.2 — Effect of Baselining
+
+![Baselines accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/baselines/grpo_accuracy.png)
+
+![Baselines grad norm](Foundation_model_performance_and_scaling/part5-alignment/results/section8/baselines/grpo_grad_norm.png)
+
+#### §8.3 — Length Normalization
+
+![Length norm accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/length_norm/grpo_accuracy.png)
+
+![Length norm entropy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/length_norm/grpo_entropy.png)
+
+#### §8.4 — Group Standard Deviation Normalization
+
+![Std norm accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/std_norm/grpo_accuracy.png)
+
+![Std norm entropy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/std_norm/grpo_entropy.png)
+
+#### §8.5 — Off-Policy GRPO
+
+![Off-policy sweep accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/off_policy/sweep_grpo_accuracy.png)
+
+![Off-policy focused accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/off_policy/focused_grpo_accuracy.png)
+
+![Off-policy focused accuracy (wall-clock)](Foundation_model_performance_and_scaling/part5-alignment/results/section8/off_policy/focused_grpo_accuracy_wall_clock_hours.png)
+
+![Off-policy focused entropy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/off_policy/focused_grpo_entropy.png)
+
+![Clip ablation accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/off_policy/clip_grpo_accuracy.png)
+
+![Clip ablation grad norm](Foundation_model_performance_and_scaling/part5-alignment/results/section8/off_policy/clip_grpo_grad_norm.png)
+
+#### §8.6 — Prompt Ablation
+
+![Prompt ablation accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/prompt_ablation/prompt_grpo_accuracy.png)
+
+![Prompt ablation entropy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/prompt_ablation/prompt_grpo_entropy.png)
+
+![Prompt ablation grad norm](Foundation_model_performance_and_scaling/part5-alignment/results/section8/prompt_ablation/prompt_grpo_grad_norm.png)
 
 ---
 
