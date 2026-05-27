@@ -10,7 +10,8 @@ A from-scratch implementation of a GPT-2 style transformer, including a Byte Pai
 | Part 2 | Transformer architecture — RoPE, SwiGLU, RMSNorm pre-norm |
 | Part 3 | Training infrastructure — AdamW, cosine LR, gradient clipping |
 | Part 4 | Architecture ablations — norm placement, positional encoding, FFN activation |
-| Part 5 | Hyperparameter sweeps — batch size and learning rate |
+| Part 5a | Batch size sweep |
+| Part 5b | Learning rate sweep |
 | Part 6 | OpenWebText training — scaling to a harder dataset |
 | Part 7 | Leaderboard — 1.5-hour compute budget optimization |
 
@@ -53,23 +54,43 @@ Full per-run curves and configs: `cs336_basics/basics/runs/ablations/`
 
 ---
 
-## Part 5: Batch Size Sweep
+## Part 5a: Batch Size Sweep
 
 Swept batch sizes from 1 to 512 at constant token budget (327.68M tokens), holding all other hyperparameters fixed.
 
 | Batch size | Training time | Best val loss |
 |------------|---------------|---------------|
-| 1 | 7.22h | 1.382 |
+| 1 | 7.22h | 1.378 |
 | **8** | **3.06h** | **1.320** |
 | 32 | 2.11h | 1.390 |
-| 64 | 1.67h | 1.435 |
-| 128 | 1.43h | 1.480 |
-| 256 | 7.56h | 1.599 |
+| 64 | 1.67h | 1.434 |
+| 128 | 1.43h | 1.487 |
+| 256 | 7.56h | 1.591 |
 | 512 | OOM | — |
 
 **Key finding:** Batch size 8 achieves the best validation loss (1.320) — at a constant token budget, smaller batches mean more gradient updates, which improves convergence. Batch size 512 OOMs on a 16 GB GPU.
 
 ![Batch size sweep](pics/Pic1.png)
+
+---
+
+## Part 5b: Learning Rate Sweep
+
+Swept 7 learning rates from 1e-4 to 1e-2 at a constant token budget (327.68M tokens), holding all other hyperparameters fixed.
+
+| Learning rate | Best val loss |
+|--------------|---------------|
+| 1e-4 | 1.745 |
+| 3e-4 | 1.487 |
+| 6e-4 | 1.395 |
+| 1e-3 | 1.357 |
+| **3e-3** | **1.317** |
+| 6e-3 | 1.327 |
+| 1e-2 | 1.403 |
+
+**Key finding:** lr=3e-3 achieves the best validation loss (1.317). Performance degrades sharply below 3e-4 (underfitting) and above 6e-3 (instability). The sweet spot is a roughly 3× window around 3e-3.
+
+Full per-run curves: `cs336_basics/basics/runs/lr_sweep/`
 
 ---
 
@@ -118,10 +139,13 @@ Config: `cs336_basics/basics/runs/leaderboard_final/config.json`
 ```
 part1-basics/
 ├── cs336_basics/
+│   ├── tokenizer/              # BPE tokenizer implementation
+│   ├── tokenizer_training/     # Tokenizer training scripts
+│   ├── transformer_training/   # Transformer architecture, training loop, optimizer
+│   │   ├── model/              # Model definition
+│   │   └── optimizer/          # AdamW implementation
+│   ├── transformer_decode/     # Text generation / sampling
 │   ├── basics/
-│   │   ├── tokenizer/          # BPE implementation
-│   │   ├── model/              # Transformer architecture
-│   │   ├── trainer/            # Training loop, optimizer, LR schedule
 │   │   ├── configs/            # Training config JSONs
 │   │   └── runs/               # Experiment outputs
 │   │       ├── ablations/      # 5 ablation variants + comparison plot
@@ -129,8 +153,9 @@ part1-basics/
 │   │       ├── lr_sweep/
 │   │       ├── openwebtext/
 │   │       └── leaderboard_final/
-│   ├── artifacts/              # Vocabularies and tokenized datasets (gitignored)
-│   └── extra_experiments/      # Additional experiment scripts
+│   ├── assignment_experiments/ # Experiment runner scripts
+│   ├── experiments/            # Additional experiment scripts
+│   └── artifacts/              # Vocabularies and tokenized datasets (gitignored)
 ├── pics/                       # Key result plots
 ├── tests/                      # Unit tests + adapters
 └── pyproject.toml
