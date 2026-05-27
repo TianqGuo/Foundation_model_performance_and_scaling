@@ -12,7 +12,7 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 | [Part 2](#part-2-gpu-optimization--distributed-training) | GPU Optimization & Distributed Training | BF16 gives 1.87× speedup at 2.7B; NCCL 200× faster than CPU all-reduce at 100 MB |
 | [Part 3](#part-3-scaling-laws) | Scaling Laws | N_opt = 1.16 × C^0.469 — predicts ~70B params at 10²³ FLOPs (matches Chinchilla) |
 | [Part 4](#part-4-data-pipeline--training) | Data Pipeline & Training | Filtered 1.29M docs from 16.4M CC records; trained 85M-param model to 4.3 eval loss on Paloma |
-| [Part 5](#part-5-alignment--reasoning-rl) | Alignment & Reasoning RL | Zero-shot 2.5% → SFT 65.0% → Expert Iteration 52.5% (G=4, still climbing); GRPO in progress |
+| [Part 5](#part-5-alignment--reasoning-rl) | Alignment & Reasoning RL | Zero-shot 2.5% → SFT 65.0% → Expert Iteration 52.5% → GRPO 71.1% (question_only prompt, off-policy e4 bs128) |
 
 ---
 
@@ -261,15 +261,17 @@ Post-training pipeline for teaching Qwen 2.5 Math 1.5B Base to reason step-by-st
 | Method | Accuracy | Notes |
 |--------|----------|-------|
 | Zero-shot baseline | 2.5% | Base model uses `\boxed{}` format, not r1_zero; 16.6% format compliance |
-| SFT (128 examples) | ~51% | 128 `gpt-oss-120b` reasoning traces enough to unlock format compliance |
-| SFT (filtered, 4542 examples) | **65.0%** | Correct-answer filtering outperforms full dataset (53.5%) |
+| SFT (128 examples) | ~51% | 128 reasoning traces enough to unlock format compliance |
+| SFT (filtered, 4542 examples) | 65.0% | Correct-answer filtering outperforms full dataset (53.5%) |
 | Expert Iteration G=1 (5 steps) | 48.5% | Self-bootstrapped from base model; no teacher data |
 | Expert Iteration G=4 (5 steps) | 52.5% | Still climbing at step 5; G=4 provides richer training signal |
-| GRPO | — | Coming next |
+| GRPO — on-policy baseline (r1_zero) | 50.6% | `reinforce_with_baseline`, lr=1e-5, 200 steps |
+| GRPO — off-policy (r1_zero) | 54.6% | `grpo_clip`, epochs=4, bs=128, 200 steps |
+| **GRPO — off-policy (question_only)** | **71.1%** | Same config; prompt aligned with pretraining distribution |
 
 ### Zero-Shot Baseline
 
-Qwen 2.5 Math 1.5B defaults to `\boxed{}` format from math pretraining rather than the required `<think>...</think> <answer>...</answer>` format. Only 16.6% of responses comply with r1_zero format; of those, 14.9% are correct — suggesting latent reasoning ability that training can unlock.
+Qwen 2.5 Math 1.5B defaults to `\boxed{}` format from math pretraining rather than the required `<think>...</think><answer>...</answer>` format. Only 16.6% of responses comply with r1_zero format; of those, 14.9% are correct — suggesting latent reasoning ability that training can unlock.
 
 ### Supervised Fine-Tuning
 
@@ -290,6 +292,27 @@ The self-bootstrapping effect is clear: the fraction of training questions with 
 ![EI validation accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section5/ei_accuracy.png)
 
 ![EI rollout dataset growth](Foundation_model_performance_and_scaling/part5-alignment/results/section5/ei_rollout_size.png)
+
+### GRPO (Group Relative Policy Optimization)
+
+Full ablation study across six dimensions using Qwen 2.5 Math 1.5B (base model, not SFT checkpoint). Each experiment builds on the best setting from the previous.
+
+| Experiment | Winner | Key finding |
+|------------|--------|-------------|
+| §8.1 — LR sweep | lr=1e-5 | lr=1e-4 collapses (grad norm 47.5, entropy → 0.06); lr=1e-5 is stable |
+| §8.2 — Baselining | `reinforce_with_baseline` | No baseline: 20× lower grad norm, slower format convergence, lower accuracy |
+| §8.3 — Length norm | `masked_mean` | `masked_normalize` entropy spikes to 0.681; `masked_mean` trains more stably |
+| §8.4 — Std norm | `with_std` (standard GRPO) | Dr. GRPO (`no_std`) shrinks gradient signal; `with_std` +1 pt peak accuracy |
+| §8.5 — Off-policy | epochs=4, bs=128, `grpo_clip` | 8 gradient updates per rollout: +9 pt over on-policy; PPO clip essential — without it grad norm reaches 11 trillion |
+| §8.6 — Prompt | `question_only` | +16.5 pt over r1_zero; model pretrained on natural math format — aligned prompt gives stable training (grad norm max 0.186 vs 7M) |
+
+**Off-policy vs on-policy:** reusing each rollout batch for 8 gradient updates (epochs=4 × 2 mini-batches) instead of 1 raises peak accuracy from 45.7% to 54.6% with the same generation cost. PPO-style clipping is what makes this viable — without it, importance weights grow unconstrained and grad norms reach 11 trillion.
+
+**Prompt × pretraining alignment:** the single largest accuracy jump in the entire study comes from switching prompts. `question_only` starts at 60.7% accuracy (vs 36.0% for r1_zero) because Qwen 2.5 Math 1.5B was pretrained on natural math text, not on `<think>…</think><answer>…</answer>` structured output. With an aligned prompt, RL updates are tiny (grad norm max 0.186), clip fraction near 0, and entropy stays stable — the policy barely needs to move to improve. This illustrates a general principle: **RL fine-tuning performance is bounded by the distance between the base model's pretrained distribution and the target behaviour**.
+
+![GRPO off-policy accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/off_policy/focused_grpo_accuracy.png)
+
+![GRPO prompt ablation accuracy](Foundation_model_performance_and_scaling/part5-alignment/results/section8/prompt_ablation/prompt_grpo_accuracy.png)
 
 ---
 
