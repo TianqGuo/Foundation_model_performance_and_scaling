@@ -755,9 +755,46 @@ Run from the repo root (`part5-alignment/`) so snapshot paths resolve correctly.
 
 ## References
 
-- DeepSeek-AI et al., 2025 — [DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning](https://arxiv.org/abs/2501.12948)
-- Zelikman et al., 2022 — [STaR: Self-Taught Reasoner](https://arxiv.org/abs/2203.14465)
-- Shao et al., 2024 — [DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models](https://arxiv.org/abs/2402.03300)
+**Datasets & Benchmarks**
 - Hendrycks et al., 2021 — [Measuring Mathematical Problem Solving With the MATH Dataset](https://arxiv.org/abs/2103.03874)
-- Liu et al., 2025 — [Understanding R1-Zero-Like Training](https://github.com/sail-sg/understand-r1-zero)
+- Cobbe et al., 2021 — [Training Verifiers to Solve Math Word Problems (GSM8K)](https://arxiv.org/abs/2110.14168)
+
+**Base Model**
+- Yang et al., 2024 — [Qwen2.5-Math Technical Report: Toward Mathematical Expert Model via Self-Improvement](https://arxiv.org/abs/2409.12122)
+
+**Chain-of-Thought & Reasoning**
+- Nye et al., 2021 — [Show Your Work: Scratchpads for Intermediate Computation with Language Models](https://arxiv.org/abs/2112.00114)
+- Wei et al., 2023 — [Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](https://arxiv.org/abs/2201.11903)
+
+**Expert Iteration & Self-Improvement**
+- Anthony et al., 2017 — [Thinking Fast and Slow with Deep Learning and Tree Search](https://arxiv.org/abs/1705.08439)
+- Zelikman et al., 2022 — [STaR: Bootstrapping Reasoning with Reasoning](https://arxiv.org/abs/2203.14465)
+- Gulcehre et al., 2023 — [Reinforced Self-Training (ReST) for Language Modeling](https://arxiv.org/abs/2308.08998)
+
+**Reasoning RL — Frontier Models**
+- OpenAI et al., 2024 — [OpenAI o1 System Card](https://arxiv.org/abs/2412.16720)
+- DeepSeek-AI et al., 2025 — [DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning](https://arxiv.org/abs/2501.12948)
+- Kimi Team, 2025 — [Kimi k1.5: Scaling Reinforcement Learning with LLMs](https://arxiv.org/abs/2501.12599)
+
+**Reasoning RL — Open Reproductions**
+- Hugging Face, 2025 — [Open R1: A Fully Open Reproduction of DeepSeek-R1](https://github.com/huggingface/open-r1)
+- Zeng et al., 2025 — [SimpleRL-Zoo: Investigating and Taming Zero Reinforcement Learning for Open Base Models](https://arxiv.org/abs/2503.18892)
+- Pan et al., 2025 — [TinyZero](https://github.com/Jiayi-Pan/TinyZero)
+- Lambert et al., 2025 — [Tulu 3: Pushing Frontiers in Open Language Model Post-Training](https://arxiv.org/abs/2411.15124)
+
+**GRPO & Policy Gradient Methods**
+- Sutton et al., 1999 — [Policy Gradient Methods for Reinforcement Learning with Function Approximation (REINFORCE)](https://proceedings.neurips.cc/paper_files/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf)
+- Schulman et al., 2017 — [Proximal Policy Optimization Algorithms (PPO)](https://arxiv.org/abs/1707.06347)
+- Degris et al., 2013 — [Off-Policy Actor-Critic](https://arxiv.org/abs/1205.4839)
+- Shao et al., 2024 — [DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models (GRPO)](https://arxiv.org/abs/2402.03300)
+- Liu et al., 2025 — [Understanding R1-Zero-Like Training: A Critical Perspective (Dr. GRPO)](https://arxiv.org/abs/2503.20783)
+- Yu et al., 2025 — [DAPO: An Open-Source LLM Reinforcement Learning System at Scale](https://arxiv.org/abs/2503.14476)
+- NTT123, 2025 — [GRPO-Zero](https://github.com/policy-gradient/GRPO-Zero)
+
+**Infrastructure**
 - Kwon et al., 2023 — [Efficient Memory Management for Large Language Model Serving with PagedAttention (vLLM)](https://arxiv.org/abs/2309.06180)
+- Stanford CS336 Spring 2025 — [Language Models from Scratch, Part 5 (project specification and starter code)](https://github.com/stanford-cs336/assignment5-alignment)
+
+**RL Theory & Background**
+- Achiam, 2018 — [Spinning Up in Deep Reinforcement Learning](https://spinningup.openai.com)
+- Lambert, 2024 — [Reinforcement Learning from Human Feedback](https://rlhfbook.com)
