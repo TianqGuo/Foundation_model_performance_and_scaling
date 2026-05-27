@@ -384,7 +384,8 @@ def run_parse_mmlu_response(
         str (one of "A", "B", "C", or "D") if the model output can be parsed into a prediction,
         else None.
     """
-    raise NotImplementedError
+    from cs336_alignment.section2_zero_shot.parse_responses import parse_mmlu_response
+    return parse_mmlu_response(mmlu_example, model_output)
 
 
 def run_parse_gsm8k_response(
@@ -401,7 +402,8 @@ def run_parse_gsm8k_response(
         str with the predicted numeric answer if the model output can be parsed into a prediction,
         else None.
     """
-    raise NotImplementedError
+    from cs336_alignment.section2_zero_shot.parse_responses import parse_gsm8k_response
+    return parse_gsm8k_response(model_output)
 
 
 def run_compute_per_instance_dpo_loss(
@@ -436,4 +438,5 @@ def run_compute_per_instance_dpo_loss(
     Returns:
         torch.Tensor with the DPO loss for this example.
     """
-    raise NotImplementedError
+    from cs336_alignment.section5_dpo.dpo import per_instance_dpo_loss
+    return per_instance_dpo_loss(lm, lm_ref, tokenizer, beta, prompt, response_chosen, response_rejected)
