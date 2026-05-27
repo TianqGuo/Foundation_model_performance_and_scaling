@@ -616,9 +616,49 @@ The sweep winner (`epochs=4, bs=128`) and the on-policy baseline (`epochs=1, bs=
 
 ---
 
-### §8.6 — Prompt Ablation (Planned)
+### §8.6 — Prompt Ablation
 
-Comparison of `r1_zero` vs `question_only` prompts using the best hyperparameters from §8.5.
+Compares two prompts using the best hyperparameters from §8.5 (`grpo_clip`, `lr=1e-5`, `epochs=4`, `bs=128`):
+
+| Prompt | Format | Reward function |
+|--------|--------|-----------------|
+| `r1_zero` (default) | `<think>…</think><answer>…</answer>` | `r1_zero_reward_fn` |
+| `question_only` | raw question, no tags | `question_only_reward_fn` |
+
+| Metric | r1_zero | question_only |
+|--------|---------|---------------|
+| Starting accuracy | 36.0% | **60.7%** |
+| Peak accuracy | 54.6% @ step 90 | **71.1% @ step 180** |
+| Final accuracy | 52.5% | **69.3%** |
+| Format rate (final) | 95.1% | 92.4% |
+| Entropy (first → final) | 0.238 → 0.035 | **0.102 → 0.095** |
+| Grad norm (max) | 7,045,248 | **0.186** |
+| Clip fraction (final) | 62.2% | **0.001** |
+| Response length (final) | ~226 tokens | ~530 tokens |
+
+**Key findings:**
+
+- `question_only` starts **+24.7 pt higher** (60.7% vs 36.0%) and peaks **+16.5 pt higher** (71.1% vs 54.6%). Qwen 2.5 Math 1.5B was pretrained on math in its natural question→solution format — `question_only` aligns with that distribution so the model arrives at RL already close to optimal. `r1_zero` imposes a `<think>…</think><answer>…</answer>` template the model was not pretrained on, so it must learn the format structure simultaneously with the math reasoning.
+- **Training stability is orders of magnitude better** with `question_only`: max grad norm 0.186 vs 7 million, clip fraction 0.001 vs 62.2%. Since the `question_only` policy barely needs to move from its pretrained distribution, each update is tiny and well-conditioned. `r1_zero` requires large policy changes to acquire the tag format, producing the gradient explosion seen in §8.5.
+- **Entropy stays stable** under `question_only` (0.102 → 0.095) — the model was already well-calibrated for its natural output format and simply refines from a good starting point. `r1_zero` entropy collapses from 0.238 to 0.035 as the policy converges on a narrow tag-structured mode.
+- **Response length** reflects the format difference: `question_only` generates ~530-token detailed solution steps in natural math prose; `r1_zero` produces ~226-token responses constrained by the tag structure.
+- **Broader implication:** RL fine-tuning performance is tightly coupled to the base model's pretraining distribution. A prompt that aligns with pretraining gives RL a strong, stable starting point — large reward improvements for small policy moves. A misaligned prompt forces the model to simultaneously learn a new output structure and improve reasoning, leading to instability and a lower ceiling.
+
+**Accuracy and training stability:**
+
+![Prompt accuracy](results/section8/prompt_ablation/prompt_grpo_accuracy.png)
+
+![Prompt entropy](results/section8/prompt_ablation/prompt_grpo_entropy.png)
+
+![Prompt grad norm](results/section8/prompt_ablation/prompt_grpo_grad_norm.png)
+
+![Prompt format rate](results/section8/prompt_ablation/prompt_grpo_format_rate.png)
+
+![Prompt response length](results/section8/prompt_ablation/prompt_grpo_response_length.png)
+
+![Prompt clip frac](results/section8/prompt_ablation/prompt_grpo_clip_frac.png)
+
+**Conclusion:** `question_only` is the stronger prompt for this model, achieving 71.1% peak accuracy — the best result across all §8 experiments. The prompt choice is not cosmetic; it determines how far the base model's pretrained knowledge is from the target RL behaviour, directly setting the ceiling for what RL can achieve and how stably it trains.
 
 ---
 
