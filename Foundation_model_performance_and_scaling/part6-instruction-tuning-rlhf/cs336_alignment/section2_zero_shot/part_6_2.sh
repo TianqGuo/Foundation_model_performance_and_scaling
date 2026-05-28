@@ -4,7 +4,7 @@
 #
 # WHAT IT DOES:
 #   Section 2 — Zero-Shot Baselines (full end-to-end).
-#   Runs all four benchmarks in sequence on a single machine:
+#   Runs all four benchmarks in sequence:
 #
 #   §2.1  MMLU evaluation          (1 GPU, ~15 min full / ~2 min smoke)
 #   §2.2  GSM8K evaluation         (1 GPU, ~15 min full / ~2 min smoke)
@@ -14,35 +14,30 @@
 #         Safety annotation        (2 GPUs, ~15 min)
 #   Plot  Generate result charts   (no GPU)
 #
+# MODEL & DATA RESOLUTION (each resolved in priority order):
+#   Models: cluster /data/a5-alignment/models/ → assets/ → HuggingFace download
+#   Data:   cluster /data/a5-alignment/        → data/   → sibling part5 data/ → download
+#
 # FLAGS:
-#   --smoke-test     Run on tiny subset to verify the pipeline (3 MMLU subjects,
-#                    20 GSM8K examples, 10 AlpacaEval, 10 SST). Fast, no GPU waste.
+#   --smoke-test     Run on tiny subset (3 MMLU subjects, 20 GSM8K, 10 AlpacaEval, 10 SST).
 #   --dry-run        Print commands without executing them.
 #   --skip-alpaca    Skip AlpacaEval collection + annotation entirely.
 #   --skip-safety    Skip SimpleSafetyTests collection + annotation entirely.
 #   --plot           Generate result charts at the end (written to results/section2/).
 #
 # OUTPUTS:
-#   results/section2/eval_mmlu_baseline.jsonl
-#   results/section2/eval_mmlu_baseline.summary.json
-#   results/section2/eval_gsm8k_baseline.jsonl
-#   results/section2/eval_gsm8k_baseline.summary.json
+#   results/section2/eval_mmlu_baseline.jsonl / .summary.json
+#   results/section2/eval_gsm8k_baseline.jsonl / .summary.json
 #   results/section2/alpaca_eval_baseline.json
 #   results/section2/sst_baseline.jsonl
 #   results/section2/sst_baseline_annotated.jsonl
 #   scripts/alpaca_eval_vllm_llama3_3_70b_fn/  (AlpacaEval annotation outputs)
 #   results/section2/*.png                     (if --plot)
-#
-# NOTES:
-#   - Steps 1-4 each load the 8B model fresh; vLLM handles GPU memory.
-#   - Annotation steps require 2 GPUs with >80 GB VRAM each.
-#     If you only have 1 GPU, use --skip-alpaca --skip-safety and run
-#     the annotation steps later when 2 GPUs are available.
-#   - The script uses set -e: any failure stops execution immediately.
 
 set -e
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
+SIBLING_DATA="$(cd "${ROOT}/../part5-alignment/data" 2>/dev/null && pwd)" || SIBLING_DATA=""
 
 SMOKE_FLAG=""
 DRY_RUN=0
@@ -60,9 +55,102 @@ for arg in "$@"; do
     esac
 done
 
-MODEL_PATH="/data/a5-alignment/models/Llama-3.1-8B"
-MODEL_ANNOTATOR="/data/a5-alignment/models/Llama-3.3-70B-Instruct"
 RESULTS_DIR="${ROOT}/results/section2"
+
+# ── resolve() helper — returns first existing path, else downloads ────────────
+# Usage: resolve_model <cluster_path> <local_path> <hf_repo>
+resolve_model() {
+    local cluster="$1" local_path="$2" hf_repo="$3"
+    if [ -d "${cluster}" ]; then
+        echo "${cluster}"
+    elif [ -d "${local_path}" ]; then
+        echo "${local_path}"
+    else
+        echo "INFO: Model not found locally. Downloading ${hf_repo} -> ${local_path}" >&2
+        mkdir -p "${ROOT}/assets"
+        uv run huggingface-cli download "${hf_repo}" --local-dir "${local_path}"
+        echo "${local_path}"
+    fi
+}
+
+# Usage: resolve_data <cluster_path> <local_path> <sibling_path> <download_cmd>
+# Returns the resolved path (echoes it), or exits with error if all fail.
+resolve_data() {
+    local cluster="$1" local_path="$2" sibling="$3" download_cmd="$4"
+    if [ -e "${cluster}" ]; then
+        echo "${cluster}"
+    elif [ -e "${local_path}" ]; then
+        echo "${local_path}"
+    elif [ -n "${sibling}" ] && [ -e "${sibling}" ]; then
+        echo "${sibling}"
+    elif [ -n "${download_cmd}" ]; then
+        echo "INFO: Data not found locally. Downloading..." >&2
+        eval "${download_cmd}"
+        echo "${local_path}"
+    else
+        echo "ERROR: Data not found at any of:" >&2
+        echo "  cluster: ${cluster}" >&2
+        echo "  local:   ${local_path}" >&2
+        [ -n "${sibling}" ] && echo "  sibling: ${sibling}" >&2
+        exit 1
+    fi
+}
+
+# ── Resolve model paths ───────────────────────────────────────────────────────
+if [ "${DRY_RUN}" -eq 0 ]; then
+    MODEL_PATH=$(resolve_model \
+        "/data/a5-alignment/models/Llama-3.1-8B" \
+        "${ROOT}/assets/Llama-3.1-8B" \
+        "meta-llama/Llama-3.1-8B")
+
+    MODEL_ANNOTATOR=$(resolve_model \
+        "/data/a5-alignment/models/Llama-3.3-70B-Instruct" \
+        "${ROOT}/assets/Llama-3.3-70B-Instruct" \
+        "meta-llama/Llama-3.3-70B-Instruct")
+else
+    MODEL_PATH="/data/a5-alignment/models/Llama-3.1-8B"
+    MODEL_ANNOTATOR="/data/a5-alignment/models/Llama-3.3-70B-Instruct"
+fi
+
+# ── Resolve data paths ────────────────────────────────────────────────────────
+# MMLU test CSVs
+MMLU_DIR=$(resolve_data \
+    "/data/a5-alignment/mmlu/test" \
+    "${ROOT}/data/mmlu/test" \
+    "${SIBLING_DATA}/mmlu/test" \
+    "mkdir -p '${ROOT}/data/mmlu' && \
+     wget -q -O /tmp/mmlu_data.tar 'https://people.eecs.berkeley.edu/~hendrycks/data.tar' && \
+     tar -xf /tmp/mmlu_data.tar -C '${ROOT}/data/mmlu' --strip-components=1 && \
+     rm /tmp/mmlu_data.tar")
+
+# GSM8K test JSONL
+GSM8K_FILE=$(resolve_data \
+    "/data/a5-alignment/gsm8k/test.jsonl" \
+    "${ROOT}/data/gsm8k/test.jsonl" \
+    "${SIBLING_DATA}/gsm8k/test.jsonl" \
+    "mkdir -p '${ROOT}/data/gsm8k' && \
+     wget -q -O '${ROOT}/data/gsm8k/test.jsonl' \
+     'https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl'")
+
+# AlpacaEval JSONL
+ALPACA_FILE=$(resolve_data \
+    "/data/a5-alignment/alpaca_eval/alpaca_eval.jsonl" \
+    "${ROOT}/data/alpaca_eval/alpaca_eval.jsonl" \
+    "${SIBLING_DATA}/alpaca_eval/alpaca_eval.jsonl" \
+    "mkdir -p '${ROOT}/data/alpaca_eval' && \
+     uv run python -c \
+     \"import json; from datasets import load_dataset; \
+     ds = load_dataset('tatsu-lab/alpaca_eval', 'alpaca_eval')['eval']; \
+     open('${ROOT}/data/alpaca_eval/alpaca_eval.jsonl','w').writelines(json.dumps(dict(r))+'\\n' for r in ds)\"")
+
+# SimpleSafetyTests CSV
+SST_FILE=$(resolve_data \
+    "/data/a5-alignment/simple_safety_tests/simple_safety_tests.csv" \
+    "${ROOT}/data/simple_safety_tests/simple_safety_tests.csv" \
+    "${SIBLING_DATA}/simple_safety_tests/simple_safety_tests.csv" \
+    "mkdir -p '${ROOT}/data/simple_safety_tests' && \
+     wget -q -O '${ROOT}/data/simple_safety_tests/simple_safety_tests.csv' \
+     'https://raw.githubusercontent.com/bertiev/SimpleSafetyTests/main/SimpleSafetyTests.csv'")
 
 run() {
     if [ "${DRY_RUN}" -eq 1 ]; then
@@ -76,10 +164,12 @@ echo "========================================"
 echo "  Section 2 — Zero-Shot Baselines"
 echo "  Model:      ${MODEL_PATH}"
 echo "  Output:     ${RESULTS_DIR}"
+echo "  MMLU:       ${MMLU_DIR}"
+echo "  GSM8K:      ${GSM8K_FILE}"
+[ "${SKIP_ALPACA}" -eq 0 ] && echo "  AlpacaEval: ${ALPACA_FILE}"
+[ "${SKIP_SAFETY}" -eq 0 ] && echo "  SST:        ${SST_FILE}"
 [ -n "${SMOKE_FLAG}" ] && echo "  Mode:       SMOKE TEST"
-[ "${SKIP_ALPACA}" -eq 1 ] && echo "  Skipping:   AlpacaEval"
-[ "${SKIP_SAFETY}" -eq 1 ] && echo "  Skipping:   SimpleSafetyTests"
-[ "${PLOT}" -eq 1 ]        && echo "  Plotting:   ON"
+[ "${PLOT}" -eq 1 ]    && echo "  Plotting:   ON"
 echo "========================================"
 echo ""
 
@@ -89,7 +179,7 @@ echo "  §2.1 — MMLU zero-shot baseline"
 echo "------------------------------------------------------------"
 run uv run python "${ROOT}/cs336_alignment/section2_zero_shot/evaluate_mmlu.py" \
     --model-path "${MODEL_PATH}" \
-    --data-dir "${ROOT}/data/mmlu/test" \
+    --data-dir "${MMLU_DIR}" \
     --output-path "${RESULTS_DIR}/eval_mmlu_baseline.jsonl" \
     ${SMOKE_FLAG}
 echo ""
@@ -100,7 +190,7 @@ echo "  §2.2 — GSM8K zero-shot baseline"
 echo "------------------------------------------------------------"
 run uv run python "${ROOT}/cs336_alignment/section2_zero_shot/evaluate_gsm8k.py" \
     --model-path "${MODEL_PATH}" \
-    --data-path "${ROOT}/data/gsm8k/test.jsonl" \
+    --data-path "${GSM8K_FILE}" \
     --output-path "${RESULTS_DIR}/eval_gsm8k_baseline.jsonl" \
     ${SMOKE_FLAG}
 echo ""
@@ -112,7 +202,7 @@ if [ "${SKIP_ALPACA}" -eq 0 ]; then
     echo "------------------------------------------------------------"
     run uv run python "${ROOT}/cs336_alignment/section2_zero_shot/evaluate_alpaca_eval.py" \
         --model-path "${MODEL_PATH}" \
-        --data-path "${ROOT}/data/alpaca_eval/alpaca_eval.jsonl" \
+        --data-path "${ALPACA_FILE}" \
         --output-path "${RESULTS_DIR}/alpaca_eval_baseline.json" \
         --generator llama-3.1-8b-base \
         ${SMOKE_FLAG}
@@ -121,8 +211,6 @@ if [ "${SKIP_ALPACA}" -eq 0 ]; then
     echo "------------------------------------------------------------"
     echo "  §2.3 — AlpacaEval: winrate annotation (2 GPUs)"
     echo "------------------------------------------------------------"
-    # alpaca_eval writes its annotation outputs relative to --base-dir,
-    # so we run it from ROOT where scripts/ lives.
     run cd "${ROOT}" \&\& \
         uv run alpaca_eval \
             --model_outputs "${RESULTS_DIR}/alpaca_eval_baseline.json" \
@@ -139,7 +227,7 @@ if [ "${SKIP_SAFETY}" -eq 0 ]; then
     echo "------------------------------------------------------------"
     run uv run python "${ROOT}/cs336_alignment/section2_zero_shot/evaluate_sst.py" \
         --model-path "${MODEL_PATH}" \
-        --data-path "${ROOT}/data/simple_safety_tests/simple_safety_tests.csv" \
+        --data-path "${SST_FILE}" \
         --output-path "${RESULTS_DIR}/sst_baseline.jsonl" \
         ${SMOKE_FLAG}
     echo ""

@@ -18,6 +18,25 @@ from pathlib import Path
 
 from vllm import LLM, SamplingParams
 
+
+def _check_model_path(model_path: str) -> None:
+    """Fail early with a helpful message if the model path does not exist."""
+    p = Path(model_path)
+    if p.exists():
+        return
+    hints: list[str] = []
+    for base in ["/data/a5-alignment/models", "/data/models", "/workspace/models", str(p.parent)]:
+        bp = Path(base)
+        if bp.exists():
+            children = sorted(x.name for x in bp.iterdir() if x.is_dir())[:12]
+            hints.append(f"  {base}/: {', '.join(children) or '(empty)'}")
+    hint_block = "\n".join(hints) if hints else "  (no candidate directories found)"
+    raise FileNotFoundError(
+        f"\nModel path not found: {model_path}\n"
+        f"Pass the correct path with --model-path. Directories found nearby:\n"
+        f"{hint_block}"
+    )
+
 from cs336_alignment.section2_zero_shot.parse_responses import parse_gsm8k_response
 
 SYSTEM_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "zero_shot_system_prompt.prompt"
@@ -91,6 +110,7 @@ def main():
     )
     args = parser.parse_args()
 
+    _check_model_path(args.model_path)
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
 
     system_prompt = load_system_prompt()
