@@ -271,12 +271,20 @@ if [ "${SKIP_ALPACA}" -eq 0 ]; then
             "meta-llama/Llama-3.3-70B-Instruct")
         # Pass reference_outputs explicitly to bypass datasets.load_dataset() inside
         # alpaca_eval, which breaks on datasets>=2.18 with a LocalFileSystem error.
-        # Our already-downloaded alpaca_eval.jsonl contains the reference outputs.
+        # alpaca_eval only accepts .json (JSON array), not .jsonl — convert first.
+        ALPACA_REF_JSON="${ROOT}/data/alpaca_eval/alpaca_eval_ref.json"
+        uv run python -c "
+import json, pathlib
+src = pathlib.Path('${ALPACA_FILE}')
+data = [json.loads(l) for l in src.read_text().splitlines() if l.strip()]
+pathlib.Path('${ALPACA_REF_JSON}').write_text(json.dumps(data, indent=2))
+print(f'Wrote {len(data)} reference records to ${ALPACA_REF_JSON}')
+"
         # alpaca_eval must be run from ROOT so --base-dir "." resolves scripts/
         pushd "${ROOT}" > /dev/null
         uv run alpaca_eval \
             --model_outputs "${RESULTS_DIR}/alpaca_eval_baseline.json" \
-            --reference_outputs "${ALPACA_FILE}" \
+            --reference_outputs "${ALPACA_REF_JSON}" \
             --annotators_config "scripts/alpaca_eval_vllm_llama3_3_70b_fn" \
             --base-dir "."
         popd > /dev/null
