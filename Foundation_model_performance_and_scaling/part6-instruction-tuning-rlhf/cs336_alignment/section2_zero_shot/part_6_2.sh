@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # USAGE:
-#   bash part_6_2.sh [--smoke-test] [--dry-run] [--skip-alpaca] [--skip-safety] [--plot]
+#   bash part_6_2.sh [--smoke-test] [--dry-run] [--skip-mmlu] [--skip-gsm8k]
+#                    [--skip-alpaca] [--skip-safety] [--plot]
 #
 # WHAT IT DOES:
 #   Section 2 — Zero-Shot Baselines (full end-to-end).
@@ -21,8 +22,10 @@
 # FLAGS:
 #   --smoke-test     Run on tiny subset (3 MMLU subjects, 20 GSM8K, 10 AlpacaEval, 10 SST).
 #   --dry-run        Print commands without executing them.
-#   --skip-alpaca    Skip AlpacaEval collection + annotation entirely.
-#   --skip-safety    Skip SimpleSafetyTests collection + annotation entirely.
+#   --skip-mmlu      Skip §2.1 MMLU evaluation (e.g. already done).
+#   --skip-gsm8k     Skip §2.2 GSM8K evaluation (e.g. already done).
+#   --skip-alpaca    Skip §2.3 AlpacaEval collection + annotation entirely.
+#   --skip-safety    Skip §2.4 SimpleSafetyTests collection + annotation entirely.
 #   --plot           Generate result charts at the end (written to results/section2/).
 #
 # OUTPUTS:
@@ -44,6 +47,8 @@ SIBLING_DATA="$(cd "${ROOT}/../part5-alignment/data" 2>/dev/null && pwd)" || SIB
 
 SMOKE_FLAG=""
 DRY_RUN=0
+SKIP_MMLU=0
+SKIP_GSM8K=0
 SKIP_ALPACA=0
 SKIP_SAFETY=0
 PLOT=0
@@ -52,6 +57,8 @@ for arg in "$@"; do
     case $arg in
         --smoke-test)   SMOKE_FLAG="--smoke-test" ;;
         --dry-run)      DRY_RUN=1 ;;
+        --skip-mmlu)    SKIP_MMLU=1 ;;
+        --skip-gsm8k)   SKIP_GSM8K=1 ;;
         --skip-alpaca)  SKIP_ALPACA=1 ;;
         --skip-safety)  SKIP_SAFETY=1 ;;
         --plot)         PLOT=1 ;;
@@ -202,34 +209,44 @@ echo "  Model:      ${MODEL_PATH}"
 echo "  Output:     ${RESULTS_DIR}"
 echo "  MMLU:       ${MMLU_DIR}"
 echo "  GSM8K:      ${GSM8K_FILE}"
-[ "${SKIP_ALPACA}" -eq 0 ] && echo "  AlpacaEval: ${ALPACA_FILE}"
-[ "${SKIP_SAFETY}" -eq 0 ] && echo "  SST:        ${SST_FILE}"
+[ "${SKIP_MMLU}" -eq 0 ]   && echo "  MMLU:       ${MMLU_DIR}" || echo "  MMLU:       (skipped)"
+[ "${SKIP_GSM8K}" -eq 0 ]  && echo "  GSM8K:      ${GSM8K_FILE}" || echo "  GSM8K:      (skipped)"
+[ "${SKIP_ALPACA}" -eq 0 ] && echo "  AlpacaEval: ${ALPACA_FILE}" || echo "  AlpacaEval: (skipped)"
+[ "${SKIP_SAFETY}" -eq 0 ] && echo "  SST:        ${SST_FILE}" || echo "  SST:        (skipped)"
 [ -n "${SMOKE_FLAG}" ] && echo "  Mode:       SMOKE TEST"
 [ "${PLOT}" -eq 1 ]    && echo "  Plotting:   ON"
 echo "========================================"
 echo ""
 
 # ── §2.1  MMLU ────────────────────────────────────────────────────────────────
-echo "------------------------------------------------------------"
-echo "  §2.1 — MMLU zero-shot baseline"
-echo "------------------------------------------------------------"
-run uv run python "${ROOT}/cs336_alignment/section2_zero_shot/evaluate_mmlu.py" \
-    --model-path "${MODEL_PATH}" \
-    --data-dir "${MMLU_DIR}" \
-    --output-path "${RESULTS_DIR}/eval_mmlu_baseline.jsonl" \
-    ${SMOKE_FLAG}
-echo ""
+if [ "${SKIP_MMLU}" -eq 1 ]; then
+    echo "  §2.1 — MMLU skipped (--skip-mmlu)"
+else
+    echo "------------------------------------------------------------"
+    echo "  §2.1 — MMLU zero-shot baseline"
+    echo "------------------------------------------------------------"
+    run uv run python "${ROOT}/cs336_alignment/section2_zero_shot/evaluate_mmlu.py" \
+        --model-path "${MODEL_PATH}" \
+        --data-dir "${MMLU_DIR}" \
+        --output-path "${RESULTS_DIR}/eval_mmlu_baseline.jsonl" \
+        ${SMOKE_FLAG}
+    echo ""
+fi
 
 # ── §2.2  GSM8K ───────────────────────────────────────────────────────────────
-echo "------------------------------------------------------------"
-echo "  §2.2 — GSM8K zero-shot baseline"
-echo "------------------------------------------------------------"
-run uv run python "${ROOT}/cs336_alignment/section2_zero_shot/evaluate_gsm8k.py" \
-    --model-path "${MODEL_PATH}" \
-    --data-path "${GSM8K_FILE}" \
-    --output-path "${RESULTS_DIR}/eval_gsm8k_baseline.jsonl" \
-    ${SMOKE_FLAG}
-echo ""
+if [ "${SKIP_GSM8K}" -eq 1 ]; then
+    echo "  §2.2 — GSM8K skipped (--skip-gsm8k)"
+else
+    echo "------------------------------------------------------------"
+    echo "  §2.2 — GSM8K zero-shot baseline"
+    echo "------------------------------------------------------------"
+    run uv run python "${ROOT}/cs336_alignment/section2_zero_shot/evaluate_gsm8k.py" \
+        --model-path "${MODEL_PATH}" \
+        --data-path "${GSM8K_FILE}" \
+        --output-path "${RESULTS_DIR}/eval_gsm8k_baseline.jsonl" \
+        ${SMOKE_FLAG}
+    echo ""
+fi
 
 # ── §2.3  AlpacaEval ──────────────────────────────────────────────────────────
 if [ "${SKIP_ALPACA}" -eq 0 ]; then
