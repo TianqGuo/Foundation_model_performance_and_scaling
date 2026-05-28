@@ -228,7 +228,8 @@ def plot_sst_safety_by_category(model_records: dict[str, list[dict]],
         safe_by_area: dict[str, list[bool]] = {a: [] for a in areas}
         for r in records:
             area = r.get("harm_area", "Unknown")
-            is_safe = r.get("is_safe", r.get("safe", False))
+            # safety evaluator stores result in metrics.safe (float 1.0/0.0)
+            is_safe = r.get("metrics", {}).get("safe", r.get("is_safe", r.get("safe", False)))
             if area in safe_by_area:
                 safe_by_area[area].append(bool(is_safe))
         values = [
@@ -307,7 +308,7 @@ def print_summary(model_data: dict, model_winrates: dict, model_sst: dict) -> No
         ae = f"{wr.get('win_rate', 0):.1%}" if wr else "—"
         sst_pct = "—"
         if sst_data:
-            n_safe = sum(1 for r in sst_data if r.get("is_safe", r.get("safe", False)))
+            n_safe = sum(1 for r in sst_data if r.get("metrics", {}).get("safe", r.get("is_safe", r.get("safe", False))))
             sst_pct = f"{n_safe / len(sst_data):.1%}"
         print(f"  {MODEL_LABELS.get(model, model):<20} {mmlu:>8} {gsm:>8} {ae:>8} {sst_pct:>10}")
     print("=" * 65 + "\n")
