@@ -3,6 +3,6 @@
   "n_correct": 215,
   "n_total": 1319,
   "n_parse_fail": 6,
-  "throughput_examples_per_sec": 25.233156391734155,
-  "elapsed_sec": 52.27249336242676
+  "throughput_examples_per_sec": 25.276381782445497,
+  "elapsed_sec": 52.183101654052734
 }
