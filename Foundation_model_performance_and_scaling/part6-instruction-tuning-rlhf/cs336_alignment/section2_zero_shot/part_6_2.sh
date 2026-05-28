@@ -35,6 +35,9 @@
 #   results/section2/*.png                     (if --plot)
 
 set -e
+# Raise the file-descriptor limit upfront — large model downloads spawn many
+# parallel threads and will hit the default 1024 limit without this.
+ulimit -n 65536 2>/dev/null || true
 cd "$(dirname "$0")"
 ROOT="$(cd ../.. && pwd)"
 SIBLING_DATA="$(cd "${ROOT}/../part5-alignment/data" 2>/dev/null && pwd)" || SIBLING_DATA=""
@@ -71,13 +74,19 @@ resolve_model() {
     else
         echo "INFO: Model not found locally. Downloading ${hf_repo} -> ${local_path}" >&2
         mkdir -p "${ROOT}/assets"
-        if ! uv run huggingface-cli download "${hf_repo}" --local-dir "${local_path}" >&2; then
+        # Bump file-descriptor limit before downloading large models (many parallel shards
+        # can exhaust the default ulimit -n 1024, giving "Too many open files" errors).
+        ulimit -n 65536 2>/dev/null || true
+        if ! uv run huggingface-cli download "${hf_repo}" \
+                --local-dir "${local_path}" \
+                --max-workers 4 >&2; then
             echo "" >&2
             echo "ERROR: Failed to download ${hf_repo}." >&2
-            echo "  If this is a gated model, you must:" >&2
-            echo "    1. Accept the licence at https://huggingface.co/${hf_repo}" >&2
-            echo "    2. Wait for Meta's approval email (usually a few minutes)" >&2
-            echo "    3. Re-run this script" >&2
+            echo "  Common causes:" >&2
+            echo "    • Gated model: accept the licence at https://huggingface.co/${hf_repo}" >&2
+            echo "      then wait for Meta's approval email and re-run." >&2
+            echo "    • Too many open files: run  ulimit -n 65536  before re-running." >&2
+            echo "    • Network error: check connectivity and re-run." >&2
             exit 1
         fi
         echo "${local_path}"
@@ -243,15 +252,19 @@ if [ "${SKIP_ALPACA}" -eq 0 ]; then
             "/data/a5-alignment/models/Llama-3.3-70B-Instruct" \
             "${ROOT}/assets/Llama-3.3-70B-Instruct" \
             "meta-llama/Llama-3.3-70B-Instruct")
-    else
-        MODEL_ANNOTATOR="/data/a5-alignment/models/Llama-3.3-70B-Instruct"
-    fi
-    run cd "${ROOT}" \&\& \
+        # Clear any stale HF datasets cache that causes LocalFileSystem errors
+        HF_HOME_DIR="${HF_HOME:-${HOME}/.cache/huggingface}"
+        rm -rf "${HF_HOME_DIR}/datasets" 2>/dev/null || true
+        # alpaca_eval must be run from ROOT so --base-dir "." resolves scripts/
+        pushd "${ROOT}" > /dev/null
         uv run alpaca_eval \
             --model_outputs "${RESULTS_DIR}/alpaca_eval_baseline.json" \
             --annotators_config "scripts/alpaca_eval_vllm_llama3_3_70b_fn" \
-            --base-dir "." \&\& \
-        cd - \> /dev/null
+            --base-dir "."
+        popd > /dev/null
+    else
+        echo "[DRY RUN] cd ${ROOT} && uv run alpaca_eval --model_outputs ${RESULTS_DIR}/alpaca_eval_baseline.json --annotators_config scripts/alpaca_eval_vllm_llama3_3_70b_fn --base-dir ."
+    fi
     echo ""
 fi
 
