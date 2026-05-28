@@ -226,7 +226,7 @@ After each training phase, updated weights are copied `cuda:0 → CPU → cuda:1
 
 ```bash
 cd cs336_alignment/section5_expert_iter
-./part_5_5.sh                  # all 3 EI runs (G=1, 4, 16) on 2 GPUs
+./part_5_5.sh                  # G=1 and G=4 runs on 2 GPUs
 ./part_5_5.sh --G 1            # single run with G=1
 ./part_5_5.sh --G 4            # single run with G=4
 ./part_5_5.sh --smoke-test     # single-GPU smoke test (32 questions, 1 step)
@@ -514,7 +514,7 @@ bash cs336_alignment/section7_grpo/part_5_8_4.sh --dry-run
 | Run | Best Acc | Best Step | Final Acc | Final Entropy | Grad Norm |
 |-----|----------|-----------|-----------|---------------|-----------|
 | **`with_std` (standard GRPO)** | **50.6%** | **145** | **47.3%** | 0.158 | 6.78 |
-| `no_std` (Dr. GRPO) | 48.1% | 145 | 46.5% | **0.097** | **3.42** |
+| `no_std` (Dr. GRPO) | 48.0% | 145 | 46.5% | **0.097** | **3.42** |
 
 **Key findings:**
 - `with_std` outperforms `no_std` on both peak (50.6% vs 48.1%) and final accuracy (47.3% vs 46.5%), though the gap is modest (~1 point)
@@ -675,6 +675,7 @@ Compares two prompts using the best hyperparameters from §8.5 (`grpo_clip`, `lr
 ```
 part5-alignment/
 ├── cs336_alignment/
+│   ├── drgrpo_grader.py            # DrGRPO reward and grading utilities
 │   ├── prompts/                    # r1_zero.prompt, question_only.prompt
 │   ├── section3_zero_shot/
 │   │   ├── evaluate_zero_shot.py   # vLLM batch evaluation script
@@ -693,7 +694,14 @@ part5-alignment/
 │       ├── train_grpo.py           # Full GRPO training loop
 │       ├── plot_grpo_results.py    # Metric curves from eval_metrics_*.jsonl
 │       ├── part_5_7.sh             # Single GRPO run (all flags)
-│       └── part_5_8_1.sh           # §8.1 LR sweep (4 runs + overlaid plots)
+│       ├── part_5_8_1.sh           # §8.1 LR sweep
+│       ├── part_5_8_2.sh           # §8.2 Baselining
+│       ├── part_5_8_3.sh           # §8.3 Length normalization
+│       ├── part_5_8_4.sh           # §8.4 Std norm
+│       ├── part_5_8_5_sweep.sh     # §8.5 Off-policy sweep (50 steps)
+│       ├── part_5_8_5_focused.sh   # §8.5 Off-policy focused (200 steps)
+│       ├── part_5_8_5_clip.sh      # §8.5 Clip ablation
+│       └── part_5_8_6.sh           # §8.6 Prompt ablation
 ├── data/                           # Datasets (gitignored)
 │   ├── math/                       # MATH competition dataset
 │   └── gsm8k/                      # GSM8K (local smoke-test fallback)
