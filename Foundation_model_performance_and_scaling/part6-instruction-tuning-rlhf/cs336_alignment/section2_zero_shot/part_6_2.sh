@@ -138,17 +138,16 @@ fi
 # MMLU test CSVs — require at least one *_test.csv file (not just directory existence).
 # The Hendrycks data.tar has a top-level 'data/' directory, so --strip-components=1
 # extracts test/ val/ dev/ directly into ${ROOT}/data/mmlu/.
+# NOTE: no echo statements inside the download_cmd — this string is eval'd inside a
+# $() subshell and any stdout gets captured into MMLU_DIR, corrupting the path.
 MMLU_DIR=$(resolve_data \
     "/data/a5-alignment/mmlu/test" \
     "${ROOT}/data/mmlu/test" \
     "${SIBLING_DATA}/mmlu/test" \
     "mkdir -p '${ROOT}/data/mmlu' && \
-     echo 'Downloading MMLU (~1.5 GB)...' && \
      wget --show-progress -O /tmp/mmlu_data.tar 'https://people.eecs.berkeley.edu/~hendrycks/data.tar' && \
-     echo 'Extracting...' && \
      tar -xf /tmp/mmlu_data.tar -C '${ROOT}/data/mmlu' --strip-components=1 && \
-     rm /tmp/mmlu_data.tar && \
-     echo 'MMLU ready: '\"'${ROOT}/data/mmlu/test'\"" \
+     rm /tmp/mmlu_data.tar" \
     "*_test.csv")
 
 # GSM8K test JSONL
