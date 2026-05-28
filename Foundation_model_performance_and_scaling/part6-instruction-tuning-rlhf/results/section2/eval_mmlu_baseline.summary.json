@@ -1,0 +1,8 @@
+{
+  "accuracy": 0.5351801737644211,
+  "n_correct": 7515,
+  "n_total": 14042,
+  "n_parse_fail": 10,
+  "throughput_examples_per_sec": 41.85332384450571,
+  "elapsed_sec": 335.5050139427185
+}
