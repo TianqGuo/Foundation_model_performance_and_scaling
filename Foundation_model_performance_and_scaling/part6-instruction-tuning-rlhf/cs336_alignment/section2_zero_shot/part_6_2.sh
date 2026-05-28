@@ -84,21 +84,31 @@ resolve_model() {
     else
         echo "INFO: Model not found locally. Downloading ${hf_repo} -> ${local_path}" >&2
         mkdir -p "${ROOT}/assets"
-        # Bump file-descriptor limit before downloading large models (many parallel shards
-        # can exhaust the default ulimit -n 1024, giving "Too many open files" errors).
+        # Bump file-descriptor limit — large parallel downloads can exhaust default 1024.
         ulimit -n 65536 2>/dev/null || true
-        if ! uv run huggingface-cli download "${hf_repo}" \
-                --local-dir "${local_path}" \
-                --max-workers 4 >&2; then
-            echo "" >&2
-            echo "ERROR: Failed to download ${hf_repo}." >&2
-            echo "  Common causes:" >&2
-            echo "    • Gated model: accept the licence at https://huggingface.co/${hf_repo}" >&2
-            echo "      then wait for Meta's approval email and re-run." >&2
-            echo "    • Too many open files: run  ulimit -n 65536  before re-running." >&2
-            echo "    • Network error: check connectivity and re-run." >&2
-            exit 1
-        fi
+        # Retry up to 3 times to handle transient network drops (IncompleteBody errors).
+        # huggingface-cli download is idempotent: already-completed shards are skipped.
+        local max_attempts=3 attempt=0
+        while true; do
+            attempt=$(( attempt + 1 ))
+            if uv run huggingface-cli download "${hf_repo}" \
+                    --local-dir "${local_path}" \
+                    --max-workers 2 >&2; then
+                break
+            fi
+            if [ "${attempt}" -ge "${max_attempts}" ]; then
+                echo "" >&2
+                echo "ERROR: Failed to download ${hf_repo} after ${max_attempts} attempts." >&2
+                echo "  Common causes:" >&2
+                echo "    • Gated model: accept the licence at https://huggingface.co/${hf_repo}" >&2
+                echo "      then wait for Meta's approval email and re-run." >&2
+                echo "    • Network error (IncompleteBody): re-run the script to resume." >&2
+                echo "    • Too many open files: ulimit -n 65536 is already applied." >&2
+                exit 1
+            fi
+            echo "INFO: Download attempt ${attempt} failed, retrying (${attempt}/${max_attempts})..." >&2
+            sleep 5
+        done
         echo "${local_path}"
     fi
 }
