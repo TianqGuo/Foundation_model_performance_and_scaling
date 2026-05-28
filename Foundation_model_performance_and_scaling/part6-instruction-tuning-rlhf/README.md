@@ -13,10 +13,15 @@ safety-aware dialogue assistant using modern post-training methods. Starting fro
 Llama 3.1 8B Base (no chat template, no RLHF), the pipeline applies increasingly
 powerful alignment techniques and measures their effect on four diverse benchmarks.
 
-**Model:** [Llama 3.1 8B Base](https://huggingface.co/meta-llama/Llama-3.1-8B) — a
-strong 8B-parameter model that has received no instruction tuning or safety training.
+**Models:**
+
+| Role | Model | Notes |
+|------|-------|-------|
+| Trained model | [Llama 3.1 8B Base](https://huggingface.co/meta-llama/Llama-3.1-8B) | No instruction tuning or safety training; fine-tuned at each stage of the pipeline |
+| Evaluation judge | [Llama 3.3 70B Instruct](https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct) | Annotator for AlpacaEval and SimpleSafetyTests; requires 2× A100 80 GB |
 
 **Benchmarks:**
+
 | Benchmark | Measures |
 |-----------|---------|
 | [MMLU](https://arxiv.org/abs/2009.03300) | Factual knowledge across 57 academic subjects |
@@ -115,6 +120,8 @@ Dominant error patterns: arithmetic slips in multi-step chains, stopping at an
 intermediate result rather than the final answer, and misreading which entity has
 which property (age, price, weight).
 
+*(Accuracy bar chart shared with §2.1 above.)*
+
 ---
 
 ### §2.3 — AlpacaEval
@@ -129,6 +136,10 @@ by response length rather than quality. The base model's main weaknesses are lac
 of structured formatting (numbered lists, headers), verbose preambles before
 answering, and format drift on longer outputs — all characteristics that instruction
 tuning directly targets.
+
+**Win rate vs text-davinci-003 (raw and length-controlled):**
+
+![AlpacaEval win rate](results/section2/alpaca_eval_winrate.png)
 
 ---
 

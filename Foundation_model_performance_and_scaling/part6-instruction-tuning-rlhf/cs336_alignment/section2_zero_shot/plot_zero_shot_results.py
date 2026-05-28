@@ -101,24 +101,60 @@ def load_sst_annotated(results_dir: Path, suffix: str = "baseline") -> list[dict
 
 
 def load_alpaca_eval_results(results_dir: Path, suffix: str = "baseline") -> dict | None:
-    """Load AlpacaEval annotation results. Looks for annotations JSON written by alpaca_eval."""
-    # alpaca_eval writes results to a subdirectory named after the generator
+    """Load AlpacaEval annotation results.
+
+    Tries (in order):
+      1. Flat leaderboard.csv written by alpaca_eval (columns: win_rate, length_controlled_winrate)
+      2. Flat alpaca_eval_<suffix>_summary.json written manually
+      3. leaderboard.json inside a subdirectory named after the generator
+    AlpacaEval stores win rates as percentages (0–100); we normalise to fractions (0–1).
+    """
+    import csv
+
+    # 1. Flat leaderboard.csv (alpaca_eval default output location)
+    csv_path = results_dir / "leaderboard.csv"
+    if csv_path.exists():
+        with open(csv_path, newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if "win_rate" in row:
+                    return {
+                        "win_rate": float(row["win_rate"]) / 100.0,
+                        "length_controlled_winrate": (
+                            float(row["length_controlled_winrate"]) / 100.0
+                            if row.get("length_controlled_winrate")
+                            else None
+                        ),
+                    }
+
+    # 2. Manually written flat summary JSON
+    path = results_dir / f"alpaca_eval_{suffix}_summary.json"
+    if path.exists():
+        data = load_summary(path)
+        # Normalise to fraction if stored as percentage
+        wr = data.get("win_rate", data.get("winrate", 0))
+        lc = data.get("length_controlled_winrate", data.get("lc_winrate", None))
+        if wr > 1:
+            wr /= 100.0
+        if lc is not None and lc > 1:
+            lc /= 100.0
+        return {"win_rate": wr, "length_controlled_winrate": lc}
+
+    # 3. leaderboard.json in a generator-named subdirectory
     ann_files = list(results_dir.glob(f"*{suffix}*/leaderboard.json"))
-    if not ann_files:
-        # Try a flat summary file if written manually
-        path = results_dir / f"alpaca_eval_{suffix}_summary.json"
-        if path.exists():
-            return load_summary(path)
-        return None
-    with open(ann_files[0]) as f:
-        data = json.load(f)
-    # leaderboard.json is a dict keyed by generator name
-    for v in data.values():
-        if isinstance(v, dict) and "win_rate" in v:
-            return {
-                "win_rate": v["win_rate"],
-                "length_controlled_winrate": v.get("length_controlled_winrate", None),
-            }
+    if ann_files:
+        with open(ann_files[0]) as f:
+            data = json.load(f)
+        for v in data.values():
+            if isinstance(v, dict) and "win_rate" in v:
+                wr = v["win_rate"]
+                lc = v.get("length_controlled_winrate", None)
+                if wr > 1:
+                    wr /= 100.0
+                if lc is not None and lc > 1:
+                    lc /= 100.0
+                return {"win_rate": wr, "length_controlled_winrate": lc}
+
     return None
 
 
@@ -282,7 +318,7 @@ def plot_alpaca_eval_winrate(model_winrates: dict[str, dict], output_dir: Path) 
 
     ax.set_xticks(x)
     ax.set_xticklabels([MODEL_LABELS[m] for m in models])
-    ax.set_ylabel("Winrate vs GPT-4 Turbo (%)")
+    ax.set_ylabel("Winrate vs text-davinci-003 (%)")
     ax.set_title("AlpacaEval — Winrate (Llama 3.3 70B Instruct annotator)")
     ax.set_ylim(0, max(winrates + lc_winrates) * 1.2 + 5 if winrates else 50)
     ax.legend()
