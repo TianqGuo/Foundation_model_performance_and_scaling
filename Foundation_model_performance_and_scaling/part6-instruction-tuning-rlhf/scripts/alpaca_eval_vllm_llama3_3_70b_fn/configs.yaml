@@ -2,7 +2,7 @@ alpaca_eval_vllm_llama3_3_70b_fn:
   prompt_template: "alpaca_eval_vllm_llama3_3_70b_fn/alpaca_eval_fn.txt"
   fn_completions: "vllm_local_completions"
   completions_kwargs:
-    model_name: "/home/shared/Meta-Llama-3.3-70B-Instruct"
+    model_name: "ANNOTATOR_MODEL_PATH"  # patched at runtime by part_6_2.sh
     model_kwargs:
       tokenizer_mode: "auto"
       trust_remote_code: True

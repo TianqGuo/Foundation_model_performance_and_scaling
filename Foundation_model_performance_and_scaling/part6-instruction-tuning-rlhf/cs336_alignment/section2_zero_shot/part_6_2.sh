@@ -269,6 +269,13 @@ if [ "${SKIP_ALPACA}" -eq 0 ]; then
             "/data/a5-alignment/models/Llama-3.3-70B-Instruct" \
             "${ROOT}/assets/Llama-3.3-70B-Instruct" \
             "meta-llama/Llama-3.3-70B-Instruct")
+        # Patch the annotator config with the actual resolved model path.
+        # configs.yaml has a placeholder "ANNOTATOR_MODEL_PATH" so it works on any machine.
+        ANNOTATOR_CFG="${ROOT}/scripts/alpaca_eval_vllm_llama3_3_70b_fn/configs.yaml"
+        sed -i "s|model_name: \"ANNOTATOR_MODEL_PATH\".*|model_name: \"${MODEL_ANNOTATOR}\"|" \
+            "${ANNOTATOR_CFG}"
+        echo "INFO: Patched annotator model_name -> ${MODEL_ANNOTATOR}" >&2
+
         # Pass reference_outputs explicitly to bypass datasets.load_dataset() inside
         # alpaca_eval, which breaks on datasets>=2.18 with a LocalFileSystem error.
         # alpaca_eval only accepts .json (JSON array), not .jsonl — convert first.
