@@ -318,7 +318,7 @@ Full ablation study across six dimensions using Qwen 2.5 Math 1.5B (base model, 
 | §8.1 — LR sweep | lr=1e-5 | lr=1e-4 collapses (grad norm 47.5, entropy → 0.06); lr=1e-5 is stable |
 | §8.2 — Baselining | `reinforce_with_baseline` | No baseline: 20× lower grad norm, slower format convergence, lower accuracy |
 | §8.3 — Length norm | `masked_mean` | `masked_normalize` entropy spikes to 0.681; `masked_mean` trains more stably |
-| §8.4 — Std norm | `with_std` (standard GRPO) | Dr. GRPO (`no_std`) shrinks gradient signal; `with_std` +1 pt peak accuracy |
+| §8.4 — Std norm | `with_std` (standard GRPO) | Dr. GRPO (`no_std`) shrinks gradient signal; `with_std` +2.5 pt peak accuracy (50.6% vs 48.0%) |
 | §8.5 — Off-policy | epochs=4, bs=128, `grpo_clip` | 8 gradient updates per rollout: +9 pt over on-policy; PPO clip essential — without it grad norm reaches 11 trillion |
 | §8.6 — Prompt | `question_only` | +16.5 pt over r1_zero; model pretrained on natural math format — aligned prompt gives stable training (grad norm max 0.186 vs 7M) |
 

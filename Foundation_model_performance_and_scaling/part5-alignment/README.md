@@ -517,7 +517,7 @@ bash cs336_alignment/section7_grpo/part_5_8_4.sh --dry-run
 | `no_std` (Dr. GRPO) | 48.0% | 145 | 46.5% | **0.097** | **3.42** |
 
 **Key findings:**
-- `with_std` outperforms `no_std` on both peak (50.6% vs 48.1%) and final accuracy (47.3% vs 46.5%), though the gap is modest (~1 point)
+- `with_std` outperforms `no_std` on both peak (50.6% vs 48.0%) and final accuracy (47.3% vs 46.5%), though the final accuracy gap is modest (~1 point)
 - `no_std` produces a lower grad norm (3.42 vs 6.78) and lower entropy (0.097 vs 0.158) — the policy converges to a tighter output distribution, consistent with the Dr. GRPO motivation of avoiding artificially amplified gradients on easy groups
 - Both trajectories are stable with no collapse: accuracy improves steadily from ~31% at step 5 to ~46–47% by step 200
 - Dividing by group std (`with_std`) scales the advantage by the spread of rewards within each group — on questions where rollouts vary widely in correctness, this amplification provides stronger learning signal and better separates good from bad responses, which explains the accuracy edge
