@@ -73,15 +73,27 @@ resolve_model() {
     fi
 }
 
-# Usage: resolve_data <cluster_path> <local_path> <sibling_path> <download_cmd>
+# Usage: resolve_data <cluster_path> <local_path> <sibling_path> <download_cmd> [<glob_check>]
+# <glob_check>: optional shell glob — if given, path must also match at least one file.
 # Returns the resolved path (echoes it), or exits with error if all fail.
 resolve_data() {
-    local cluster="$1" local_path="$2" sibling="$3" download_cmd="$4"
-    if [ -e "${cluster}" ]; then
+    local cluster="$1" local_path="$2" sibling="$3" download_cmd="$4" glob="${5:-}"
+
+    # Helper: returns 0 if path exists AND (no glob OR glob matches at least one file)
+    _path_ok() {
+        local p="$1"
+        [ -e "${p}" ] || return 1
+        if [ -n "${glob}" ]; then
+            ls ${p}/${glob} >/dev/null 2>&1 || return 1
+        fi
+        return 0
+    }
+
+    if _path_ok "${cluster}"; then
         echo "${cluster}"
-    elif [ -e "${local_path}" ]; then
+    elif _path_ok "${local_path}"; then
         echo "${local_path}"
-    elif [ -n "${sibling}" ] && [ -e "${sibling}" ]; then
+    elif [ -n "${sibling}" ] && _path_ok "${sibling}"; then
         echo "${sibling}"
     elif [ -n "${download_cmd}" ]; then
         echo "INFO: Data not found locally. Downloading..." >&2
@@ -92,28 +104,27 @@ resolve_data() {
         echo "  cluster: ${cluster}" >&2
         echo "  local:   ${local_path}" >&2
         [ -n "${sibling}" ] && echo "  sibling: ${sibling}" >&2
+        [ -n "${glob}" ] && echo "  (required glob: ${glob})" >&2
         exit 1
     fi
 }
 
 # ── Resolve model paths ───────────────────────────────────────────────────────
+# The 8B base model is resolved upfront (needed for all evaluations).
+# The 70B annotator is resolved lazily inside each annotation block — only when
+# AlpacaEval / SimpleSafetyTests annotation actually runs, so --skip-alpaca
+# --skip-safety skips the download entirely.
 if [ "${DRY_RUN}" -eq 0 ]; then
     MODEL_PATH=$(resolve_model \
         "/data/a5-alignment/models/Llama-3.1-8B" \
         "${ROOT}/assets/Llama-3.1-8B" \
         "meta-llama/Llama-3.1-8B")
-
-    MODEL_ANNOTATOR=$(resolve_model \
-        "/data/a5-alignment/models/Llama-3.3-70B-Instruct" \
-        "${ROOT}/assets/Llama-3.3-70B-Instruct" \
-        "meta-llama/Llama-3.3-70B-Instruct")
 else
     MODEL_PATH="/data/a5-alignment/models/Llama-3.1-8B"
-    MODEL_ANNOTATOR="/data/a5-alignment/models/Llama-3.3-70B-Instruct"
 fi
 
 # ── Resolve data paths ────────────────────────────────────────────────────────
-# MMLU test CSVs
+# MMLU test CSVs — require at least one *_test.csv file (not just directory existence)
 MMLU_DIR=$(resolve_data \
     "/data/a5-alignment/mmlu/test" \
     "${ROOT}/data/mmlu/test" \
@@ -121,7 +132,8 @@ MMLU_DIR=$(resolve_data \
     "mkdir -p '${ROOT}/data/mmlu' && \
      wget -q -O /tmp/mmlu_data.tar 'https://people.eecs.berkeley.edu/~hendrycks/data.tar' && \
      tar -xf /tmp/mmlu_data.tar -C '${ROOT}/data/mmlu' --strip-components=1 && \
-     rm /tmp/mmlu_data.tar")
+     rm /tmp/mmlu_data.tar" \
+    "*_test.csv")
 
 # GSM8K test JSONL
 GSM8K_FILE=$(resolve_data \
@@ -211,6 +223,14 @@ if [ "${SKIP_ALPACA}" -eq 0 ]; then
     echo "------------------------------------------------------------"
     echo "  §2.3 — AlpacaEval: winrate annotation (2 GPUs)"
     echo "------------------------------------------------------------"
+    if [ "${DRY_RUN}" -eq 0 ]; then
+        MODEL_ANNOTATOR=$(resolve_model \
+            "/data/a5-alignment/models/Llama-3.3-70B-Instruct" \
+            "${ROOT}/assets/Llama-3.3-70B-Instruct" \
+            "meta-llama/Llama-3.3-70B-Instruct")
+    else
+        MODEL_ANNOTATOR="/data/a5-alignment/models/Llama-3.3-70B-Instruct"
+    fi
     run cd "${ROOT}" \&\& \
         uv run alpaca_eval \
             --model_outputs "${RESULTS_DIR}/alpaca_eval_baseline.json" \
@@ -235,6 +255,14 @@ if [ "${SKIP_SAFETY}" -eq 0 ]; then
     echo "------------------------------------------------------------"
     echo "  §2.4 — SimpleSafetyTests: safety annotation (2 GPUs)"
     echo "------------------------------------------------------------"
+    if [ "${DRY_RUN}" -eq 0 ]; then
+        MODEL_ANNOTATOR=$(resolve_model \
+            "/data/a5-alignment/models/Llama-3.3-70B-Instruct" \
+            "${ROOT}/assets/Llama-3.3-70B-Instruct" \
+            "meta-llama/Llama-3.3-70B-Instruct")
+    else
+        MODEL_ANNOTATOR="/data/a5-alignment/models/Llama-3.3-70B-Instruct"
+    fi
     run uv run python "${ROOT}/scripts/evaluate_safety.py" \
         --input-path "${RESULTS_DIR}/sst_baseline.jsonl" \
         --model-name-or-path "${MODEL_ANNOTATOR}" \

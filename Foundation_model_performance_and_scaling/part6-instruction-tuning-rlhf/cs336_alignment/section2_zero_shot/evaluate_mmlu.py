@@ -133,6 +133,19 @@ def main():
     examples = load_mmlu(args.data_dir, max_subjects=3 if args.smoke_test else None)
     print(f"  Loaded {len(examples)} examples")
 
+    if len(examples) == 0:
+        csv_files = list(args.data_dir.glob("*_test.csv")) if args.data_dir.exists() else []
+        contents = sorted(args.data_dir.iterdir()) if args.data_dir.exists() else []
+        raise FileNotFoundError(
+            f"\nNo MMLU examples found in {args.data_dir}\n"
+            f"Expected *_test.csv files but found {len(csv_files)} matching files.\n"
+            f"Directory contents: {[p.name for p in contents[:20]] if contents else '(directory missing)'}\n"
+            f"\nTo get the data, run:\n"
+            f"  wget -q -O /tmp/mmlu_data.tar 'https://people.eecs.berkeley.edu/~hendrycks/data.tar' && \\\n"
+            f"  tar -xf /tmp/mmlu_data.tar -C data/mmlu --strip-components=1 && \\\n"
+            f"  rm /tmp/mmlu_data.tar"
+        )
+
     # Build prompts
     prompts = []
     for ex in examples:
