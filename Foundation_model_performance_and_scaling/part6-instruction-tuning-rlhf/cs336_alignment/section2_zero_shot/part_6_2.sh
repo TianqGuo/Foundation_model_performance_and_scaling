@@ -61,6 +61,7 @@ RESULTS_DIR="${ROOT}/results/section2"
 # Usage: resolve_model <cluster_path> <local_path> <hf_repo>
 # A valid model directory must contain config.json — a bare directory from a
 # failed/partial download is treated as missing and triggers a fresh download.
+# Exits with a clear message if the download fails (e.g. gated repo awaiting approval).
 resolve_model() {
     local cluster="$1" local_path="$2" hf_repo="$3"
     if [ -f "${cluster}/config.json" ]; then
@@ -70,7 +71,15 @@ resolve_model() {
     else
         echo "INFO: Model not found locally. Downloading ${hf_repo} -> ${local_path}" >&2
         mkdir -p "${ROOT}/assets"
-        uv run huggingface-cli download "${hf_repo}" --local-dir "${local_path}"
+        if ! uv run huggingface-cli download "${hf_repo}" --local-dir "${local_path}" >&2; then
+            echo "" >&2
+            echo "ERROR: Failed to download ${hf_repo}." >&2
+            echo "  If this is a gated model, you must:" >&2
+            echo "    1. Accept the licence at https://huggingface.co/${hf_repo}" >&2
+            echo "    2. Wait for Meta's approval email (usually a few minutes)" >&2
+            echo "    3. Re-run this script" >&2
+            exit 1
+        fi
         echo "${local_path}"
     fi
 }
