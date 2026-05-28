@@ -69,14 +69,17 @@ RESULTS_DIR="${ROOT}/results/section2"
 
 # ── resolve() helper — returns first existing path, else downloads ────────────
 # Usage: resolve_model <cluster_path> <local_path> <hf_repo>
-# A valid model directory must contain config.json — a bare directory from a
-# failed/partial download is treated as missing and triggers a fresh download.
+# A valid model directory must contain both config.json AND tokenizer_config.json.
+# Checking both guards against partial downloads that only fetched metadata files.
 # Exits with a clear message if the download fails (e.g. gated repo awaiting approval).
 resolve_model() {
     local cluster="$1" local_path="$2" hf_repo="$3"
-    if [ -f "${cluster}/config.json" ]; then
+    _model_complete() {
+        [ -f "${1}/config.json" ] && [ -f "${1}/tokenizer_config.json" ]
+    }
+    if _model_complete "${cluster}"; then
         echo "${cluster}"
-    elif [ -f "${local_path}/config.json" ]; then
+    elif _model_complete "${local_path}"; then
         echo "${local_path}"
     else
         echo "INFO: Model not found locally. Downloading ${hf_repo} -> ${local_path}" >&2
