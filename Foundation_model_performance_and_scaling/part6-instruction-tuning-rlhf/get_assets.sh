@@ -39,9 +39,9 @@ mkdir -p "${ROOT}/assets"
 CLUSTER_MODEL="/data/a5-alignment/models/Llama-3.1-8B"
 LOCAL_MODEL="${ROOT}/assets/Llama-3.1-8B"
 
-if [ -d "${CLUSTER_MODEL}" ]; then
+if [ -f "${CLUSTER_MODEL}/config.json" ]; then
     echo "Llama 3.1 8B found on cluster: ${CLUSTER_MODEL}"
-elif [ -d "${LOCAL_MODEL}" ]; then
+elif [ -f "${LOCAL_MODEL}/config.json" ]; then
     echo "Llama 3.1 8B already downloaded: ${LOCAL_MODEL}"
 else
     echo "Downloading Llama 3.1 8B from HuggingFace -> ${LOCAL_MODEL}"
@@ -56,9 +56,9 @@ if [ "${DOWNLOAD_ANNOTATOR}" -eq 1 ]; then
     CLUSTER_ANN="/data/a5-alignment/models/Llama-3.3-70B-Instruct"
     LOCAL_ANN="${ROOT}/assets/Llama-3.3-70B-Instruct"
 
-    if [ -d "${CLUSTER_ANN}" ]; then
+    if [ -f "${CLUSTER_ANN}/config.json" ]; then
         echo "Llama 3.3 70B Instruct found on cluster: ${CLUSTER_ANN}"
-    elif [ -d "${LOCAL_ANN}" ]; then
+    elif [ -f "${LOCAL_ANN}/config.json" ]; then
         echo "Llama 3.3 70B Instruct already downloaded: ${LOCAL_ANN}"
     else
         echo "Downloading Llama 3.3 70B Instruct from HuggingFace -> ${LOCAL_ANN}"

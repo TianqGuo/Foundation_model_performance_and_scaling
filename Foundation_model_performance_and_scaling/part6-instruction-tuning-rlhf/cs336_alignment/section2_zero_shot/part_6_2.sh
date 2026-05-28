@@ -59,11 +59,13 @@ RESULTS_DIR="${ROOT}/results/section2"
 
 # ── resolve() helper — returns first existing path, else downloads ────────────
 # Usage: resolve_model <cluster_path> <local_path> <hf_repo>
+# A valid model directory must contain config.json — a bare directory from a
+# failed/partial download is treated as missing and triggers a fresh download.
 resolve_model() {
     local cluster="$1" local_path="$2" hf_repo="$3"
-    if [ -d "${cluster}" ]; then
+    if [ -f "${cluster}/config.json" ]; then
         echo "${cluster}"
-    elif [ -d "${local_path}" ]; then
+    elif [ -f "${local_path}/config.json" ]; then
         echo "${local_path}"
     else
         echo "INFO: Model not found locally. Downloading ${hf_repo} -> ${local_path}" >&2
