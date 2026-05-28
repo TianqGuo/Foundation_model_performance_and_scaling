@@ -135,15 +135,20 @@ else
 fi
 
 # ── Resolve data paths ────────────────────────────────────────────────────────
-# MMLU test CSVs — require at least one *_test.csv file (not just directory existence)
+# MMLU test CSVs — require at least one *_test.csv file (not just directory existence).
+# The Hendrycks data.tar has a top-level 'data/' directory, so --strip-components=1
+# extracts test/ val/ dev/ directly into ${ROOT}/data/mmlu/.
 MMLU_DIR=$(resolve_data \
     "/data/a5-alignment/mmlu/test" \
     "${ROOT}/data/mmlu/test" \
     "${SIBLING_DATA}/mmlu/test" \
     "mkdir -p '${ROOT}/data/mmlu' && \
-     wget -q -O /tmp/mmlu_data.tar 'https://people.eecs.berkeley.edu/~hendrycks/data.tar' && \
+     echo 'Downloading MMLU (~1.5 GB)...' && \
+     wget --show-progress -O /tmp/mmlu_data.tar 'https://people.eecs.berkeley.edu/~hendrycks/data.tar' && \
+     echo 'Extracting...' && \
      tar -xf /tmp/mmlu_data.tar -C '${ROOT}/data/mmlu' --strip-components=1 && \
-     rm /tmp/mmlu_data.tar" \
+     rm /tmp/mmlu_data.tar && \
+     echo 'MMLU ready: '\"'${ROOT}/data/mmlu/test'\"" \
     "*_test.csv")
 
 # GSM8K test JSONL
@@ -152,7 +157,7 @@ GSM8K_FILE=$(resolve_data \
     "${ROOT}/data/gsm8k/test.jsonl" \
     "${SIBLING_DATA}/gsm8k/test.jsonl" \
     "mkdir -p '${ROOT}/data/gsm8k' && \
-     wget -q -O '${ROOT}/data/gsm8k/test.jsonl' \
+     wget -O '${ROOT}/data/gsm8k/test.jsonl' \
      'https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl'")
 
 # AlpacaEval JSONL
@@ -172,7 +177,7 @@ SST_FILE=$(resolve_data \
     "${ROOT}/data/simple_safety_tests/simple_safety_tests.csv" \
     "${SIBLING_DATA}/simple_safety_tests/simple_safety_tests.csv" \
     "mkdir -p '${ROOT}/data/simple_safety_tests' && \
-     wget -q -O '${ROOT}/data/simple_safety_tests/simple_safety_tests.csv' \
+     wget -O '${ROOT}/data/simple_safety_tests/simple_safety_tests.csv' \
      'https://raw.githubusercontent.com/bertiev/SimpleSafetyTests/main/SimpleSafetyTests.csv'")
 
 run() {
