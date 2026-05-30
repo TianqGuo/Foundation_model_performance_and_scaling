@@ -89,8 +89,16 @@ elif [ -f "${LOCAL_MODEL}/config.json" ] && [ -f "${LOCAL_MODEL}/tokenizer_confi
     echo "    Using local model at ${LOCAL_MODEL}"
     MODEL_PATH="${LOCAL_MODEL}"
 else
-    echo "    ERROR: Llama 3.1 8B not found. Run bash get_assets.sh first." >&2
-    exit 1
+    echo "    Not found locally — running get_assets.sh to download ..."
+    bash "${ROOT}/get_assets.sh"
+    if [ -f "${LOCAL_MODEL}/config.json" ] && [ -f "${LOCAL_MODEL}/tokenizer_config.json" ]; then
+        MODEL_PATH="${LOCAL_MODEL}"
+    else
+        echo "    ERROR: Download failed. Check your HuggingFace login:" >&2
+        echo "      uv run huggingface-cli login" >&2
+        echo "    and accept the Llama 3.1 licence at https://huggingface.co/meta-llama/Llama-3.1-8B" >&2
+        exit 1
+    fi
 fi
 
 # ---------------------------------------------------------------------------
