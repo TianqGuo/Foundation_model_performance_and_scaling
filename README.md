@@ -20,9 +20,9 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 
 **Languages & Frameworks:** Python, PyTorch, Triton
 
-**GPU & Profiling:** CUDA, Nsight Systems (`nsys`), NVTX annotations, PyTorch `memory_snapshot`, `torch.cuda.synchronize()`
+**GPU & Profiling:** CUDA, Nsight Systems (`nsys`), NVTX annotations, PyTorch `memory_snapshot`
 
-**Kernel Optimization:** FlashAttention-2, online softmax, tiling, activation recomputation, `torch.autograd.Function`, BF16 mixed precision, `torch.compile`
+**Kernel Optimization:** FlashAttention-2, online softmax, tiling, activation recomputation, BF16 mixed precision, `torch.compile`
 
 **Distributed Training:** DDP, gradient bucketing, comm/compute overlap, ZeRO-style optimizer sharding, NCCL, Gloo, all-reduce, all-gather
 
@@ -31,6 +31,8 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 **Scaling Laws:** IsoFLOPs, Chinchilla methodology, power-law fitting (`scipy.optimize`)
 
 **Data Pipeline:** Common Crawl WARC/WET, Resiliparse, FastWARC, fastText (language ID, quality classifier, NSFW/toxic), Gopher filters, MinHash+LSH deduplication, PII masking
+
+**Post-Training / Reasoning RL:** vLLM, SFT, Expert Iteration (STaR), GRPO, PPO clipping, off-policy RL, verified rewards, HuggingFace Transformers
 
 ---
 
