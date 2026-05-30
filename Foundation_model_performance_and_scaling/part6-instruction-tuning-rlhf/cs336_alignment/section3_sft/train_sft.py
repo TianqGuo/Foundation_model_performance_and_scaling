@@ -103,19 +103,28 @@ def train(args: argparse.Namespace) -> None:
         f"eff_batch={args.micro_batch_size * args.gradient_accumulation_steps} | lr={args.lr}\n"
     )
 
+    # Microbatch vs effective batch:
+    #   microbatch  = what DataLoader yields each iteration (micro_batch_size sequences)
+    #                 → fits in GPU memory, backward runs every iteration
+    #   effective batch = micro_batch_size × gradient_accumulation_steps sequences
+    #                 → what the optimizer actually sees per weight update
+    # Example: micro_batch_size=2, gradient_accumulation_steps=16
+    #   → 16 microbatches of 2 = 32 sequences per optimizer step
     for epoch in range(args.n_epochs):
-        for batch in train_loader:
+        for microbatch in train_loader:
             if max_steps is not None and train_step >= max_steps:
                 break
-            input_ids = batch["input_ids"].to(device)
-            labels = batch["labels"].to(device)
+            input_ids = microbatch["input_ids"].to(device)
+            labels = microbatch["labels"].to(device)
 
             try:
-                logits = model(input_ids).logits  # (bs, seq_len, vocab)
+                logits = model(input_ids).logits  # (micro_batch_size, seq_len, vocab)
                 loss = F.cross_entropy(
                     logits.reshape(-1, logits.size(-1)),
                     labels.reshape(-1),
                 )
+                # Divide by accumulation steps so the summed gradient equals
+                # the average loss over the full effective batch
                 (loss / args.gradient_accumulation_steps).backward()
             except RuntimeError as e:
                 if "out of memory" in str(e).lower():
