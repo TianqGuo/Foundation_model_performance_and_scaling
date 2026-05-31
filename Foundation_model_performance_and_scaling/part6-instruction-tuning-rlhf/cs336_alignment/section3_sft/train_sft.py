@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import time
 from pathlib import Path
 
 import torch
@@ -96,6 +97,8 @@ def train(args: argparse.Namespace) -> None:
     train_step = 0
     microbatch_count = 0
     max_steps = args.max_steps  # None = no limit
+    t_start = time.time()
+    t_last_step = time.time()
 
     print(
         f"\nStarting SFT: {args.n_epochs} epoch(s) | seq_length={args.seq_length} | "
@@ -146,9 +149,18 @@ def train(args: argparse.Namespace) -> None:
 
                 lr_now = scheduler.get_last_lr()[0]
                 loss_val = loss.item()
+
+                now = time.time()
+                step_time = now - t_last_step
+                elapsed = now - t_start
+                steps_remaining = (max_steps or total_steps) - train_step
+                eta = step_time * steps_remaining
+                t_last_step = now
+
                 print(
-                    f"  epoch={epoch+1} step={train_step}/{total_steps} "
-                    f"loss={loss_val:.4f} lr={lr_now:.2e}"
+                    f"  epoch={epoch+1} step={train_step}/{max_steps or total_steps} "
+                    f"loss={loss_val:.4f} lr={lr_now:.2e} | "
+                    f"elapsed={_fmt_time(elapsed)} step={step_time:.1f}s eta={_fmt_time(eta)}"
                 )
 
                 row: dict = {
@@ -156,6 +168,9 @@ def train(args: argparse.Namespace) -> None:
                     "epoch": epoch + 1,
                     "train_loss": loss_val,
                     "lr": lr_now,
+                    "elapsed_sec": round(elapsed, 1),
+                    "step_time_sec": round(step_time, 1),
+                    "eta_sec": round(eta, 1),
                 }
 
                 if not args.no_wandb:
@@ -172,12 +187,20 @@ def train(args: argparse.Namespace) -> None:
                 metrics_file.write(json.dumps(row) + "\n")
                 metrics_file.flush()
 
+    total_elapsed = time.time() - t_start
+    print(f"\nTraining complete: {train_step} steps in {_fmt_time(total_elapsed)}")
+
     # Final validation loss
     if val_dataset is not None:
         val_loss = _compute_val_loss(model, val_dataset, args, device)
-        print(f"\nFinal val_loss: {val_loss:.4f}")
+        print(f"Final val_loss: {val_loss:.4f}")
         (output_path / f"final_val_{args.run_name}.json").write_text(
-            json.dumps({"val_loss": val_loss, "train_steps": train_step}, indent=2)
+            json.dumps({
+                "val_loss": val_loss,
+                "train_steps": train_step,
+                "total_elapsed_sec": round(total_elapsed, 1),
+                "total_elapsed_human": _fmt_time(total_elapsed),
+            }, indent=2)
         )
 
     # --- Save checkpoint ---
@@ -192,6 +215,18 @@ def train(args: argparse.Namespace) -> None:
 
     if not args.no_wandb:
         wandb.finish()
+
+
+def _fmt_time(seconds: float) -> str:
+    """Format seconds as Xh Ym Zs for console output."""
+    seconds = int(seconds)
+    h, remainder = divmod(seconds, 3600)
+    m, s = divmod(remainder, 60)
+    if h > 0:
+        return f"{h}h{m:02d}m{s:02d}s"
+    if m > 0:
+        return f"{m}m{s:02d}s"
+    return f"{s}s"
 
 
 def _compute_val_loss(model, val_dataset, args, device: str, n_batches: int = 50) -> float:
