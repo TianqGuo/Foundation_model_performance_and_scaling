@@ -21,6 +21,22 @@ from vllm import LLM, SamplingParams
 
 from cs336_alignment.section2_zero_shot.parse_responses import parse_mmlu_response
 
+# vLLM calls huggingface_hub.file_exists() which validates the model path as a
+# HF repo ID (rejects absolute paths with >1 slash). Patch it to return True
+# immediately for paths that exist on disk, bypassing the repo ID validation.
+def _patch_vllm_local_path():
+    try:
+        import vllm.transformers_utils.config as _vc
+        _orig = _vc.file_exists
+        def _patched(path_or_repo, filename, *args, **kwargs):
+            if (Path(path_or_repo) / filename).exists():
+                return True
+            return _orig(path_or_repo, filename, *args, **kwargs)
+        _vc.file_exists = _patched
+    except Exception:
+        pass
+_patch_vllm_local_path()
+
 # Inference prompt: Alpaca header + instruction slot + "### Response:\n"
 # The model generates the response; "### Instruction:" stops it from hallucinating a second turn.
 ALPACA_INFERENCE_TEMPLATE = """\
@@ -95,9 +111,6 @@ def main():
     ]
 
     print(f"Loading model from {args.model_path} ...")
-    # Prevent huggingface_hub from validating a local path as a Hub repo ID
-    if Path(args.model_path).exists():
-        import os; os.environ.setdefault("HF_HUB_OFFLINE", "1")
     llm = LLM(model=args.model_path, dtype="bfloat16", gpu_memory_utilization=0.85)
     sampling_params = SamplingParams(
         temperature=0.0, top_p=1.0,

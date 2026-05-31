@@ -25,6 +25,19 @@ from pathlib import Path
 
 from vllm import LLM, SamplingParams
 
+def _patch_vllm_local_path():
+    try:
+        import vllm.transformers_utils.config as _vc
+        _orig = _vc.file_exists
+        def _patched(path_or_repo, filename, *args, **kwargs):
+            if (Path(path_or_repo) / filename).exists():
+                return True
+            return _orig(path_or_repo, filename, *args, **kwargs)
+        _vc.file_exists = _patched
+    except Exception:
+        pass
+_patch_vllm_local_path()
+
 ALPACA_INFERENCE_TEMPLATE = """\
 Below is an instruction that describes a task. Write a response that appropriately completes the request.
 
@@ -68,8 +81,6 @@ def main():
     ]
 
     print(f"Loading model from {args.model_path} ...")
-    if Path(args.model_path).exists():
-        import os; os.environ.setdefault("HF_HUB_OFFLINE", "1")
     llm = LLM(model=args.model_path, dtype="bfloat16", gpu_memory_utilization=0.85)
     sampling_params = SamplingParams(
         temperature=0.0, top_p=1.0,
