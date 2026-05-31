@@ -95,6 +95,9 @@ def main():
     ]
 
     print(f"Loading model from {args.model_path} ...")
+    # Prevent huggingface_hub from validating a local path as a Hub repo ID
+    if Path(args.model_path).exists():
+        import os; os.environ.setdefault("HF_HUB_OFFLINE", "1")
     llm = LLM(model=args.model_path, dtype="bfloat16", gpu_memory_utilization=0.85)
     sampling_params = SamplingParams(
         temperature=0.0, top_p=1.0,
