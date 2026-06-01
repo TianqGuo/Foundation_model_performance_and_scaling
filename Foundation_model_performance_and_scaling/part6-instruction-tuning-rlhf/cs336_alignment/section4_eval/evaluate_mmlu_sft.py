@@ -97,6 +97,9 @@ def main():
     print(f"Loading MMLU data from {args.data_dir} ...")
     examples = load_mmlu(args.data_dir, max_subjects=3 if args.smoke_test else None)
     print(f"  {len(examples)} examples")
+    if not examples:
+        raise SystemExit(f"ERROR: No MMLU CSV files found in {args.data_dir}. "
+                         "Run part_6_4.sh or part_6_5.sh to download the data first.")
 
     prompts = [
         ALPACA_INFERENCE_TEMPLATE.format(

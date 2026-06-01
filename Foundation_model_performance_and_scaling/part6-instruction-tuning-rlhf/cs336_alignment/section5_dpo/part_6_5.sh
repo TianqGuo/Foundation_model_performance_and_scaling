@@ -46,6 +46,22 @@ done
 # ---------------------------------------------------------------------------
 # resolve_model: cluster → local → HuggingFace download
 # ---------------------------------------------------------------------------
+resolve_data() {
+    local cluster="$1" local_path="$2" download_cmd="$3" glob="${4:-}"
+    _path_ok() {
+        [ -e "$1" ] || return 1
+        [ -z "${glob}" ] && return 0
+        ls $1/${glob} >/dev/null 2>&1
+    }
+    if _path_ok "${cluster}"; then echo "${cluster}"
+    elif _path_ok "${local_path}"; then echo "${local_path}"
+    else
+        echo "INFO: Downloading data -> ${local_path}" >&2
+        eval "${download_cmd}"
+        echo "${local_path}"
+    fi
+}
+
 resolve_model() {
     local cluster="$1" local_path="$2" hf_repo="$3"
     _model_complete() { [ -f "${1}/config.json" ] && [ -f "${1}/tokenizer_config.json" ]; }
@@ -170,6 +186,21 @@ echo "==> DPO training done."
 echo "    Best checkpoint: ${CHECKPOINT_DIR}/best"
 
 # ---------------------------------------------------------------------------
+# §5.4 — Resolve eval data (download if not present)
+# ---------------------------------------------------------------------------
+echo ""
+echo "==> Resolving eval data ..."
+MMLU_DIR=$(resolve_data \
+    "/data/a5-alignment/mmlu/test" \
+    "${ROOT}/data/mmlu/test" \
+    "mkdir -p '${ROOT}/data/mmlu' && \
+     wget --show-progress -O /tmp/mmlu_data.tar 'https://people.eecs.berkeley.edu/~hendrycks/data.tar' && \
+     tar -xf /tmp/mmlu_data.tar -C '${ROOT}/data/mmlu' --strip-components=1 && \
+     rm /tmp/mmlu_data.tar" \
+    "*_test.csv")
+echo "    MMLU: ${MMLU_DIR}"
+
+# ---------------------------------------------------------------------------
 # §5.4 — Evaluate DPO model on all 4 benchmarks
 # (Reuses section4 eval scripts with DPO model path and section5 output paths)
 # ---------------------------------------------------------------------------
@@ -179,7 +210,7 @@ echo ""
 echo "==> §5.4 MMLU evaluation ..."
 uv run python "${ROOT}/cs336_alignment/section4_eval/evaluate_mmlu_sft.py" \
     --model-path  "${DPO_MODEL}" \
-    --data-dir    "${ROOT}/data/mmlu/test" \
+    --data-dir    "${MMLU_DIR}" \
     --output-path "${RESULTS_DIR}/eval_mmlu_dpo.jsonl"
 
 echo ""
