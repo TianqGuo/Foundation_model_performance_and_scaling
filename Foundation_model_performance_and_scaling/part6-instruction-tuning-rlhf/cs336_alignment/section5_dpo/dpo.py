@@ -11,17 +11,27 @@ _ALPACA_TEMPLATE = (
 ).read_text().rstrip("\n")
 
 
-def _sequence_log_prob(model: PreTrainedModel, input_ids: torch.Tensor) -> torch.Tensor:
-    """Sum of autoregressive token log-probabilities for the full sequence.
+def _sequence_log_prob(
+    model: PreTrainedModel,
+    input_ids: torch.Tensor,
+    response_start: int = 0,
+) -> torch.Tensor:
+    """Sum of autoregressive token log-probabilities, optionally response-only.
 
-    Returns sum_{t=1}^{T-1} log p(token_t | token_0 ... token_{t-1}).
+    Returns sum_{t=response_start}^{T-2} log p(token_{t+1} | token_0 ... token_t).
     input_ids: 1-D tensor of token IDs, shape (T,).
+    response_start: index into the per-token array (length T-1) where the
+        response begins; tokens before this index (prompt) are excluded.
+        Defaults to 0 (full-sequence log-prob).
+    Logits are cast to float32 before log_softmax to avoid -inf from bfloat16
+    underflow, which would make differences NaN.
     """
-    inputs = input_ids[:-1].unsqueeze(0)         # (1, T-1)
-    targets = input_ids[1:]                       # (T-1,)
-    logits = model(inputs).logits[0]              # (T-1, vocab)
+    inputs = input_ids[:-1].unsqueeze(0)              # (1, T-1)
+    targets = input_ids[1:]                            # (T-1,)
+    logits = model(inputs).logits[0].float()           # (T-1, vocab), float32
     log_probs = F.log_softmax(logits, dim=-1)
-    return log_probs[torch.arange(len(targets), device=input_ids.device), targets].sum()
+    per_token = log_probs[torch.arange(len(targets), device=input_ids.device), targets]
+    return per_token[response_start:].sum()
 
 
 def per_instance_dpo_loss(
@@ -53,6 +63,16 @@ def per_instance_dpo_loss(
         ids.append(eos_id)
         return ids
 
+    # Compute where the response starts in the per-token log-prob array so we
+    # only sum response tokens.  Prompt log-probs are identical for chosen and
+    # rejected and would cancel anyway, but including them can cause catastrophic
+    # cancellation in bfloat16 (both values become -inf → difference is NaN).
+    prompt_text = _ALPACA_TEMPLATE.format(instruction=prompt, response="")
+    prompt_len = len(tokenizer.encode(prompt_text, add_special_tokens=True))
+    # per_token[t] = log p(token[t+1] | ...); first response token is at
+    # index prompt_len in input_ids, so response_start = prompt_len - 1.
+    response_start = max(0, prompt_len - 1)
+
     chosen_ids_list = _tokenize(response_chosen)
     rejected_ids_list = _tokenize(response_rejected)
 
@@ -60,15 +80,15 @@ def per_instance_dpo_loss(
     rejected_policy = torch.tensor(rejected_ids_list, dtype=torch.long, device=policy_device)
 
     # Policy log-probs (gradients flow through these)
-    lp_chosen_policy = _sequence_log_prob(lm, chosen_policy)
-    lp_rejected_policy = _sequence_log_prob(lm, rejected_policy)
+    lp_chosen_policy = _sequence_log_prob(lm, chosen_policy, response_start)
+    lp_rejected_policy = _sequence_log_prob(lm, rejected_policy, response_start)
 
     # Reference log-probs (no gradients needed)
     with torch.no_grad():
         chosen_ref = torch.tensor(chosen_ids_list, dtype=torch.long, device=ref_device)
         rejected_ref = torch.tensor(rejected_ids_list, dtype=torch.long, device=ref_device)
-        lp_chosen_ref = _sequence_log_prob(lm_ref, chosen_ref).to(policy_device)
-        lp_rejected_ref = _sequence_log_prob(lm_ref, rejected_ref).to(policy_device)
+        lp_chosen_ref = _sequence_log_prob(lm_ref, chosen_ref, response_start).to(policy_device)
+        lp_rejected_ref = _sequence_log_prob(lm_ref, rejected_ref, response_start).to(policy_device)
 
     # Implicit reward margin and DPO loss
     reward_margin = beta * (

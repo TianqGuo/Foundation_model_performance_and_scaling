@@ -135,7 +135,7 @@ def train(args: argparse.Namespace) -> None:
     metrics_path = output_path / f"train_metrics_{args.run_name}.jsonl"
     metrics_file = open(metrics_path, "w")
 
-    best_val_acc = 0.0
+    best_val_acc = -1.0  # ensures first validation always saves a checkpoint
     best_ckpt_dir = Path(args.checkpoint_dir) / "best"
     best_ckpt_dir.mkdir(parents=True, exist_ok=True)
 
@@ -246,7 +246,7 @@ def train(args: argparse.Namespace) -> None:
 
     (output_path / f"final_val_{args.run_name}.json").write_text(json.dumps({
         "val_reward_acc": val_acc,
-        "best_val_reward_acc": best_val_acc,
+        "best_val_reward_acc": max(0.0, best_val_acc),
         "train_steps": train_step,
         "total_elapsed_sec": round(total_elapsed, 1),
         "total_elapsed_human": _fmt_time(total_elapsed),

@@ -103,16 +103,23 @@ else
         echo "    Downloading from HuggingFace ..."
         uv run python -c "
 from huggingface_hub import hf_hub_download
-import os
-files = ['harmless-base.jsonl.gz', 'helpful-base.jsonl.gz',
-         'helpful-online.jsonl.gz', 'helpful-rejection-sampled.jsonl.gz']
-for f in files:
-    dest = os.path.join('${DATA_DIR}', f)
-    if not os.path.exists(dest):
-        print(f'Downloading {f} ...')
-        path = hf_hub_download(repo_id='Anthropic/hh-rlhf', filename=f,
-                               repo_type='dataset', local_dir='${DATA_DIR}')
-        print(f'  -> {path}')
+import os, shutil, tempfile
+# Actual HF paths are in subdirs: harmless-base/train.jsonl.gz, etc.
+file_map = [
+    ('harmless-base/train.jsonl.gz',          'harmless-base.jsonl.gz'),
+    ('helpful-base/train.jsonl.gz',           'helpful-base.jsonl.gz'),
+    ('helpful-online/train.jsonl.gz',         'helpful-online.jsonl.gz'),
+    ('helpful-rejection-sampled/train.jsonl.gz', 'helpful-rejection-sampled.jsonl.gz'),
+]
+with tempfile.TemporaryDirectory() as tmp:
+    for hf_path, local_name in file_map:
+        dest = os.path.join('${DATA_DIR}', local_name)
+        if not os.path.exists(dest):
+            print(f'Downloading {hf_path} ...')
+            path = hf_hub_download(repo_id='Anthropic/hh-rlhf', filename=hf_path,
+                                   repo_type='dataset', local_dir=tmp)
+            shutil.copy(path, dest)
+            print(f'  -> {dest}')
 "
     else
         echo "    Data already present at ${DATA_DIR}"
