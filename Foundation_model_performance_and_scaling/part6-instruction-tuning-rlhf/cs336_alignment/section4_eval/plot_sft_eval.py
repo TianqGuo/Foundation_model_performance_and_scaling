@@ -284,18 +284,19 @@ def main() -> None:
 
     plot_summary_bar(sft, baseline, output_dir)
 
-    # ── Trigger full comparison plots (baseline vs SFT) ───────────────────────
-    print("Updating comparison plots in results/section2/ ...")
+    # ── Comparison plots (baseline vs SFT) → results/section4/, not section2/
+    # section2/ plots stay as baseline-only (referenced by the §2 README).
+    # The side-by-side comparison belongs in section4/.
+    print("Generating baseline vs SFT comparison plots -> results/section4/ ...")
     import subprocess, sys
     subprocess.run([
         sys.executable, "-m", "cs336_alignment.section2_zero_shot.plot_zero_shot_results",
         "--results-section2", str(s2),
         "--results-section4", str(s4),
-        "--output", str(s2),
+        "--output", str(output_dir),
     ], check=True)
 
     print(f"\nAll plots saved to: {output_dir}")
-    print(f"Comparison plots updated in: {s2}")
 
 
 if __name__ == "__main__":
