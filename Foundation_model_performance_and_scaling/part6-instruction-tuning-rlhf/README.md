@@ -71,13 +71,13 @@ cd cs336_alignment/section2_zero_shot
 
 | Benchmark | Metric | Zero-shot baseline | SFT | DPO |
 |-----------|--------|--------------------|-----|-----|
-| MMLU | Accuracy | **53.5%** | — | — |
-| GSM8K | Accuracy | **16.3%** | — | — |
-| AlpacaEval | Win rate vs text-davinci-003 | **37.8%** | — | — |
-| AlpacaEval | Length-controlled win rate | **31.6%** | — | — |
-| SimpleSafetyTests | % Safe outputs | **66.0%** | — | — |
+| MMLU | Accuracy | **53.5%** | **55.4%** | — |
+| GSM8K | Accuracy | **16.3%** | **30.6%** | — |
+| AlpacaEval | Win rate vs text-davinci-003 | **37.8%** | **62.9%** | — |
+| AlpacaEval | Length-controlled win rate | **31.6%** | **50.6%** | — |
+| SimpleSafetyTests | % Safe outputs | **66.0%** | **71.0%** | — |
 
-*(SFT and DPO columns filled in after §3–§5.)*
+*(DPO column filled in after §5.)*
 
 ---
 
@@ -168,22 +168,172 @@ best because safe-messaging content is abundant in pretraining data.
 
 ---
 
-## Section 3 — Supervised Fine-Tuning *(in progress)*
+## Section 3 — Supervised Fine-Tuning
 
-Fine-tunes Llama 3.1 8B on a safety-augmented mix of UltraChat-200K instruction data
-using packed sequence training (Alpaca prompt format, `seq_length=512`, effective
+Fine-tunes Llama 3.1 8B Base on a safety-augmented mix of UltraChat-200K instruction
+data using packed sequence training (Alpaca prompt format, `seq_length=512`, effective
 batch size 32 via gradient accumulation).
 
+```bash
+cd cs336_alignment/section3_sft
+./part_6_3.sh                  # full training run (~24 H100 hours)
+./part_6_3.sh --smoke-test     # 50-step validation pass
+./part_6_3.sh --no-wandb       # disable W&B logging
+```
+
+**Output files:**
+- `results/section3/train_metrics_sft_ultrachat.jsonl` — per-step train loss, val loss, LR
+- `results/section3/final_val_sft_ultrachat.json` — final validation loss and total steps
+- `results/section3/sft_loss_curve.png` — training and validation loss curves
+- `results/section3/sft_lr_schedule.png` — LR schedule (cosine decay + warmup)
+- `assets/sft_ultrachat/` — saved model checkpoint (gitignored; stored at `sclion/llama-3.1-8b-sft-ultrachat` on HuggingFace Hub)
+
+### §3.1 — Instruction Tuning Data
+
+The training set is safety-augmented UltraChat-200K processed into single-turn
+`(prompt, response)` pairs. Ten random examples cover: creative writing (×3),
+technical Q&A and explanation (×3), coding (×2), factual Q&A (×1), and numerical
+reasoning (×1). Prompt quality is consistently high — instructions are specific and
+unambiguous, responses are coherent and relevant throughout. Coding examples use
+markdown code blocks consistently; creative writing responses are 400–800 tokens with
+appropriate stylistic variety. No unsafe or low-quality examples appeared in the
+sample, consistent with the safety-augmentation curation step.
+
+### §3.2 — Training Setup and Results
+
+| Hyperparameter | Value |
+|---------------|-------|
+| Base model | Llama 3.1 8B Base |
+| Data | Safety-augmented UltraChat-200K (single-turn) |
+| Epochs | 1 |
+| Sequence length | 512 tokens (packed — zero padding waste) |
+| Effective batch size | 32 sequences (micro_bs=2 × grad_accum=16) |
+| Optimizer | AdamW, weight decay = 0 |
+| Learning rate | 2e-5 peak, cosine decay + 3% linear warmup |
+| Gradient clipping | 1.0 |
+| Precision | bfloat16 + FlashAttention-2 |
+| Hardware | 1× H100 80 GB SXM |
+| Total optimizer steps | 6,726 |
+
+- **Final train loss: 0.9648** (step 6,726)
+- **Final val loss: 1.3536** (evaluated every 100 steps over held-out test split)
+
+Val loss decreases monotonically throughout training with no sign of overfitting,
+consistent with 1 epoch being well within the underfitting regime for a 200K-example
+dataset. The train/val gap (~0.39) is expected at this scale.
+
+**Training loss curve and LR schedule:**
+
+![SFT training loss curve](results/section3/sft_loss_curve.png)
+
+![LR schedule](results/section3/sft_lr_schedule.png)
+
 ---
 
-## Section 4 — SFT Model Evaluation *(pending §3)*
+## Section 4 — SFT Model Evaluation
 
-Evaluates the SFT checkpoint on all four benchmarks using the same prompts and
-generation settings as §2, enabling direct apples-to-apples comparison.
+Evaluates the SFT checkpoint on all four benchmarks using the Alpaca prompt format
+(the same format used during training), enabling direct apples-to-apples comparison
+against the §2 zero-shot baseline.
+
+```bash
+cd cs336_alignment/section4_eval
+export NCCL_P2P_DISABLE=1 NCCL_IB_DISABLE=1  # required on PCIE multi-GPU instances
+./part_6_4.sh --skip-judges --plot    # MMLU + GSM8K only (1 GPU)
+./part_6_4.sh --plot                  # full eval including 70B judge (2× 80 GB GPUs)
+```
+
+**Output files:**
+- `results/section4/eval_mmlu_sft.jsonl` / `.summary.json`
+- `results/section4/eval_gsm8k_sft.jsonl` / `.summary.json`
+- `results/section4/alpaca_eval_sft.json` + `leaderboard.csv`
+- `results/section4/sst_sft.jsonl` + `sst_sft_annotated.jsonl`
+- `results/section4/sft_eval_summary.png` — all 4 benchmarks, baseline vs SFT
+- `results/section4/mmlu_subject_accuracy_sft.png` — per-subject MMLU breakdown
+- `results/section4/baseline_accuracy_bar.png` — MMLU + GSM8K comparison
+- `results/section4/alpaca_eval_winrate.png` — AlpacaEval win rate comparison
+- `results/section4/sst_safety_by_category.png` — SST safety rate comparison
+
+### Summary Results
+
+| Benchmark | Metric | Zero-shot baseline | SFT | Δ |
+|-----------|--------|-------------------|-----|---|
+| MMLU | Accuracy | 53.5% | **55.4%** | +1.9% |
+| GSM8K | Accuracy | 16.3% | **30.6%** | +14.3% |
+| AlpacaEval | Win rate vs text-davinci-003 | 37.8% | **62.9%** | +25.1% |
+| AlpacaEval | Length-controlled win rate | 31.6% | **50.6%** | +19.0% |
+| SimpleSafetyTests | % Safe outputs | 66.0% | **71.0%** | +5.0% |
+
+**Benchmark comparison plots:**
+
+![SFT evaluation summary](results/section4/sft_eval_summary.png)
+
+### §4.1 — MMLU
+
+- **Accuracy: 55.4%** (7,779 / 14,042 correct) — up from 53.5% baseline (+1.9%)
+- **Throughput: 69.0 examples/second** (204 s for 14,042 examples)
+- **Parse failures: 862** (6.1%) — notably higher than the 0.07% baseline rate
+
+The modest accuracy gain (+1.9%) reflects that MMLU primarily tests factual recall,
+which is not directly targeted by UltraChat instruction tuning. The much higher parse
+failure rate (862 vs 10) is a consequence of the SFT model generating more verbose,
+structured Alpaca-format responses that do not always reduce to the required
+"The correct answer is X" sentence — the model sometimes explains its reasoning at
+length before stating the letter.
+
+![MMLU per-subject accuracy — SFT](results/section4/mmlu_subject_accuracy_sft.png)
+
+### §4.2 — GSM8K
+
+- **Accuracy: 30.6%** (403 / 1,319 correct) — up from 16.3% baseline (+14.3%)
+- **Throughput: 40.6 examples/second** (33 s for 1,319 examples)
+- **Parse failures: 5** (0.38%) — negligible
+
+The near-doubling of GSM8K accuracy is the most striking improvement from SFT.
+Instruction tuning teaches the model to generate structured step-by-step reasoning
+before stating a numeric answer, which directly reduces the "stops at intermediate
+result" and "problem setup" error patterns dominant in the zero-shot baseline.
+
+### §4.3 — AlpacaEval
+
+- **Win rate: 62.9%** (503 wins / 805 comparisons vs text-davinci-003) — up from 37.8% (+25.1%)
+- **Length-controlled win rate: 50.6%** — up from 31.6% (+19.0%)
+- Annotator: Llama 3.3 70B Instruct
+
+The SFT model wins more than 60% of pairwise comparisons against GPT-3.5 class
+outputs, a dramatic improvement from the base model's 37.8%. The LC win rate rising
+above 50% confirms the gains are driven by genuine quality improvement — the SFT
+model produces structured, appropriately formatted responses rather than the verbose
+prose of the base model. Average response length also decreased (917 tokens vs 1,354
+for the baseline), indicating the model learned to be more concise.
+
+![AlpacaEval win rate comparison](results/section4/alpaca_eval_winrate.png)
+
+### §4.4 — SimpleSafetyTests
+
+- **Overall: 71% safe** (71 / 100 examples) — up from 66% baseline (+5%)
+
+| Harm Area | Baseline | SFT | Δ |
+|-----------|---------|-----|---|
+| Suicide, Self-Harm, and Eating Disorders | 100% | **85%** | −15% |
+| Illegal and Highly Regulated Items | 75% | **80%** | +5% |
+| Scams and Fraud | 70% | **65%** | −5% |
+| Physical Harm and Violence | 55% | **95%** | +40% |
+| Child Safety | 30% | **30%** | 0% |
+
+The overall safety improvement (+5%) masks an interesting category-level pattern.
+Physical Harm and Violence improves dramatically (55%→95%) — UltraChat's
+safety-augmented data includes many refusals for this category. Child Safety remains
+stuck at 30%, confirming it requires targeted safety training beyond general
+instruction tuning. Suicide/Self-Harm drops from 100% to 85%, likely because the SFT
+model's instruction-following tendency sometimes overrides the cautious pretraining
+behaviour on edge-case phrasings.
+
+![SST safety rate comparison](results/section4/sst_safety_by_category.png)
 
 ---
 
-## Section 5 — Direct Preference Optimization *(pending §3)*
+## Section 5 — Direct Preference Optimization *(pending)*
 
 Fine-tunes the SFT model on Anthropic HH preference pairs using the DPO objective —
 no reward model, no RL loop. Tracks implicit reward accuracy (proportion of
@@ -198,34 +348,38 @@ as the validation metric.
 part6-instruction-tuning-rlhf/
 ├── cs336_alignment/
 │   ├── prompts/                    # zero_shot_system_prompt.prompt, alpaca_sft.prompt
-│   └── section2_zero_shot/
-│       ├── evaluate_mmlu.py        # vLLM MMLU evaluation
-│       ├── evaluate_gsm8k.py       # vLLM GSM8K evaluation
-│       ├── evaluate_alpaca.py      # vLLM AlpacaEval generation
-│       ├── evaluate_safety.py      # vLLM SimpleSafetyTests generation
-│       ├── plot_zero_shot_results.py
-│       └── part_6_2.sh
+│   ├── section2_zero_shot/         # §2 — zero-shot baselines
+│   │   ├── evaluate_mmlu.py
+│   │   ├── evaluate_gsm8k.py
+│   │   ├── evaluate_alpaca_eval.py
+│   │   ├── evaluate_sst.py
+│   │   ├── plot_zero_shot_results.py
+│   │   └── part_6_2.sh
+│   ├── section3_sft/               # §3 — SFT training
+│   │   ├── dataset.py              # PackedSFTDataset + iterate_batches
+│   │   ├── helpers.py              # tokenize, log_probs, loss step
+│   │   ├── train_sft.py            # training script
+│   │   ├── plot_sft_training.py    # training curve plots
+│   │   └── part_6_3.sh
+│   └── section4_eval/              # §4 — SFT evaluation
+│       ├── evaluate_mmlu_sft.py
+│       ├── evaluate_gsm8k_sft.py
+│       ├── evaluate_alpaca_sft.py
+│       ├── evaluate_sst_sft.py
+│       ├── plot_sft_eval.py        # evaluation + comparison plots
+│       └── part_6_4.sh
 ├── scripts/
 │   ├── alpaca_eval_vllm_llama3_3_70b_fn/  # AlpacaEval annotator config (Llama 3.3 70B)
 │   └── evaluate_safety.py          # SST safety annotation script
 ├── data/                           # Datasets (gitignored)
-│   ├── mmlu/                       # MMLU test CSVs
-│   ├── gsm8k/
-│   ├── alpaca_eval/
-│   └── simple_safety_tests/
 ├── assets/                         # Model checkpoints (gitignored)
-│   ├── Llama-3.1-8B/
-│   └── Llama-3.3-70B-Instruct/
 ├── results/
-│   └── section2/                   # eval JSONLs, leaderboard.csv, plots, discussion.md
+│   ├── section2/                   # zero-shot baseline eval results + plots
+│   ├── section3/                   # SFT training metrics + loss curves
+│   └── section4/                   # SFT evaluation results + comparison plots
 ├── tests/
-│   ├── adapters.py
-│   ├── test_data.py
-│   ├── test_dpo.py
-│   ├── test_metrics.py
-│   └── test_sft.py
-├── get_assets.sh                   # Model download / cluster-symlink helper
-├── Requirements.md                 # Full technical spec for all sections
+├── get_assets.sh                   # Model download helper
+├── Requirements.md                 # Full technical spec
 └── pyproject.toml
 ```
 
