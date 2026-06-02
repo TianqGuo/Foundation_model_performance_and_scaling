@@ -100,7 +100,7 @@ def train(args: argparse.Namespace) -> None:
     policy = AutoModelForCausalLM.from_pretrained(
         args.model,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
+        attn_implementation="sdpa",
     ).to(policy_device)
     policy.train()
 
@@ -108,7 +108,7 @@ def train(args: argparse.Namespace) -> None:
     ref_model = AutoModelForCausalLM.from_pretrained(
         args.model,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
+        attn_implementation="sdpa",
     ).to(ref_device)
     ref_model.eval()
     for p in ref_model.parameters():

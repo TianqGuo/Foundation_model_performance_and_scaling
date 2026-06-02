@@ -31,7 +31,10 @@ def _sequence_log_prob(
     logits = model(inputs).logits[0].float()           # (T-1, vocab), float32
     log_probs = F.log_softmax(logits, dim=-1)
     per_token = log_probs[torch.arange(len(targets), device=input_ids.device), targets]
-    return per_token[response_start:].sum()
+    response_tokens = per_token[response_start:]
+    # Mean instead of sum: keeps magnitude O(1) regardless of sequence length,
+    # preventing bfloat16 gradient overflow during backward for long responses.
+    return response_tokens.mean() if response_tokens.numel() > 0 else response_tokens.sum()
 
 
 def per_instance_dpo_loss(
