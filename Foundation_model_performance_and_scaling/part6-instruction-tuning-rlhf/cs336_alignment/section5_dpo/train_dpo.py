@@ -167,6 +167,11 @@ def train(args: argparse.Namespace) -> None:
                     response_chosen=ex["chosen"],
                     response_rejected=ex["rejected"],
                 )
+                if not torch.isfinite(loss):
+                    # A single non-finite loss would corrupt every parameter via
+                    # RMSprop's running variance — skip the backward entirely.
+                    print(f"  WARNING: non-finite loss ({loss.item()}) — skipping microbatch")
+                    continue
                 (loss / args.gradient_accumulation_steps).backward()
             except RuntimeError as e:
                 if "out of memory" in str(e).lower():
@@ -180,7 +185,14 @@ def train(args: argparse.Namespace) -> None:
             microbatch_count += 1
 
             if microbatch_count % args.gradient_accumulation_steps == 0:
-                torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
+                grad_norm = torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
+                if not torch.isfinite(grad_norm):
+                    # Accumulated gradients are already poisoned; discard them.
+                    print(f"  WARNING: non-finite grad norm ({grad_norm:.4f}) — skipping optimizer step")
+                    optimizer.zero_grad()
+                    microbatch_count = 0
+                    continue
+
                 optimizer.step()
                 optimizer.zero_grad()
                 train_step += 1
