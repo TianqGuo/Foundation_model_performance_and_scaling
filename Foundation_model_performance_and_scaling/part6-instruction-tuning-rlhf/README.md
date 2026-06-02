@@ -71,13 +71,13 @@ cd cs336_alignment/section2_zero_shot
 
 | Benchmark | Metric | Zero-shot baseline | SFT | DPO |
 |-----------|--------|--------------------|-----|-----|
-| MMLU | Accuracy | **53.5%** | **55.4%** | — |
-| GSM8K | Accuracy | **16.3%** | **30.6%** | — |
-| AlpacaEval | Win rate vs text-davinci-003 | **37.8%** | **62.9%** | — |
-| AlpacaEval | Length-controlled win rate | **31.6%** | **50.6%** | — |
-| SimpleSafetyTests | % Safe outputs | **66.0%** | **71.0%** | — |
+| MMLU | Accuracy | 53.5% | 55.4% | **58.3%** |
+| GSM8K | Accuracy | 16.3% | 30.6% | **37.9%** |
+| AlpacaEval | Win rate vs text-davinci-003 | 37.8% | **62.9%** | 56.3% |
+| AlpacaEval | Length-controlled win rate | 31.6% | 50.6% | **51.1%** |
+| SimpleSafetyTests | % Safe outputs | 66.0% | **71.0%** | 31.0% ⚠️ |
 
-*(DPO column filled in after §5.)*
+*⚠️ SST regression is a documented DPO alignment tradeoff — see §5.4 for analysis.*
 
 ---
 
@@ -333,12 +333,110 @@ behaviour on edge-case phrasings.
 
 ---
 
-## Section 5 — Direct Preference Optimization *(pending)*
+## Section 5 — Direct Preference Optimization
 
 Fine-tunes the SFT model on Anthropic HH preference pairs using the DPO objective —
-no reward model, no RL loop. Tracks implicit reward accuracy (proportion of
-preference pairs where the model assigns higher log-probability to the chosen response)
-as the validation metric.
+no reward model, no RL loop. The policy and frozen reference model are placed on
+separate GPUs; implicit reward accuracy (fraction of preference pairs where the model
+assigns higher log-probability to the chosen response) is the validation metric.
+
+```bash
+# Full pipeline: train DPO + evaluate all 4 benchmarks
+bash cs336_alignment/section5_dpo/part_6_5.sh
+
+# Eval only (standalone — downloads all data automatically)
+bash cs336_alignment/section5_dpo/part_6_5_eval.sh --skip-judges   # MMLU + GSM8K only
+bash cs336_alignment/section5_dpo/part_6_5_eval.sh                  # all 4 benchmarks
+```
+
+**Output files:**
+- `results/section5/train_metrics_dpo_hh.jsonl` — per-step loss, reward accuracy
+- `results/section5/final_val_dpo_hh.json` — final/best validation reward accuracy
+- `results/section5/eval_mmlu_dpo.jsonl` / `.summary.json`
+- `results/section5/eval_gsm8k_dpo.jsonl` / `.summary.json`
+- `results/section5/alpaca_eval_dpo.json` + `leaderboard.csv`
+- `results/section5/sst_dpo.jsonl` + `sst_dpo_annotated.jsonl`
+- `results/section5/dpo_loss_curve.png` — training loss over optimizer steps
+- `results/section5/dpo_reward_accuracy.png` — validation reward accuracy curve
+- `results/section5/dpo_eval_summary.png` — all 4 benchmarks: baseline vs SFT vs DPO
+- `assets/dpo_hh/best/` — best checkpoint (stored at `sclion/llama-3.1-8b-dpo-hh` on HuggingFace Hub)
+
+### §5.1 — Training Setup
+
+| Hyperparameter | Value |
+|---------------|-------|
+| Base model | SFT checkpoint (`sclion/llama-3.1-8b-sft-ultrachat`) |
+| Preference data | Anthropic HH (49,391 single-turn pairs across 4 files) |
+| Epochs | 1 |
+| Effective batch size | 64 (gradient accumulation, 1 example per microbatch) |
+| Optimizer | RMSprop |
+| Learning rate | 1e-6 |
+| β (KL penalty) | 0.1 |
+| Hardware | 2× H100 80 GB (policy on cuda:0, reference on cuda:1) |
+| Total optimizer steps | 768 |
+| Training time | 4h 31m |
+
+- **Best validation reward accuracy: 65.5%** (peak over 15 validation checkpoints)
+- **Final training loss: 0.6266**
+
+The DPO loss initialises near `log(2) ≈ 0.693` (policy = reference at step 0) and
+converges to ~0.63, oscillating due to high per-instance variance (batch size 1).
+Reward accuracy is the more informative training signal, rising steadily from ~50%
+random to 65.5%.
+
+**Training curves:**
+
+![DPO training loss](results/section5/dpo_loss_curve.png)
+
+![DPO reward accuracy](results/section5/dpo_reward_accuracy.png)
+
+### §5.2 — Benchmark Results
+
+| Benchmark | Metric | Baseline | SFT | DPO | Δ (DPO vs SFT) |
+|-----------|--------|----------|-----|-----|----------------|
+| MMLU | Accuracy | 53.5% | 55.4% | **58.3%** | +2.9% |
+| GSM8K | Accuracy | 16.3% | 30.6% | **37.9%** | +7.3% |
+| AlpacaEval | Win rate | 37.8% | 62.9% | 56.3% | −6.6% |
+| AlpacaEval | LC win rate | 31.6% | 50.6% | **51.1%** | +0.5% |
+| SimpleSafetyTests | % Safe | 66.0% | 71.0% | 31.0% ⚠️ | −40.0% |
+
+![DPO evaluation summary](results/section5/dpo_eval_summary.png)
+
+**Benchmark comparison plots (all three models):**
+
+![Benchmark accuracy comparison](results/section5/baseline_accuracy_bar.png)
+
+![AlpacaEval win rate comparison](results/section5/alpaca_eval_winrate.png)
+
+![SST safety rate comparison](results/section5/sst_safety_by_category.png)
+
+### §5.3 — Key Findings
+
+**MMLU (+2.9%)** — The DPO model achieves the best MMLU accuracy across all three
+checkpoints. Its output format shifted from SFT-style ("The correct answer is C.") to
+a more direct format ("C. True, False."), which initially appeared as 18.4% accuracy
+due to parser failures. After updating the parser to handle both formats, the true
+accuracy is 58.3% with only 16 parse failures (0.1%).
+
+**GSM8K (+7.3%)** — The clearest monotonic improvement: baseline 16.3% → SFT 30.6% →
+DPO 37.9%. DPO on HH, which rewards structured and complete responses, reinforces the
+step-by-step reasoning style established by SFT. Errors shift from strategy failures
+to arithmetic execution slips — a sign of genuine reasoning improvement.
+
+**AlpacaEval** — Raw win rate drops 6.6% vs SFT while LC win rate rises slightly
+(+0.5%). The DPO model is more concise (avg 870 tokens vs SFT's ~917), and the LC
+metric correctly credits this. The raw win-rate dip is expected — DPO on HH optimises
+for a slightly different response distribution than AlpacaEval instructions.
+
+**SimpleSafetyTests (⚠️ 31%, −40% vs SFT)** — This regression is a documented DPO
+alignment tradeoff, not an evaluation error. The Anthropic HH harmless data does cover
+safety-relevant refusals, but two effects cause the regression: (1) the helpful subset
+dominates HH training, making the model more compliant generally; (2) HH-preferred
+refusals use conversational deflections ("I don't understand the question") rather than
+the explicit refusals that the 70B safety judge requires. One response — "No." to a
+suicidal ideation prompt — was outright harmful. Full analysis in
+`results/section5/discussion.md`. Mitigations: higher β, safety-specific preference
+data, or a safety-specialised SFT starting point.
 
 ---
 
@@ -361,13 +459,20 @@ part6-instruction-tuning-rlhf/
 │   │   ├── train_sft.py            # training script
 │   │   ├── plot_sft_training.py    # training curve plots
 │   │   └── part_6_3.sh
-│   └── section4_eval/              # §4 — SFT evaluation
-│       ├── evaluate_mmlu_sft.py
-│       ├── evaluate_gsm8k_sft.py
-│       ├── evaluate_alpaca_sft.py
-│       ├── evaluate_sst_sft.py
-│       ├── plot_sft_eval.py        # evaluation + comparison plots
-│       └── part_6_4.sh
+│   ├── section4_eval/              # §4 — SFT evaluation
+│   │   ├── evaluate_mmlu_sft.py
+│   │   ├── evaluate_gsm8k_sft.py
+│   │   ├── evaluate_alpaca_sft.py
+│   │   ├── evaluate_sst_sft.py
+│   │   ├── plot_sft_eval.py        # evaluation + comparison plots
+│   │   └── part_6_4.sh
+│   └── section5_dpo/               # §5 — DPO training + evaluation
+│       ├── dpo.py                  # per_instance_dpo_loss
+│       ├── dataset.py              # load_hh_dataset + split_train_val
+│       ├── train_dpo.py            # DPO training loop
+│       ├── plot_dpo_training.py    # training curves + comparison plots
+│       ├── part_6_5.sh             # train + eval pipeline
+│       └── part_6_5_eval.sh        # standalone eval (no training dependency)
 ├── scripts/
 │   ├── alpaca_eval_vllm_llama3_3_70b_fn/  # AlpacaEval annotator config (Llama 3.3 70B)
 │   └── evaluate_safety.py          # SST safety annotation script
@@ -376,7 +481,8 @@ part6-instruction-tuning-rlhf/
 ├── results/
 │   ├── section2/                   # zero-shot baseline eval results + plots
 │   ├── section3/                   # SFT training metrics + loss curves
-│   └── section4/                   # SFT evaluation results + comparison plots
+│   ├── section4/                   # SFT evaluation results + comparison plots
+│   └── section5/                   # DPO training metrics + evaluation results + plots
 ├── tests/
 ├── get_assets.sh                   # Model download helper
 ├── Requirements.md                 # Full technical spec
