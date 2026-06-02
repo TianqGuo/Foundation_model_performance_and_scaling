@@ -55,8 +55,13 @@ def _compute_reward_accuracy(
             chosen_ids = torch.tensor(chosen_ids_list, dtype=torch.long, device=policy_device)
             rejected_ids = torch.tensor(rejected_ids_list, dtype=torch.long, device=policy_device)
 
-            lp_chosen = _sequence_log_prob(policy, chosen_ids)
-            lp_rejected = _sequence_log_prob(policy, rejected_ids)
+            # Compute response_start to match training (response-only log probs)
+            prompt_text = alpaca_template.format(instruction=ex["instruction"], response="")
+            prompt_len = len(tokenizer.encode(prompt_text, add_special_tokens=True))
+            response_start = max(0, prompt_len - 1)
+
+            lp_chosen = _sequence_log_prob(policy, chosen_ids, response_start)
+            lp_rejected = _sequence_log_prob(policy, rejected_ids, response_start)
 
             if lp_chosen.item() > lp_rejected.item():
                 n_correct += 1
@@ -121,7 +126,7 @@ def train(args: argparse.Namespace) -> None:
 
     # --- Dataset ---
     print(f"Loading HH dataset from {args.data_dir} ...")
-    all_examples = load_hh_dataset(args.data_dir)
+    all_examples = load_hh_dataset(args.data_dir, balance=args.balance_sources, seed=args.seed)
     print(f"  {len(all_examples)} single-turn examples across all 4 files")
 
     train_examples, val_examples = split_train_val(all_examples, n_val=args.n_val, seed=args.seed)
@@ -295,6 +300,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--beta", type=float, default=0.1)
     parser.add_argument("--lr", type=float, default=1e-6)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=64)
+    parser.add_argument("--balance-sources", action="store_true",
+                        help="Keep all harmless-base examples and downsample helpful "
+                             "files to match, giving 50%% harmless / 50%% helpful")
     parser.add_argument("--n-val", type=int, default=200,
                         help="Number of validation examples held out")
     parser.add_argument("--val-interval", type=int, default=50,

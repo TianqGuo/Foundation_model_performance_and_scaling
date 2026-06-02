@@ -25,4 +25,6 @@ def test_per_instance_dpo_loss():
         response_rejected=bad_response,
     )
 
+    # Expected value uses .sum() over response tokens (paper-correct formulation).
+    # Run `uv run pytest -k test_per_instance_dpo_loss -s` to confirm after any dpo.py change.
     assert torch.isclose(loss, torch.tensor(0.5785), atol=1e-4)

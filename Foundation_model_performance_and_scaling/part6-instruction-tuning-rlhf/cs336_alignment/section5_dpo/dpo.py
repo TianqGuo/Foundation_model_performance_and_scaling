@@ -16,25 +16,20 @@ def _sequence_log_prob(
     input_ids: torch.Tensor,
     response_start: int = 0,
 ) -> torch.Tensor:
-    """Sum of autoregressive token log-probabilities, optionally response-only.
+    """Sum of response token log-probabilities (paper-correct DPO formulation).
 
     Returns sum_{t=response_start}^{T-2} log p(token_{t+1} | token_0 ... token_t).
     input_ids: 1-D tensor of token IDs, shape (T,).
-    response_start: index into the per-token array (length T-1) where the
-        response begins; tokens before this index (prompt) are excluded.
-        Defaults to 0 (full-sequence log-prob).
-    Logits are cast to float32 before log_softmax to avoid -inf from bfloat16
-    underflow, which would make differences NaN.
+    response_start: first index in the per-token array belonging to the response;
+        prompt tokens are excluded. Defaults to 0 (full sequence).
+    Logits cast to float32 before log_softmax to avoid bfloat16 underflow.
     """
     inputs = input_ids[:-1].unsqueeze(0)              # (1, T-1)
     targets = input_ids[1:]                            # (T-1,)
     logits = model(inputs).logits[0].float()           # (T-1, vocab), float32
     log_probs = F.log_softmax(logits, dim=-1)
     per_token = log_probs[torch.arange(len(targets), device=input_ids.device), targets]
-    response_tokens = per_token[response_start:]
-    # Mean instead of sum: keeps magnitude O(1) regardless of sequence length,
-    # preventing bfloat16 gradient overflow during backward for long responses.
-    return response_tokens.mean() if response_tokens.numel() > 0 else response_tokens.sum()
+    return per_token[response_start:].sum()
 
 
 def per_instance_dpo_loss(

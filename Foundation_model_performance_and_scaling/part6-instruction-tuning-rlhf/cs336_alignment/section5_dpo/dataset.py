@@ -29,7 +29,11 @@ def _parse_conversation(text: str) -> tuple[str, str]:
     return instruction, response
 
 
-def load_hh_dataset(data_dir: str | Path) -> list[dict]:
+def load_hh_dataset(
+    data_dir: str | Path,
+    balance: bool = False,
+    seed: int = 42,
+) -> list[dict]:
     """Load and preprocess the Anthropic HH preference dataset.
 
     Combines all four HH files, filters to single-turn conversations only
@@ -41,18 +45,23 @@ def load_hh_dataset(data_dir: str | Path) -> list[dict]:
 
     Args:
         data_dir: directory containing the four .jsonl.gz files
+        balance: if True, keep all harmless-base examples and downsample the
+            three helpful files combined to the same total, giving 50% harmless /
+            50% helpful. Default False loads all examples as-is (~25% harmless).
+        seed: random seed for subsampling when balance=True
 
     Returns:
         List of single-turn preference examples across all four files.
     """
     data_dir = Path(data_dir)
-    examples = []
+    by_source: dict[str, list[dict]] = {}
 
     for filename in _HH_FILES:
         path = data_dir / filename
         if not path.exists():
             continue
         source = filename.replace(".jsonl.gz", "")
+        source_examples: list[dict] = []
         with gzip.open(path, "rt", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -72,13 +81,35 @@ def load_hh_dataset(data_dir: str | Path) -> list[dict]:
                 if not instruction or not chosen_response or not rejected_response:
                     continue
 
-                examples.append({
+                source_examples.append({
                     "instruction": instruction,
                     "chosen": chosen_response,
                     "rejected": rejected_response,
                     "source": source,
                 })
+        by_source[source] = source_examples
 
+    if balance and by_source:
+        # Give harmless-base 50% of total, helpful files share the other 50%.
+        # Keeps all harmless examples; downsamples helpful proportionally.
+        harmless_key = "harmless-base"
+        harmless = by_source.get(harmless_key, [])
+        helpful = {k: v for k, v in by_source.items() if k != harmless_key}
+        n_harmless = len(harmless)
+        n_helpful_total = sum(len(v) for v in helpful.values())
+        rng = random.Random(seed)
+        if n_helpful_total > n_harmless and helpful:
+            # Sample n_harmless examples from helpful proportionally across files
+            balanced_helpful: dict[str, list] = {}
+            for k, v in helpful.items():
+                n_keep = round(n_harmless * len(v) / n_helpful_total)
+                balanced_helpful[k] = rng.sample(v, min(n_keep, len(v)))
+            by_source = {harmless_key: harmless, **balanced_helpful}
+        counts_str = ", ".join(f"{k}={len(v)}" for k, v in by_source.items())
+        total = sum(len(v) for v in by_source.values())
+        print(f"  Balanced to 50/50 harmless/helpful: {counts_str} (total={total})")
+
+    examples = [ex for src in by_source.values() for ex in src]
     return examples
 
 

@@ -35,11 +35,13 @@ ROOT="$(cd ../.. && pwd)"
 SMOKE_TEST=0
 SKIP_JUDGES=0
 NO_WANDB=""
+BALANCE_SOURCES=""
 for arg in "$@"; do
     case "$arg" in
-        --smoke-test)   SMOKE_TEST=1 ;;
-        --skip-judges)  SKIP_JUDGES=1 ;;
-        --no-wandb)     NO_WANDB="--no-wandb" ;;
+        --smoke-test)        SMOKE_TEST=1 ;;
+        --skip-judges)       SKIP_JUDGES=1 ;;
+        --no-wandb)          NO_WANDB="--no-wandb" ;;
+        --balance-sources)   BALANCE_SOURCES="--balance-sources" ;;
     esac
 done
 
@@ -180,6 +182,7 @@ uv run python "${ROOT}/cs336_alignment/section5_dpo/train_dpo.py" \
     --run-name           dpo_hh \
     --wandb-project      cs336-part6-dpo \
     ${NO_WANDB} \
+    ${BALANCE_SOURCES} \
     ${EXTRA_FLAGS}
 
 echo "==> DPO training done."
