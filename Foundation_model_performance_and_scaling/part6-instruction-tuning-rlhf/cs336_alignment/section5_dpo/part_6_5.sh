@@ -186,105 +186,14 @@ echo "==> DPO training done."
 echo "    Best checkpoint: ${CHECKPOINT_DIR}/best"
 
 # ---------------------------------------------------------------------------
-# §5.4 — Resolve eval data (download if not present)
+# §5.4 — Evaluate DPO model (delegated to standalone eval script)
 # ---------------------------------------------------------------------------
-echo ""
-echo "==> Resolving eval data ..."
-MMLU_DIR=$(resolve_data \
-    "/data/a5-alignment/mmlu/test" \
-    "${ROOT}/data/mmlu/test" \
-    "mkdir -p '${ROOT}/data/mmlu' && \
-     wget --show-progress -O /tmp/mmlu_data.tar 'https://people.eecs.berkeley.edu/~hendrycks/data.tar' && \
-     tar -xf /tmp/mmlu_data.tar -C '${ROOT}/data/mmlu' --strip-components=1 && \
-     rm /tmp/mmlu_data.tar" \
-    "*_test.csv")
-echo "    MMLU: ${MMLU_DIR}"
-
-# ---------------------------------------------------------------------------
-# §5.4 — Evaluate DPO model on all 4 benchmarks
-# (Reuses section4 eval scripts with DPO model path and section5 output paths)
-# ---------------------------------------------------------------------------
-DPO_MODEL="${CHECKPOINT_DIR}/best"
+EVAL_FLAGS=""
+[ "${SKIP_JUDGES}" -eq 1 ] && EVAL_FLAGS="${EVAL_FLAGS} --skip-judges"
+[ "${SMOKE_TEST}"  -eq 1 ] && EVAL_FLAGS="${EVAL_FLAGS} --smoke-test"
 
 echo ""
-echo "==> §5.4 MMLU evaluation ..."
-uv run python "${ROOT}/cs336_alignment/section4_eval/evaluate_mmlu_sft.py" \
-    --model-path  "${DPO_MODEL}" \
-    --data-dir    "${MMLU_DIR}" \
-    --output-path "${RESULTS_DIR}/eval_mmlu_dpo.jsonl"
-
-echo ""
-echo "==> §5.4 GSM8K evaluation ..."
-uv run python "${ROOT}/cs336_alignment/section4_eval/evaluate_gsm8k_sft.py" \
-    --model-path  "${DPO_MODEL}" \
-    --data-path   "${ROOT}/data/gsm8k/test.jsonl" \
-    --output-path "${RESULTS_DIR}/eval_gsm8k_dpo.jsonl"
-
-if [ "${SKIP_JUDGES}" -eq 1 ]; then
-    echo ""
-    echo "==> Skipping AlpacaEval + SST annotation (--skip-judges)."
-else
-    # Resolve 70B judge
-    echo ""
-    echo "==> Resolving Llama 3.3 70B judge ..."
-    MODEL_ANNOTATOR=$(resolve_model \
-        "/data/a5-alignment/models/Llama-3.3-70B-Instruct" \
-        "${ROOT}/assets/Llama-3.3-70B-Instruct" \
-        "meta-llama/Llama-3.3-70B-Instruct")
-    echo "    ${MODEL_ANNOTATOR}"
-
-    echo ""
-    echo "==> §5.4 AlpacaEval — generating outputs ..."
-    uv run python "${ROOT}/cs336_alignment/section4_eval/evaluate_alpaca_sft.py" \
-        --model-path  "${DPO_MODEL}" \
-        --data-path   "${ROOT}/data/alpaca_eval/alpaca_eval.jsonl" \
-        --output-path "${RESULTS_DIR}/alpaca_eval_dpo.json" \
-        --generator   "llama-3.1-8b-dpo"
-
-    echo ""
-    echo "==> §5.4 AlpacaEval — running judge ..."
-    CONFIGS_YAML="${ROOT}/scripts/alpaca_eval_vllm_llama3_3_70b_fn/configs.yaml"
-    sed -i "s|model_name: \"ANNOTATOR_MODEL_PATH\"|model_name: \"${MODEL_ANNOTATOR}\"|" "${CONFIGS_YAML}"
-
-    ALPACA_REF_JSON="${ROOT}/data/alpaca_eval/alpaca_eval_ref.json"
-    uv run python -c "
-import json, pathlib
-data = [json.loads(l) for l in pathlib.Path('${ROOT}/data/alpaca_eval/alpaca_eval.jsonl').read_text().splitlines() if l.strip()]
-pathlib.Path('${ALPACA_REF_JSON}').write_text(json.dumps(data, indent=2))
-"
-    pushd "${ROOT}" > /dev/null
-    uv run alpaca_eval \
-        --model_outputs        "${RESULTS_DIR}/alpaca_eval_dpo.json" \
-        --reference_outputs    "${ALPACA_REF_JSON}" \
-        --annotators_config    "scripts/alpaca_eval_vllm_llama3_3_70b_fn" \
-        --base-dir             "." \
-        --output_path          "${RESULTS_DIR}"
-    popd > /dev/null
-    sed -i "s|model_name: \"${MODEL_ANNOTATOR}\"|model_name: \"ANNOTATOR_MODEL_PATH\"|" "${CONFIGS_YAML}"
-
-    echo ""
-    echo "==> §5.4 SimpleSafetyTests ..."
-    uv run python "${ROOT}/cs336_alignment/section4_eval/evaluate_sst_sft.py" \
-        --model-path  "${DPO_MODEL}" \
-        --data-path   "${ROOT}/data/simple_safety_tests/simple_safety_tests.csv" \
-        --output-path "${RESULTS_DIR}/sst_dpo.jsonl"
-
-    uv run python "${ROOT}/scripts/evaluate_safety.py" \
-        --input-path         "${RESULTS_DIR}/sst_dpo.jsonl" \
-        --model-name-or-path "${MODEL_ANNOTATOR}" \
-        --num-gpus           2 \
-        --output-path        "${RESULTS_DIR}/sst_dpo_annotated.jsonl"
-fi
-
-# ---------------------------------------------------------------------------
-# Plots
-# ---------------------------------------------------------------------------
-echo ""
-echo "==> Generating plots ..."
-uv run python "${ROOT}/cs336_alignment/section5_dpo/plot_dpo_training.py" \
-    --results          "${RESULTS_DIR}" \
-    --results-section2 "${ROOT}/results/section2" \
-    --results-section4 "${ROOT}/results/section4"
+bash "${ROOT}/cs336_alignment/section5_dpo/part_6_5_eval.sh" ${EVAL_FLAGS}
 
 echo ""
 echo "==> §5 complete. Results in ${RESULTS_DIR}"
