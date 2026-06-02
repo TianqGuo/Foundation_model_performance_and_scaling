@@ -12,19 +12,24 @@ from typing import Any
 def parse_mmlu_response(mmlu_example: dict[str, Any], model_output: str) -> str | None:
     """Parse a model output into the predicted MMLU answer letter.
 
-    Looks for the pattern "The correct answer is X" where X is A, B, C, or D.
-    Returns None if the output cannot be parsed into a valid letter.
+    Tries patterns in order of specificity:
+      1. "The correct answer is X"  (SFT/baseline style)
+      2. "The answer is X"
+      3. "Answer: X"
+      4. "X." or "X)" at the start of the response  (DPO style: "C. True, False.")
 
-    Args:
-        mmlu_example: dict with keys "subject", "question", "options", "answer".
-        model_output: raw string output from the model.
-
-    Returns:
-        One of "A", "B", "C", "D", or None.
+    Returns one of "A", "B", "C", "D", or None if unparseable.
     """
-    match = re.search(r'[Tt]he correct answer is\s+([A-D])\b', model_output)
-    if match:
-        return match.group(1).upper()
+    patterns = [
+        r'[Tt]he correct answer is\s+([A-D])\b',
+        r'[Tt]he answer is\s+([A-D])\b',
+        r'[Aa]nswer:\s*([A-D])\b',
+        r'^\s*([A-D])[.)]\s',   # "C. " or "C) " at start of output
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, model_output)
+        if match:
+            return match.group(1).upper()
     return None
 
 
