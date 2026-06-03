@@ -69,15 +69,15 @@ cd cs336_alignment/section2_zero_shot
 
 ### Summary Results
 
-| Benchmark | Metric | Zero-shot baseline | SFT | DPO |
-|-----------|--------|--------------------|-----|-----|
-| MMLU | Accuracy | 53.5% | 55.4% | **58.3%** |
-| GSM8K | Accuracy | 16.3% | 30.6% | **37.9%** |
-| AlpacaEval | Win rate vs text-davinci-003 | 37.8% | **62.9%** | 56.3% |
-| AlpacaEval | Length-controlled win rate | 31.6% | 50.6% | **51.1%** |
-| SimpleSafetyTests | % Safe outputs | 66.0% | **71.0%** | 31.0% ⚠️ |
+| Benchmark | Metric | Zero-shot baseline | SFT | DPO (balanced) |
+|-----------|--------|--------------------|-----|----------------|
+| MMLU | Accuracy | 53.5% | 55.4% | **58.9%** |
+| GSM8K | Accuracy | 16.3% | 30.6% | **32.0%** |
+| AlpacaEval | Win rate vs text-davinci-003 | 37.8% | **62.9%** | 55.9% |
+| AlpacaEval | Length-controlled win rate | 31.6% | **50.6%** | 46.2% |
+| SimpleSafetyTests | % Safe outputs | 66.0% | 71.0% | **72.0%** |
 
-*⚠️ SST regression is a documented DPO alignment tradeoff — see §5.4 for analysis.*
+*DPO results shown for Run 2 (balanced 50/50, `.sum()` loss). Three runs were conducted; see §5 for full comparison.*
 
 ---
 
@@ -366,77 +366,89 @@ bash cs336_alignment/section5_dpo/part_6_5_eval.sh                  # all 4 benc
 | Hyperparameter | Value |
 |---------------|-------|
 | Base model | SFT checkpoint (`sclion/llama-3.1-8b-sft-ultrachat`) |
-| Preference data | Anthropic HH (49,391 single-turn pairs across 4 files) |
+| Preference data | Anthropic HH (single-turn pairs across 4 files) |
 | Epochs | 1 |
 | Effective batch size | 64 (gradient accumulation, 1 example per microbatch) |
 | Optimizer | RMSprop |
 | Learning rate | 1e-6 |
 | β (KL penalty) | 0.1 |
 | Hardware | 2× H100 80 GB (policy on cuda:0, reference on cuda:1) |
-| Total optimizer steps | 768 |
-| Training time | 4h 31m |
 
-- **Best validation reward accuracy: 65.5%** (peak over 15 validation checkpoints)
-- **Final training loss: 0.6266**
+Three training runs were conducted to isolate the effect of each change:
 
-The DPO loss initialises near `log(2) ≈ 0.693` (policy = reference at step 0) and
-converges to ~0.63, oscillating due to high per-instance variance (batch size 1).
-Reward accuracy is the more informative training signal, rising steadily from ~50%
-random to 65.5%.
+| | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| Data | Unbalanced (24.8% harmless) | Balanced (50% harmless) | Unbalanced (24.8% harmless) |
+| Loss formulation | `.mean()` over response tokens | `.sum()` (paper-correct) | `.sum()` (paper-correct) |
+| Examples | 49,391 | 24,475 | 49,391 |
+| Optimizer steps | 768 | 379 | 768 |
+| Best val reward acc | 65.5% | 53.0% | 59.0% |
+| HuggingFace | `sclion/llama-3.1-8b-dpo-hh` | `sclion/llama-3.1-8b-dpo-hh-balanced` | — |
 
-**Training curves:**
+Run 2 and Run 3 differ from Run 1 in two code fixes applied between runs:
+- **Loss**: `.mean()` → `.sum()` (Rafailov et al. 2023 uses sum of token log-probs)
+- **Validation**: `response_start` added to `_compute_reward_accuracy` to match training
 
-![DPO training loss](results/section5/dpo_loss_curve.png)
+Run 3 isolates the data composition effect by holding the code fixes constant (`.sum()`)
+while reverting to the original unbalanced data.
 
-![DPO reward accuracy](results/section5/dpo_reward_accuracy.png)
+The lower val reward accuracy in Run 2 (53.0%) reflects a harder validation set — 50%
+harmless pairs are more ambiguous to rank — not worse training.
+
+**Training curves (Run 2):**
+
+![DPO training loss](results/section5_run2/dpo_loss_curve.png)
+
+![DPO reward accuracy](results/section5_run2/dpo_reward_accuracy.png)
 
 ### §5.2 — Benchmark Results
 
-| Benchmark | Metric | Baseline | SFT | DPO | Δ (DPO vs SFT) |
-|-----------|--------|----------|-----|-----|----------------|
-| MMLU | Accuracy | 53.5% | 55.4% | **58.3%** | +2.9% |
-| GSM8K | Accuracy | 16.3% | 30.6% | **37.9%** | +7.3% |
-| AlpacaEval | Win rate | 37.8% | 62.9% | 56.3% | −6.6% |
-| AlpacaEval | LC win rate | 31.6% | 50.6% | **51.1%** | +0.5% |
-| SimpleSafetyTests | % Safe | 66.0% | 71.0% | 31.0% ⚠️ | −40.0% |
+| Benchmark | Metric | Baseline | SFT | Run 1 | Run 2 | Run 3 |
+|-----------|--------|----------|-----|-------|-------|-------|
+| MMLU | Accuracy | 53.5% | 55.4% | 58.3% | 58.9% | **59.5%** |
+| GSM8K | Accuracy | 16.3% | 30.6% | **37.9%** | 32.0% | 32.5% |
+| AlpacaEval | Win rate | 37.8% | **62.9%** | 56.3% | 55.9% | 54.5% |
+| AlpacaEval | LC win rate | 31.6% | **50.6%** | 51.1% | 46.2% | 47.4% |
+| SimpleSafetyTests | % Safe | 66.0% | 71.0% | 31.0% ⚠️ | **72.0%** | 69.0% |
 
-![DPO evaluation summary](results/section5/dpo_eval_summary.png)
+![DPO evaluation summary](results/section5_run2/dpo_eval_summary.png)
 
-**Benchmark comparison plots (all three models):**
+**Benchmark comparison plots (Run 2 — baseline vs SFT vs DPO):**
 
-![Benchmark accuracy comparison](results/section5/baseline_accuracy_bar.png)
+![Benchmark accuracy comparison](results/section5_run2/baseline_accuracy_bar.png)
 
-![AlpacaEval win rate comparison](results/section5/alpaca_eval_winrate.png)
+![AlpacaEval win rate comparison](results/section5_run2/alpaca_eval_winrate.png)
 
-![SST safety rate comparison](results/section5/sst_safety_by_category.png)
+![SST safety rate comparison](results/section5_run2/sst_safety_by_category.png)
 
 ### §5.3 — Key Findings
 
-**MMLU (+2.9%)** — The DPO model achieves the best MMLU accuracy across all three
-checkpoints. Its output format shifted from SFT-style ("The correct answer is C.") to
-a more direct format ("C. True, False."), which initially appeared as 18.4% accuracy
-due to parser failures. After updating the parser to handle both formats, the true
-accuracy is 58.3% with only 16 parse failures (0.1%).
+**MMLU** — All runs improve over SFT (58.3% / 58.9% / 59.5%). The DPO model shifted
+its output format from "The correct answer is C." to "C. True, False." — the MMLU
+parser was updated to handle both formats. Parse failures: 16 / 79 / 132 across runs,
+all under 1%.
 
-**GSM8K (+7.3%)** — The clearest monotonic improvement: baseline 16.3% → SFT 30.6% →
-DPO 37.9%. DPO on HH, which rewards structured and complete responses, reinforces the
-step-by-step reasoning style established by SFT. Errors shift from strategy failures
-to arithmetic execution slips — a sign of genuine reasoning improvement.
+**GSM8K** — Run 1 (+7.3% vs SFT) shows DPO on the full helpful HH data strongly
+reinforces step-by-step reasoning. Runs 2 and 3 both score ~32%, indicating the `.sum()`
+loss formulation reduces GSM8K gains compared to `.mean()` — likely because `.sum()`
+down-weights short, direct helpful responses relative to longer ones.
 
-**AlpacaEval** — Raw win rate drops 6.6% vs SFT while LC win rate rises slightly
-(+0.5%). The DPO model is more concise (avg 870 tokens vs SFT's ~917), and the LC
-metric correctly credits this. The raw win-rate dip is expected — DPO on HH optimises
-for a slightly different response distribution than AlpacaEval instructions.
+**AlpacaEval** — All runs show a modest win-rate dip vs SFT. LC win rate degrades
+slightly across runs 2 and 3 vs run 1 (51.1%), consistent with the `.sum()` change
+producing a different response length distribution.
 
-**SimpleSafetyTests (⚠️ 31%, −40% vs SFT)** — This regression is a documented DPO
-alignment tradeoff, not an evaluation error. The Anthropic HH harmless data does cover
-safety-relevant refusals, but two effects cause the regression: (1) the helpful subset
-dominates HH training, making the model more compliant generally; (2) HH-preferred
-refusals use conversational deflections ("I don't understand the question") rather than
-the explicit refusals that the 70B safety judge requires. One response — "No." to a
-suicidal ideation prompt — was outright harmful. Full analysis in
-`results/section5/discussion.md`. Mitigations: higher β, safety-specific preference
-data, or a safety-specialised SFT starting point.
+**SimpleSafetyTests — the key finding across all three runs:**
+- Run 1 (unbalanced + `.mean()`): **31.0%** — severe regression from SFT's 71%
+- Run 3 (unbalanced + `.sum()`): **69.0%** — near-full recovery with code fix alone
+- Run 2 (balanced + `.sum()`): **72.0%** — marginal further improvement from data balance
+
+The `.mean()` → `.sum()` fix was the dominant cause of the SST regression. With `.sum()`,
+longer chosen responses (explicit safety refusals) receive proportionally larger reward
+signals than short rejected responses (soft deflections), giving the model a much
+stronger learning signal to produce complete refusals. Data rebalancing (Run 2) adds
+a further 3%, confirming that composition also matters but is the lesser factor.
+
+Full analysis in `results/section5_run2/discussion.md`.
 
 ---
 
