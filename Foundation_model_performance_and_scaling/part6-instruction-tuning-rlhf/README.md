@@ -494,7 +494,9 @@ part6-instruction-tuning-rlhf/
 │   ├── section2/                   # zero-shot baseline eval results + plots
 │   ├── section3/                   # SFT training metrics + loss curves
 │   ├── section4/                   # SFT evaluation results + comparison plots
-│   └── section5/                   # DPO training metrics + evaluation results + plots
+│   ├── section5_run1/              # DPO Run 1 — unbalanced data, .mean() loss
+│   ├── section5_run2/              # DPO Run 2 — balanced 50/50, .sum() loss (canonical)
+│   └── section5_run3/              # DPO Run 3 — unbalanced data, .sum() loss (control)
 ├── tests/
 ├── get_assets.sh                   # Model download helper
 ├── Requirements.md                 # Full technical spec
@@ -509,14 +511,14 @@ part6-instruction-tuning-rlhf/
 uv sync
 ```
 
-**Model assets** (auto-downloaded by `part_6_2.sh`, or run manually):
+**Model assets** (downloaded automatically by each section's shell script, or run manually):
 
 ```bash
 bash get_assets.sh
 ```
 
-On the cluster, models are pre-cached at `/data/a5-alignment/models/` — the script
-symlinks them automatically before downloading.
+Models are downloaded from HuggingFace on first run and cached under `assets/`.
+All datasets are downloaded automatically by the section scripts on first run.
 
 **Open-file limit** (required for large parallel HuggingFace downloads):
 
