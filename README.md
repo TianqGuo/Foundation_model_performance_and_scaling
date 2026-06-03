@@ -13,6 +13,7 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 | [Part 3](#part-3-scaling-laws) | Scaling Laws | N_opt = 1.16 × C^0.469 — predicts ~70B params at 10²³ FLOPs (matches Chinchilla) | [README](Foundation_model_performance_and_scaling/part3-scaling/README.md) |
 | [Part 4](#part-4-data-pipeline--training) | Data Pipeline & Training | Filtered 1.29M docs from 16.4M CC records; trained 85M-param model to 4.3 eval loss on Paloma | [README](Foundation_model_performance_and_scaling/part4-data/README.md) |
 | [Part 5](#part-5-alignment--reasoning-rl) | Alignment & Reasoning RL | Zero-shot 2.5% → SFT 65.0% → Expert Iteration 52.5% → GRPO 71.1% (question_only prompt, off-policy e4 bs128) | [README](Foundation_model_performance_and_scaling/part5-alignment/README.md) |
+| [Part 6](#part-6-instruction-tuning--rlhf) | Instruction Tuning & RLHF | SFT raises AlpacaEval win rate 37.8%→62.9% and GSM8K 16.3%→30.6%; DPO improves MMLU to 58.9% and safety to 72%; loss formulation ablation identifies dominant safety regression factor | [README](Foundation_model_performance_and_scaling/part6-instruction-tuning-rlhf/README.md) |
 
 ---
 
@@ -32,7 +33,7 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 
 **Data Pipeline:** Common Crawl WARC/WET, Resiliparse, FastWARC, fastText (language ID, quality classifier, NSFW/toxic), Gopher filters, MinHash+LSH deduplication, PII masking
 
-**Post-Training / Reasoning RL:** vLLM, SFT, Expert Iteration (STaR), GRPO, PPO clipping, off-policy RL, verified rewards, HuggingFace Transformers
+**Post-Training / Reasoning RL:** vLLM, SFT, Expert Iteration (STaR), GRPO, PPO clipping, off-policy RL, verified rewards, DPO, HuggingFace Transformers
 
 ---
 
@@ -376,6 +377,60 @@ Full ablation study across six dimensions using Qwen 2.5 Math 1.5B (base model, 
 
 ---
 
+## Part 6: Instruction Tuning & RLHF
+
+Post-training pipeline to turn Llama 3.1 8B Base into an instruction-following, safety-aware dialogue assistant. Three-stage pipeline: zero-shot evaluation → SFT on UltraChat-200K → DPO on Anthropic HH preference pairs, measured across four benchmarks (MMLU, GSM8K, AlpacaEval, SimpleSafetyTests).
+
+### Results Progression
+
+| Method | MMLU | GSM8K | AlpacaEval Win Rate | AlpacaEval LC Win Rate | SST Safe |
+|--------|------|-------|---------------------|------------------------|----------|
+| Zero-shot baseline | 53.5% | 16.3% | 37.8% | 31.6% | 66% |
+| SFT (UltraChat-200K) | 55.4% | **30.6%** | **62.9%** | **50.6%** | 71% |
+| DPO — Run 2 (balanced, `.sum()`) | **58.9%** | 32.0% | 55.9% | 46.2% | **72%** |
+
+### Supervised Fine-Tuning
+
+Fine-tuned Llama 3.1 8B Base on safety-augmented UltraChat-200K (packed sequences, seq_length=512) for 1 epoch on 1× H100 80 GB SXM.
+
+| Hyperparameter | Value |
+|---|---|
+| Effective batch size | 32 (micro_bs=2 × grad_accum=16) |
+| Learning rate | 2e-5, cosine decay + 3% warmup |
+| Total optimizer steps | 6,726 |
+| Final train / val loss | 0.9648 / 1.3536 |
+
+**Key findings:**
+- **GSM8K nearly doubles** (16.3%→30.6%) — structured step-by-step reasoning emerges directly from instruction tuning
+- **AlpacaEval jumps +25pp** (37.8%→62.9%) — instruction format eliminates verbose preambles and format drift vs GPT-3.5
+- MMLU gains only +1.9% — factual recall is not targeted by conversational instruction data
+- SST improves +5% overall; Physical Harm/Violence 55%→95% (UltraChat covers refusals here); Child Safety stuck at 30%
+
+![SFT evaluation summary](Foundation_model_performance_and_scaling/part6-instruction-tuning-rlhf/results/section4/sft_eval_summary.png)
+
+### DPO (Direct Preference Optimization)
+
+Fine-tuned the SFT checkpoint on Anthropic HH preference pairs — no reward model, no RL loop. Policy and frozen reference model placed on separate GPUs. Three runs ablate data composition and loss formulation.
+
+| | Run 1 | Run 2 (canonical) | Run 3 |
+|---|---|---|---|
+| Data | Unbalanced (24.8% harmless) | Balanced (50% harmless) | Unbalanced (24.8% harmless) |
+| Loss | `.mean()` | `.sum()` (paper-correct) | `.sum()` |
+| MMLU | 58.3% | 58.9% | **59.5%** |
+| GSM8K | **37.9%** | 32.0% | 32.5% |
+| AlpacaEval Win Rate | 56.3% | 55.9% | 54.5% |
+| SST Safe | 31.0% ⚠️ | **72.0%** | 69.0% |
+
+**Key finding — loss formulation dominates safety:** Run 1's `.mean()` loss collapses safety from 71%→31%. Run 3 (`.sum()`, same unbalanced data) recovers to 69% — the code fix alone explains nearly all the regression. With `.sum()`, longer chosen responses (explicit refusals) receive proportionally larger reward signal than short rejected responses (soft deflections). Data rebalancing (Run 2) adds a further 3%.
+
+**AlpacaEval win rate dips vs SFT** (62.9%→55.9%) across all runs — DPO on HH shifts response style toward harmlessness, away from the verbose format preferred by the AlpacaEval judge.
+
+![DPO evaluation summary](Foundation_model_performance_and_scaling/part6-instruction-tuning-rlhf/results/section5_run2/dpo_eval_summary.png)
+
+![DPO reward accuracy](Foundation_model_performance_and_scaling/part6-instruction-tuning-rlhf/results/section5_run2/dpo_reward_accuracy.png)
+
+---
+
 ## Repository Structure
 
 ```
@@ -391,7 +446,9 @@ Foundation_model_performance_and_scaling/
 ├── part4-data/            # CC filtering pipeline, tokenization, model training
 │   ├── cs336_data/
 │   └── results/screenshots/
-└── part5-alignment/       # Reasoning RL (SFT, Expert Iteration, GRPO) + RLHF/DPO — in progress
+├── part5-alignment/       # Reasoning RL (SFT, Expert Iteration, GRPO)
+│   └── cs336_alignment/
+└── part6-instruction-tuning-rlhf/  # Instruction tuning (SFT on UltraChat), DPO on HH preference pairs
     └── cs336_alignment/
 ```
 
@@ -447,4 +504,9 @@ uv run pytest
 - Kwon et al., 2023 — [Efficient Memory Management for Large Language Model Serving with PagedAttention (vLLM)](https://arxiv.org/abs/2309.06180)
 - Achiam, 2018 — [Spinning Up in Deep Reinforcement Learning](https://spinningup.openai.com)
 - Lambert, 2024 — [Reinforcement Learning from Human Feedback](https://rlhfbook.com)
+- Meta AI, 2024 — [The Llama 3 Herd of Models](https://ai.meta.com/research/publications/the-llama-3-herd-of-models/)
+- Ding et al., 2023 — [Enhancing Chat Language Models by Scaling High-quality Instructional Conversations (UltraChat)](https://arxiv.org/abs/2305.14233)
+- Bai et al., 2022 — [Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback (Anthropic HH)](https://arxiv.org/abs/2204.05862)
+- Li et al., 2023 — [AlpacaEval: An Automatic Evaluator of Instruction-Following Models](https://arxiv.org/abs/2305.14387)
+- Vidgen et al., 2024 — [SimpleSafetyTests: A Test Suite for Identifying Critical Safety Risks in Large Language Models](https://arxiv.org/abs/2311.08370)
 - Stanford CS336 Spring 2025 — [Language Models from Scratch](https://github.com/stanford-cs336)
