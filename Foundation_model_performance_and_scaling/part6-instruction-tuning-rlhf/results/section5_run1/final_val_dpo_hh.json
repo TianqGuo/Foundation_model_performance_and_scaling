@@ -1,0 +1,7 @@
+{
+  "val_reward_acc": 0.655,
+  "best_val_reward_acc": 0.655,
+  "train_steps": 768,
+  "total_elapsed_sec": 16291.9,
+  "total_elapsed_human": "4h31m31s"
+}
