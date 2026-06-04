@@ -1,6 +1,6 @@
 # Foundation Models — From Architecture to Alignment
 
-End-to-end implementation of a language model training stack: BPE tokenizer, Transformer architecture, GPU kernel optimization, multi-GPU distributed training, empirical scaling law experiments, and a web-scale data filtering pipeline.
+End-to-end implementation of a language model training stack: BPE tokenizer, Transformer architecture, GPU kernel optimization, multi-GPU distributed training, empirical scaling law experiments, web-scale data filtering pipeline, and post-training alignment via SFT, Expert Iteration, GRPO, and DPO.
 
 ---
 
