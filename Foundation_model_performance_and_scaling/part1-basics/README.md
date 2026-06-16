@@ -13,7 +13,7 @@ A from-scratch implementation of a GPT-2 style transformer, including a Byte Pai
 | Part 5a | Batch size sweep |
 | Part 5b | Learning rate sweep |
 | Part 6 | OpenWebText training — scaling to a harder dataset |
-| Part 7 | Leaderboard — 1.5-hour compute budget optimization |
+| Part 7 | Fixed-budget optimization — best val loss within a 1.5-hour compute window |
 
 ---
 
@@ -109,7 +109,7 @@ The higher OWT loss reflects the dataset's difficulty — diverse, general-purpo
 
 ---
 
-## Part 7: Leaderboard — 1.5-Hour Budget
+## Part 7: Fixed-Budget Optimization — 1.5-Hour Compute Window
 
 Optimized a 28.8M-parameter model for a fixed 1.5-hour compute budget on OpenWebText, starting from a 5.0 baseline loss.
 
