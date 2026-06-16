@@ -505,6 +505,20 @@ part6-instruction-tuning-rlhf/
 
 ---
 
+## Environment
+
+| | Smoke tests | SFT | DPO + Eval (70B judge) |
+|---|---|---|---|
+| GPU | RTX 4090 24 GB | 1× H100 SXM4 80 GB | 2× H100 SXM4 80 GB |
+| CUDA | 12.4 | 12.4 | 12.4 |
+| Python | 3.11 | 3.11 | 3.11 |
+| PyTorch | 2.5+ | 2.5+ | 2.5+ |
+| flash-attn | 2.7.4.post1 | 2.7.4.post1 | 2.7.4.post1 |
+| vLLM | 0.7.2 | — | 0.7.2 |
+| Transformers | 4.50+ | 4.50+ | 4.50+ |
+
+---
+
 ## Setup
 
 ```bash
