@@ -17,6 +17,19 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 
 ---
 
+## Hardware
+
+| Part | Hardware | Key library versions |
+|------|----------|---------------------|
+| Part 1 | RTX 4090 24 GB | PyTorch 2.6, Triton 3.0, CUDA 12.4 |
+| Part 2 | RTX 4090 24 GB · H100/H200 80 GB | PyTorch 2.6, Triton 3.0, CUDA 12.4 |
+| Part 3 | CPU only | PyTorch 2.7, scipy 1.11+ |
+| Part 4 | 16-core CPU (filtering) · 2× A100 40 GB (training) | PyTorch 2.7, CUDA 12.4 |
+| Part 5 | RTX 4090 (smoke) · 2× A100 40/80 GB (full) | PyTorch 2.5+, flash-attn 2.7.4, vLLM 0.7.2, CUDA 12.4 |
+| Part 6 | RTX 4090 (smoke) · H100 80 GB (SFT) · 2× H100 80 GB (DPO) | PyTorch 2.5+, flash-attn 2.7.4, vLLM 0.7.2, CUDA 12.4 |
+
+---
+
 ## Tech Stack
 
 **Languages & Frameworks:** Python, PyTorch, Triton
