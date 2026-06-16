@@ -126,7 +126,7 @@ Runs seven experiments sequentially (dataset size ablation + filtered data):
 | `sft_n256` | 256 | |
 | `sft_n512` | 512 | |
 | `sft_n1024` | 1024 | |
-| `sft_full` | Full dataset (4836) | Target: ≥ 15% validation accuracy |
+| `sft_full` | Full dataset (4836) | Correct-answer filtering ablation baseline |
 | `sft_filtered` | 4542, correct-only | Filtered by r1_zero_reward_fn (sympy equivalence) |
 | `sft_filtered_repo` | 3496, correct-only | Filtered by strict string match |
 
@@ -172,7 +172,7 @@ Reads all `eval_metrics_*.jsonl` files in `results/section4/` and saves:
 
 ### Results
 
-All seven experiments ran on 2× A100 40 GB GPUs. Target was ≥ 15% validation accuracy on the full dataset — exceeded by a large margin.
+All seven experiments ran on 2× A100 40 GB GPUs.
 
 **Final validation accuracy per run:**
 
@@ -389,7 +389,7 @@ bash cs336_alignment/section7_grpo/part_5_8_1.sh --dry-run    # print commands o
 | 1e-4 | 42.0% | 5 | 18.1% | 47.5 |
 
 **Key findings:**
-- `lr=1e-5` achieves the best final accuracy (47.3%) and highest peak (50.6%), well above the ≥25% target
+- `lr=1e-5` achieves the best final accuracy (47.3%) and highest peak (50.6%)
 - `lr=3e-6` is too conservative — still improving at step 195 but has not converged
 - `lr=3e-5` peaks immediately (step 5) then degrades steadily; rising entropy (0.38) indicates the policy drifts toward uniform outputs
 - `lr=1e-4` catastrophically collapses — grad norm of 47.5 signals training instability; accuracy falls to 18.1% by the end
