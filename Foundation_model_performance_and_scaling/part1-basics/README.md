@@ -48,6 +48,8 @@ Trained five variants of a 22.7M-parameter model on TinyStories (327.68M tokens 
 - SwiGLU outperforms plain SiLU by ~1.4% — the gating mechanism helps
 - Removing all normalization causes unstable initialization (starting loss 17.7 vs 9.3) but recovers
 
+*All ablations are single-seed runs. Loss differences < 0.02 are indicative rather than statistically conclusive.*
+
 ![Ablation comparison](pics/Pic2.png)
 
 Full per-run curves and configs: `cs336_basics/basics/runs/ablations/`
@@ -160,6 +162,18 @@ part1-basics/
 ├── tests/                      # Unit tests + adapters
 └── pyproject.toml
 ```
+
+## Environment
+
+| | Value |
+|---|---|
+| GPU | RTX 4090 24 GB |
+| CUDA | 12.4 |
+| Python | 3.11 |
+| PyTorch | 2.6.0 |
+| Triton | 3.0 |
+
+---
 
 ## Setup
 
