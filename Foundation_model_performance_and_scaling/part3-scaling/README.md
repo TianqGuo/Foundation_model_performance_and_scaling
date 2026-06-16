@@ -31,6 +31,8 @@ Reproduces the Chinchilla IsoFLOPs method using synthetic training run data. For
 
 These exponents (~0.47 / ~0.53) closely match the Chinchilla paper, confirming roughly equal scaling of model size and data with compute.
 
+*Power-law fits over 9 IsoFLOP profiles. Uncertainty reflects regression quality (R²), not training stochasticity. Predictions beyond the observed compute range (> 3×10²¹ FLOPs) are extrapolations.*
+
 **Scaling law plots:**
 
 ![Compute-optimal model size scaling law](results/part1_isoflops/model_size_scaling_law.png)
@@ -69,6 +71,17 @@ part3-scaling/
 └── cs336_scaling/
     └── model.py                 # Transformer model definition
 ```
+
+## Environment
+
+| | Value |
+|---|---|
+| Hardware | CPU only (power-law fitting on synthetic data) |
+| Python | 3.12 |
+| PyTorch | 2.7.0 |
+| scipy | 1.11+ |
+
+---
 
 ## Setup
 

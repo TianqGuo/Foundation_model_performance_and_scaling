@@ -114,6 +114,17 @@ Training curves (wandb):
 └── pyproject.toml
 ```
 
+## Environment
+
+| | Filtering pipeline | Model training |
+|---|---|---|
+| Hardware | 16-core CPU (cloud VM) | 2× A100 SXM4 40 GB |
+| CUDA | — | 12.4 |
+| Python | 3.11 | 3.11 |
+| PyTorch | — | 2.7.0 |
+
+---
+
 ## Setup
 
 ```bash

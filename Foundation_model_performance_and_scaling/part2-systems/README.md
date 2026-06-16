@@ -274,6 +274,20 @@ part2-systems/
 └── pyproject.toml
 ```
 
+## Environment
+
+| | Local benchmarks | Remote benchmarks |
+|---|---|---|
+| GPU | RTX 4090 24 GB | H100 SXM4 80 GB · H200 80 GB |
+| CUDA | 12.4 | 12.4 |
+| Python | 3.11 | 3.11 |
+| PyTorch | 2.6.0 | 2.6.0 |
+| Triton | 3.0 | 3.0 |
+
+*RTX 4090 results unless noted as H100 or H200.*
+
+---
+
 ## Setup
 
 ```bash
