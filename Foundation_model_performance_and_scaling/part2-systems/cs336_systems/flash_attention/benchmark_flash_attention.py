@@ -51,16 +51,17 @@ def benchmark_forward(attention_fn, Q, K, V, is_causal=False):
 
 
 def benchmark_backward(attention_fn, Q, K, V, grad_output, is_causal=False):
-    """Benchmark backward pass only."""
-    def fn():
-        Q.grad = None
-        K.grad = None
-        V.grad = None
-        output = attention_fn(Q, K, V, is_causal)
-        output.backward(grad_output)
-        return
+    """Benchmark backward pass only (forward is run once, outside the timed region)."""
+    Q.grad = None
+    K.grad = None
+    V.grad = None
+    output = attention_fn(Q, K, V, is_causal)
 
-    ms = triton.testing.do_bench(fn, warmup=25, rep=100)
+    ms = triton.testing.do_bench(
+        lambda: output.backward(grad_output, retain_graph=True),
+        warmup=25,
+        rep=100,
+    )
     return ms
 
 

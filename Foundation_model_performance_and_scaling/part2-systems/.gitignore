@@ -177,3 +177,4 @@ results/nsight_profiles/**/*.sqlite
 
 # Memory profiling snapshots (large binary)
 *.pickle
+/.idea/
