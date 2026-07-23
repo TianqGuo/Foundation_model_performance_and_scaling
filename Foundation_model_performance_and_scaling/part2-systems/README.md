@@ -48,22 +48,115 @@ Full results: `results/attention_benchmarking/` · H100 results: `results/attent
 Implemented IO-aware FlashAttention in three progressively optimized variants:
 
 1. **PyTorch reference** (`flash_attention_pytorch.py`) — tiled SRAM algorithm using standard PyTorch ops
-2. **Triton kernel** (`flash_attention_triton.py`) — custom Triton GPU kernel for direct tile-level control
-3. **Optimized Triton kernel** (`flash_attention_triton_optimized.py`) — further optimized tile scheduling and memory access patterns
+2. **Triton kernel** (`flash_attention_triton.py`) — custom Triton GPU kernel for direct tile-level control; single-pass backward with `tl.atomic_add` for `dQ`
+3. **Optimized Triton kernel** (`flash_attention_triton_optimized.py`) — autotuned tile sizes, causal early termination, and two-pass atomic-free backward
 
-**Key result:** Forward speedup grows with sequence length — from ~5× at short sequences to over 10× at `seq_len=16384`, and the optimized Triton kernel reaches ~16× at `seq_len=65536`. Standard attention OOMs at `seq_len=16384` on RTX 4090; FlashAttention handles it comfortably.
+**Benchmark setup:** Single-head attention (`Q/K/V` shape `(1, seq_len, d_model)`), batch size 1, causal masking, both BF16 and FP32. Benchmarked with `triton.testing.do_bench` (25 warmup, 100 reps). Results below compare FlashAttention vs standard PyTorch attention; speedup >1× means FlashAttention is faster.
 
-**Forward pass speedup (d_model=16, BF16, causal):**
+---
 
-| seq_len | Standard (ms) | FlashAttention (ms) | Speedup |
-|---------|--------------|---------------------|---------|
-| 128 | 0.031 | 0.006 | ~5× |
-| 4,096 | 0.22 | 0.050 | ~4.4× |
-| 8,192 | 0.71 | 0.094 | ~7.5× |
-| 16,384 | 2.60 | 0.25 | ~10.4× |
-| 65,536 | 39.8 | 3.1 | ~12.7× |
+### Baseline Triton vs PyTorch
 
-Full results: `results/flash_attention/`
+**Forward speedup — BF16:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 1,024 | 2.7× | 2.1× | 2.2× | 1.2× |
+| 4,096 | 4.5× | 3.2× | 3.4× | 1.6× |
+| 8,192 | 7.5× | 5.4× | 5.6× | 2.7× |
+| 16,384 | 10.4× | 8.1× | 8.2× | 4.5× |
+| 65,536 | 12.7× | 10.9× | 9.6× | 4.4× |
+
+**Backward speedup — BF16:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 4,096 | 1.0× | 0.78× | 0.59× | 0.38× |
+| 8,192 | 1.8× | 1.3× | 0.82× | 0.48× |
+| 16,384 | 2.7× | 1.2× | 0.76× | 0.43× |
+| 65,536 | 3.0× | 1.6× | 1.1× | 0.45× |
+
+The baseline backward uses `tl.atomic_add` for `dQ` (grid is per key tile). Atomic contention grows with d_model, making the backward slower than PyTorch at d_model=64/128 for long sequences.
+
+**End-to-end (fwd+bwd) speedup — BF16:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 8,192 | 3.0× | 2.2× | 1.5× | 0.83× |
+| 16,384 | 4.5× | 2.1× | 1.5× | 0.83× |
+| 65,536 | 4.9× | 2.8× | 2.0× | 0.83× |
+
+---
+
+### Optimized Triton vs PyTorch
+
+**Forward speedup — BF16:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 1,024 | 2.7× | 2.1× | 2.3× | 1.2× |
+| 4,096 | 5.1× | 3.7× | 3.9× | 1.9× |
+| 8,192 | 8.8× | 6.3× | 6.7× | 3.2× |
+| 16,384 | 12.5× | 9.7× | 9.8× | 5.4× |
+| 65,536 | 15.8× | 13.7× | 12.1× | 5.6× |
+
+**Backward speedup — BF16:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 4,096 | 1.3× | 0.95× | 0.67× | 0.41× |
+| 8,192 | 2.0× | 1.4× | 0.96× | 0.49× |
+| 16,384 | 3.5× | 1.4× | 0.89× | 0.47× |
+| 65,536 | 3.8× | 1.9× | 1.3× | 0.50× |
+
+The two-pass backward (separate kernels for `dQ` and `dK/dV`) eliminates atomics and significantly improves backward at d_model=16/32. At d_model=64/128 the backward is still slower than PyTorch in BF16 — large tile matmuls in the backward face register pressure and memory bandwidth limits that atomics removal alone cannot overcome.
+
+**End-to-end (fwd+bwd) speedup — BF16:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 4,096 | 2.4× | 1.7× | 1.2× | 0.65× |
+| 8,192 | 3.3× | 2.3× | 1.7× | 0.85× |
+| 16,384 | 5.5× | 2.5× | 1.6× | 0.86× |
+| 32,768 | 5.9× | 3.3× | 2.2× | 0.87× |
+| 65,536 | 6.1× | 3.4× | 2.3× | 0.90× |
+
+**Forward speedup — FP32:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 128 | 4.8× | 4.5× | 2.5× | 1.2× |
+| 1,024 | 2.1× | 1.5× | 0.64× | 0.39× |
+| 4,096 | 4.3× | 2.9× | 1.3× | 0.81× |
+| 8,192 | 7.8× | 5.2× | 2.3× | 1.5× |
+| 16,384 | 16.2× | 11.5× | 5.0× | 1.7× |
+| 32,768 | 18.2× | 10.6× | 4.8× | 1.5× |
+
+**Backward speedup — FP32:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 128 | 2.1× | 1.5× | 1.5× | 1.2× |
+| 1,024 | 1.3× | 1.3× | 0.87× | 0.55× |
+| 4,096 | 2.1× | 1.5× | 1.0× | 0.78× |
+| 8,192 | 3.5× | 2.3× | 1.6× | 1.2× |
+| 16,384 | 3.4× | 2.3× | 1.5× | 1.1× |
+| 32,768 | 4.2× | 2.4× | 1.4× | 1.1× |
+
+**End-to-end (fwd+bwd) speedup — FP32:**
+
+| seq_len | d_model=16 | d_model=32 | d_model=64 | d_model=128 |
+|---------|-----------|-----------|-----------|------------|
+| 128 | 1.9× | 1.6× | 1.7× | 1.8× |
+| 1,024 | 1.9× | 1.8× | 1.4× | 0.91× |
+| 4,096 | 3.0× | 2.0× | 1.2× | 0.86× |
+| 8,192 | 4.7× | 3.1× | 1.9× | 1.3× |
+| 16,384 | 5.5× | 3.7× | 2.3× | 1.4× |
+| 32,768 | 6.4× | 3.6× | 2.1× | 1.3× |
+
+**Summary:** The optimized version is faster than PyTorch in the large majority of configurations. The exceptions are concentrated at medium seq lengths (512–4096) with large d_model (64/128), where the overhead of the tiled backward outweighs the forward savings — most visible in BF16 at d_model=128 for long sequences (fwd+bwd 0.87–0.90×). In FP32, d_model=128 recovers at short and long sequences (up to 1.8× fwd+bwd at seq=128, 1.3× at seq=32768), with the same medium-seq dip around seq=1024–4096. The peak speedup is 18.2× forward (FP32, d_model=16, seq=32768) and 6.4× end-to-end (FP32, d_model=16, seq=32768).
+
+Full results: `results/flash_attention/flash_benchmarking.csv` (baseline) · `results/flash_attention/flash_benchmarking_optimized.csv` (optimized)
 
 ---
 

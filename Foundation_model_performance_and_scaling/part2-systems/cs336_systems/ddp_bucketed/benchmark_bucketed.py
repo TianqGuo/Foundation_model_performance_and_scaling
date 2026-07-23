@@ -39,6 +39,7 @@ MODEL_CONFIGS = {
     "medium": {"d_model": 1024, "d_ff": 4096, "num_layers": 24, "num_heads": 16},
     "large": {"d_model": 1280, "d_ff": 5120, "num_layers": 36, "num_heads": 20},
     "xl": {"d_model": 1600, "d_ff": 6400, "num_layers": 48, "num_heads": 25},
+    "2.7B": {"d_model": 2560, "d_ff": 10240, "num_layers": 32, "num_heads": 32},
 }
 
 
@@ -243,7 +244,7 @@ def main():
         "--model-size",
         type=str,
         default="xl",
-        choices=["small", "medium", "large", "xl"],
+        choices=["small", "medium", "large", "xl", "2.7B"],
         help="Model size to benchmark (default: xl)",
     )
     parser.add_argument(
@@ -256,8 +257,8 @@ def main():
     parser.add_argument(
         "--num-steps",
         type=int,
-        default=10,
-        help="Number of measured training steps (default: 10)",
+        default=20,
+        help="Number of measured training steps (default: 20)",
     )
     parser.add_argument(
         "--batch-size",
@@ -268,8 +269,8 @@ def main():
     parser.add_argument(
         "--warmup-steps",
         type=int,
-        default=5,
-        help="Number of warm-up steps (default: 5)",
+        default=10,
+        help="Number of warm-up steps (default: 10)",
     )
     parser.add_argument(
         "--world-size",
