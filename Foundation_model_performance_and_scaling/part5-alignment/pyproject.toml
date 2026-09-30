@@ -18,7 +18,7 @@ dependencies = [
     "transformers>=4.50.0",
     "typer>=0.15.4",
     "vllm==0.7.2",
-    "wandb>=0.19.8",
+    "wandb==0.22.3",
     "xopen>=2.0.2",
     "matplotlib>=3.10.9",
 ]

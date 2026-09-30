@@ -7,17 +7,17 @@
 #   and updates the policy with the specified policy-gradient loss type.
 #
 # OUTPUT:
-#   results/section7/eval_metrics_<run_name>.jsonl  — per-step val metrics
-#   results/section7/final_eval.json                — final evaluation
-#   assets/grpo_<run_name>/                         — saved model checkpoint
-#   results/section7/grpo_accuracy.png              — accuracy curves
+#   results/section7/smoke/<unique-run>/ or results/section8/<unique-run>/:
+#     run_config.json, evaluation_subset.json, eval_metrics_<run_name>.jsonl
+#     final_eval.json (when evaluation is enabled)
+#   assets/<unique-run>/ or /data/<user>/<unique-run>/ — saved checkpoint
 #
 # OPTIONS:
-#   --smoke-test              3 GRPO steps on 64 examples (single GPU OK)
+#   --smoke-test              3 GRPO steps on 64 examples, no eval (cloud only)
 #   --loss-type=TYPE          no_baseline | reinforce_with_baseline (default) |
 #                             grpo_clip | grpo_no_clip
 #   --off-policy              epochs_per_rollout_batch=4 (required for grpo_clip/no_clip)
-#   --no-std                  disable group std normalization (Dr. GRPO variant)
+#   --no-std                  disable group std normalization (no-std ablation)
 #   --length-norm=TYPE        masked_mean (default) | masked_normalize
 #   --prompt-type=TYPE        r1_zero (default) | question_only
 #   --lr=VALUE                learning rate (default: 1e-5)
@@ -26,7 +26,10 @@
 #   --grad-accum=N            gradient_accumulation_steps (default: 128)
 #
 # NOTES:
-#   Full runs require 2× H100s.
+#   Run model inference/training on cloud GPUs, not the local laptop.
+#   Prefer separate training and rollout GPUs with sufficient memory.
+#   --skip_eval disables evaluation without changing rollout GPU placement.
+#   Extra Python flags use underscores, e.g. --eval_seed 12345.
 #   For off-policy sweeps, adjust --epochs, --train-batch-size, and --grad-accum together.
 
 set -e

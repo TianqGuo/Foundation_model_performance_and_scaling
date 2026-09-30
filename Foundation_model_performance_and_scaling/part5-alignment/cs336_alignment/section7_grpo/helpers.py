@@ -176,12 +176,14 @@ def grpo_microbatch_train_step(
     cliprange: float | None = None,
     length_norm: Literal["masked_mean", "masked_normalize"] = "masked_mean",
     max_response_tokens: int | None = None,
+    loss_scale: float | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Forward + backward pass for one GRPO microbatch.
 
     Computes per-token loss, reduces over response tokens (masked_mean or
     masked_normalize), averages over the batch, scales by
-    1/gradient_accumulation_steps, and calls loss.backward().
+    1/gradient_accumulation_steps (or an explicit loss_scale equal to the
+    microbatch's share of the actual optimizer batch), and calls loss.backward().
     Returns the detached scalar loss.
     """
     per_token_loss, metadata = compute_policy_gradient_loss(
@@ -203,7 +205,10 @@ def grpo_microbatch_train_step(
     else:
         per_example_loss = masked_mean(per_token_loss, response_mask, dim=1)
 
-    loss = per_example_loss.mean() / gradient_accumulation_steps
+    # Legacy callers retain fixed accumulation scaling. The trainer supplies
+    # the actual example fraction for incomplete optimizer batches.
+    scale = 1.0 / gradient_accumulation_steps if loss_scale is None else loss_scale
+    loss = per_example_loss.mean() * scale
     loss.backward()
 
     return loss.detach(), metadata

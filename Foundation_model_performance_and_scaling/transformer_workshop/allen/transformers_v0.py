@@ -18,58 +18,47 @@ class CausalSelfAttention(nn.Module):
     """
     def __init__(self):
         super().__init__()
-        # 3 is for q, k and v, its actually 3 * H * (E / H), for multi-head impl
-        # another way is to write projects head by head
         self.qkv_proj = nn.Linear(E, 3 * E, bias=False)
-        # output projection
-        self.proj = nn.Linear(E, E, bias=False) # its actually H * (E / H)
-        # mask, registered bugger var will not attend training and , but it will go to GPU mem.
+        self.out_proj = nn.Linear(E, E, bias=False)
         self.register_buffer(
             "mask",
-            torch.tril(torch.ones(1, 1, L, L, dtype=bool)), # max seq len
-            persistent=False # not be saved in state_dict in checkpoint
-            ) # pre-make mask
+            torch.tril(torch.ones(1, 1, L, L, dtype=bool)),  # max seq len
+            persistent=False  # not be saved in state_dict in checkpoint
+        )
 
     def forward(self, x):
-        B, T, E = x.size() # T could be less than L the max seq length, overting B and E just in case they are changed
-        # x: [B, T, E]
+        B, T, E = x.size()
         assert E % H == 0
-        # q, k, v projection
-        x = self.qkv_proj(x) # [B, T, E] @ [E, 3E] -> [B, T, 3E] = [B, T, 3 * H * (E / H)]
-        # q, k, v split
-        q, k, v = x.split(E, dim=2) # [B, T, 3E] -> 3 of [B, T, E]
-        # q, k, v reshape for multi-head groups, [B, T, E] -> [B, H, T, E/H]
-        q = q.view(B, T, H, E // H).transpose(1, 2) # [B, T, H, E/H] -> [B, H, T, E/H]
-        k = k.view(B, T, H, E // H).transpose(1, 2)
-        v = v.view(B, T, H, E // H).transpose(1, 2)
-        
-        # attention formula : attn_matrix = softmax(Q * Kt / sqrt(E//H)) * V 
-        # attention matrix: q * kt -> [B, H, Tq, Tk]
-        attn = (q * k.transpose(2, 3) / math.sqrt(E // H)) # [B, H, T, T]
-        # cut pre-made tril mask from [L, L] into [T, T], fill -inf before softmax, when softmax it will approach 0
-        attn = attn.masked_fill(~self.mask[:, :, :T, :T], float('-inf')) # [B, H, T, T]
-        attn = F.softmax(attn, dim=-1) # softmax on k's dimension, so every query get its attention on all the keys
-        # above we got the "weights", then update V
-        attn = attn @ v # [B, H, T, T] * [B, H, T, E/H] -> [B, H, T, E/H]
-        # back to [B, T, E]
-        attn = attn.transpose(1, 2).contiguous() # [B, T, H, E/H]
-        attn = attn.view(B, T, E) # [B, T, H, E/H] -> [B, T, E]
-        # projection for cross-head mixing: [B, T, E]
-        attn = self.proj(attn)
-        return attn
+        x = self.qkv_proj(x)  # [B, T, E] -> [B, T, 3E]
+        q, k, v = x.split(E, dim=-1)  # [B, T, 3E] -> 3 of [B, T, E]
+        q = q.view(B, T, H, E // H).transpose(1, 2)  # [B, T, E] -> [B, H, T, E/H]
+        k = k.view(B, T, H, E // H).transpose(1, 2)  # [B, T, E] -> [B, H, T, E/H]
+        v = v.view(B, T, H, E // H).transpose(1, 2)  # [B, T, E] -> [B, H, T, E/H]
+
+        scores = q @ k.transpose(-2, -1) / math.sqrt(E // H)  # [B, H, T, E/H] @ [B, H, E/H, T] -> [B, H, T, T]
+
+        scores = scores.masked_fill(~self.mask[:, :, :T, :T], float('-inf'))  # apply causal mask
+
+        attn = F.softmax(scores, dim=-1)  # [B, H, T, T]
+        attn = attn @ v  # [B, H, T, T] @ [B, H, T, E/H] -> [B, H, T, E/H]
+        attn = attn.transpose(1, 2).contiguous().view(B, T, E)  # [B, H, T, E/H] -> [B, T, E]
+        x = self.out_proj(attn)  # [B, T, E] -> [B, T, E]
+        return x
+
 
 class MLP(nn.Module):
     def __init__(self):
         super().__init__()
-        # [B, T, E] -> 
-        self.net = nn.Sequential(
+        # [B, T, E] ->
+        self.fc = nn.Sequential(
             nn.Linear(E, 4 * E, bias=False),
             nn.GELU(),
             nn.Linear(4 * E, E, bias=False),
         )
 
+
     def forward(self, x):
-        return self.net(x)
+        return self.fc(x)
 
 class Transformers(nn.Module):
     def __init__(self):

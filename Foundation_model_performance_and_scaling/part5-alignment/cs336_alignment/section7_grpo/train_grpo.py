@@ -17,7 +17,10 @@ from unittest.mock import patch
 import torch
 import torch.nn.functional as F
 
-from cs336_alignment.drgrpo_grader import question_only_reward_fn, r1_zero_reward_fn
+from cs336_alignment.section7_grpo.run_utils import (
+    accumulation_weight, create_run_directory, environment_versions,
+    evaluation_indices, file_fingerprint, resolve_rollout_device, should_evaluate,
+)
 
 if TYPE_CHECKING:
     from vllm import LLM, SamplingParams
@@ -124,15 +127,15 @@ def run_eval(
     prompt_template: str,
     eval_sampling_params: SamplingParams,
     device: str,
-    n_eval: int = 1024,
     reward_fn=None,
 ) -> dict:
     from cs336_alignment.section4_sft.helpers import log_generations
 
     if reward_fn is None:
+        from cs336_alignment.drgrpo_grader import r1_zero_reward_fn
         reward_fn = r1_zero_reward_fn
 
-    subset = random.sample(val_examples, min(n_eval, len(val_examples)))
+    subset = val_examples  # Already selected once and recorded for this run.
     prompts = [prompt_template.format(question=ex.get("problem", ex.get("question", ""))) for ex in subset]
     ground_truths = [get_ground_truth(ex) for ex in subset]
 
@@ -154,6 +157,7 @@ def run_eval(
 # ---------------------------------------------------------------------------
 
 def train(args: argparse.Namespace) -> None:
+    from cs336_alignment.drgrpo_grader import question_only_reward_fn, r1_zero_reward_fn
     import wandb
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from vllm import SamplingParams
@@ -168,20 +172,68 @@ def train(args: argparse.Namespace) -> None:
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    output_path = Path(args.output)
-    output_path.mkdir(parents=True, exist_ok=True)
+    for name in ("n_grpo_steps", "group_size", "rollout_batch_size", "train_batch_size",
+                 "gradient_accumulation_steps", "epochs_per_rollout_batch", "max_response_tokens",
+                 "eval_interval", "n_eval_examples"):
+        if getattr(args, name) <= 0:
+            raise ValueError(f"{name} must be positive")
+    if args.rollout_batch_size % args.group_size or args.train_batch_size % args.gradient_accumulation_steps:
+        raise ValueError("Rollout/group and train/accumulation batch sizes must divide evenly")
+    if args.train_batch_size < args.group_size:
+        raise ValueError("train_batch_size must be at least group_size")
 
     # --- GPU setup ---
     if not torch.cuda.is_available():
         raise SystemExit("ERROR: CUDA not available.")
     n_gpus = torch.cuda.device_count()
     print(f"GPUs available: {n_gpus}")
-    use_two_gpus = n_gpus >= 2 and not args.skip_eval
     train_device = args.train_device
-    vllm_device = args.vllm_device if use_two_gpus else args.train_device
-    vllm_mem = args.gpu_memory_utilization if use_two_gpus else 0.30
-    if not use_two_gpus:
-        print("INFO: single-GPU mode — vLLM shares cuda:0 with policy (vllm_mem=0.30).")
+    vllm_device, shares_device = resolve_rollout_device(n_gpus, train_device, args.vllm_device)
+    vllm_mem = 0.30 if shares_device else args.gpu_memory_utilization
+    if shares_device:
+        print(f"INFO: vLLM shares {train_device} with policy (vllm_mem=0.30).")
+
+    output_path = create_run_directory(Path(args.output), args.run_name)
+    print(f"Run outputs: {output_path}")
+    project_root = Path(__file__).resolve().parents[2]
+    prompt_file = "question_only.prompt" if args.prompt_type == "question_only" else "r1_zero.prompt"
+    prompt_path = Path(__file__).parent.parent / "prompts" / prompt_file
+    train_examples = load_jsonl(Path(args.data))
+    if args.max_train_examples is not None:
+        if args.max_train_examples <= 0:
+            raise ValueError("max_train_examples must be positive")
+        train_examples = train_examples[:args.max_train_examples]
+    if not train_examples:
+        raise ValueError("Training data is empty")
+    eval_seed = args.eval_seed
+    val_examples = []
+    eval_record = {"protocol": "disabled" if args.skip_eval else "fixed_subset_v1",
+                   "seed": eval_seed, "indices": []}
+    if not args.skip_eval:
+        full_validation = load_jsonl(Path(args.val_data))
+        if not full_validation:
+            raise ValueError("Validation data is empty; use --skip_eval to disable evaluation")
+        indices = evaluation_indices(len(full_validation), args.n_eval_examples, eval_seed)
+        val_examples = [full_validation[i] for i in indices]
+        eval_record.update({"indices": indices, "dataset": file_fingerprint(Path(args.val_data))})
+    (output_path / "evaluation_subset.json").write_text(json.dumps(eval_record, indent=2) + "\n")
+    manifest = {
+        "args": vars(args), "environment": environment_versions(),
+        "train_data": file_fingerprint(Path(args.data)), "train_examples": len(train_examples),
+        "prompt": file_fingerprint(prompt_path), "evaluation": eval_record,
+        "resolved": {"train_device": train_device, "vllm_device": vllm_device,
+                     "gpu_memory_utilization": vllm_mem,
+                     "micro_batch_size": args.train_batch_size // args.gradient_accumulation_steps},
+        "cuda_runtime": torch.version.cuda,
+        "gpus": [torch.cuda.get_device_name(i) for i in range(n_gpus)],
+        "sources": [file_fingerprint(p) for p in (
+            Path(__file__), Path(__file__).with_name("helpers.py"),
+            Path(__file__).with_name("run_utils.py"), project_root / "pyproject.toml",
+            project_root / "cs336_alignment/section4_sft/helpers.py",
+            project_root / "cs336_alignment/drgrpo_grader.py",
+            project_root / "uv.lock") if p.exists()],
+    }
+    (output_path / "run_config.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
     # --- wandb ---
     if not args.no_wandb:
@@ -202,36 +254,28 @@ def train(args: argparse.Namespace) -> None:
     policy = AutoModelForCausalLM.from_pretrained(
         args.model, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2"
     ).to(train_device)
+    manifest["model"] = {"source": args.model, "config": policy.config.to_dict(),
+                         "tokenizer_source": tokenizer.name_or_path}
+    (output_path / "run_config.json").write_text(json.dumps(manifest, indent=2) + "\n")
     if args.gradient_checkpointing:
         policy.gradient_checkpointing_enable()
         print("Gradient checkpointing enabled.")
     policy.train()
 
     # --- vLLM ---
-    vllm_model = None
-    if not args.skip_eval or True:   # always need vLLM for rollouts
-        print(f"Initializing vLLM on {vllm_device} ...")
-        vllm_model = init_vllm(args.model, vllm_device, args.seed, vllm_mem)
-        print("vLLM ready")
+    print(f"Initializing vLLM on {vllm_device} ...")
+    vllm_model = init_vllm(args.model, vllm_device, args.seed, vllm_mem)
+    print("vLLM ready")
 
     # --- Prompt template and reward function ---
-    prompt_file = "question_only.prompt" if args.prompt_type == "question_only" else "r1_zero.prompt"
-    prompt_path = Path(__file__).parent.parent / "prompts" / prompt_file
     prompt_template = prompt_path.read_text()
     reward_fn = question_only_reward_fn if args.prompt_type == "question_only" else r1_zero_reward_fn
     if args.prompt_type == "question_only":
         print("Using question_only prompt and reward function.")
 
     # --- Data ---
-    train_examples = load_jsonl(Path(args.data))
-    if args.max_train_examples:
-        train_examples = train_examples[: args.max_train_examples]
     print(f"Train examples: {len(train_examples)}")
-
-    val_examples = []
-    if Path(args.val_data).exists():
-        val_examples = load_jsonl(Path(args.val_data))
-        print(f"Val examples: {len(val_examples)}")
+    print(f"Fixed evaluation examples: {len(val_examples)}")
 
     # --- Sampling params ---
     stop_tokens = ["</answer>"] if args.prompt_type == "r1_zero" else []
@@ -270,7 +314,7 @@ def train(args: argparse.Namespace) -> None:
 
     # --- Metrics file ---
     metrics_path = output_path / f"eval_metrics_{args.run_name}.jsonl"
-    metrics_file = open(metrics_path, "w")
+    metrics_file = open(metrics_path, "x")
 
     train_step = 0
     eval_step = 0
@@ -363,6 +407,8 @@ def train(args: argparse.Namespace) -> None:
                 mb_r = [rollout_responses[i] for i in mb_idx]
                 mb_adv = advantages[mb_idx].unsqueeze(1).to(train_device)
                 mb_raw = raw_rewards[mb_idx].unsqueeze(1).to(train_device)
+                update_start = (mb_start // args.train_batch_size) * args.train_batch_size
+                update_size = min(args.train_batch_size, rollout_bs - update_start)
 
                 tok = tokenize_prompt_and_output(mb_p, mb_r, tokenizer)
                 input_ids = tok["input_ids"].to(train_device)
@@ -392,21 +438,21 @@ def train(args: argparse.Namespace) -> None:
                         cliprange=args.cliprange,
                         length_norm=args.length_norm,
                         max_response_tokens=args.max_response_tokens,
+                        loss_scale=accumulation_weight(len(mb_idx), update_size),
                     )
 
                 except RuntimeError as e:
                     if "out of memory" in str(e).lower() or "cuda error" in str(e).lower():
-                        print(f"WARNING: OOM at mb_start={mb_start}, skipping microbatch")
-                        try:
-                            torch.cuda.empty_cache()
-                        except RuntimeError:
-                            pass
-                        optimizer.zero_grad()
-                        microbatch_count = 0
-                        continue
+                        # Dropping a microbatch also drops accumulated gradients
+                        # and changes the effective batch/objective silently.
+                        raise RuntimeError(
+                            f"GPU failure at grpo_step={grpo_step}, epoch={epoch}, "
+                            f"mb_start={mb_start}; run aborted without skipping data. "
+                            "Reduce cloud microbatch size or use more GPU memory."
+                        ) from e
                     raise
 
-                epoch_loss += loss.item() * args.gradient_accumulation_steps
+                epoch_loss += loss.item() / accumulation_weight(len(mb_idx), update_size)
                 if "is_clipped" in meta and response_mask.any():
                     clip_frac = masked_mean(meta["is_clipped"], response_mask.float()).item()
                     epoch_clip_frac += clip_frac
@@ -452,16 +498,17 @@ def train(args: argparse.Namespace) -> None:
                 optimizer.step()
                 optimizer.zero_grad()
                 train_step += 1
+                step_grad_norms.append(grad_norm)
 
         # --- Periodic evaluation ---
-        if val_examples and grpo_step % args.eval_interval == 0:
+        if should_evaluate(args.skip_eval, len(val_examples), grpo_step, args.eval_interval):
             print(f"  Running eval on {args.n_eval_examples} val examples ...")
             policy.eval()
             with torch.no_grad():
                 metrics = run_eval(
                     policy, vllm_model, tokenizer,
                     val_examples, prompt_template, eval_params,
-                    train_device, args.n_eval_examples,
+                    train_device,
                     reward_fn=reward_fn,
                 )
             policy.train()
@@ -507,7 +554,7 @@ def train(args: argparse.Namespace) -> None:
             final = run_eval(
                 policy, vllm_model, tokenizer,
                 val_examples, prompt_template, eval_params,
-                train_device, n_eval=min(2048, len(val_examples)),
+                train_device,
                 reward_fn=reward_fn,
             )
         print(f"Final accuracy: {final['accuracy']:.4f}")
@@ -517,11 +564,13 @@ def train(args: argparse.Namespace) -> None:
 
     import os
     user = os.environ.get("USER", "user")
-    save_name = f"grpo_{args.run_name}"
+    save_name = output_path.name
     cluster_dir = Path(f"/data/{user}/{save_name}")
     local_dir = Path(__file__).parent.parent.parent / "assets" / save_name
     save_dir = cluster_dir if cluster_dir.parent.exists() else local_dir
-    save_dir.mkdir(parents=True, exist_ok=True)
+    save_dir.mkdir(parents=True, exist_ok=False)
+    manifest["checkpoint"] = str(save_dir.resolve())
+    (output_path / "run_config.json").write_text(json.dumps(manifest, indent=2) + "\n")
     policy.save_pretrained(save_dir)
     tokenizer.save_pretrained(save_dir)
     print(f"Model saved to {save_dir}")
@@ -583,6 +632,8 @@ def parse_args() -> argparse.Namespace:
     # Evaluation
     parser.add_argument("--eval_interval", type=int, default=5)
     parser.add_argument("--n_eval_examples", type=int, default=1024)
+    parser.add_argument("--eval_seed", type=int, default=12345,
+                        help="Independent seed for the saved periodic/final evaluation subset")
     parser.add_argument("--skip_eval", action="store_true")
     # Devices
     parser.add_argument("--train_device", default="cuda:0")

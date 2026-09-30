@@ -327,12 +327,81 @@ Each GRPO step:
 
 Logs per-step to JSONL: step, accuracy, reward, token entropy, response length, grad norm, clip fraction, and wall-clock timestamp (for elapsed-time plots).
 
+### Stage 1 baseline cleanup (2026-09-30)
+
+Future GRPO runs evaluate the same saved subset at every periodic evaluation and
+at final evaluation. `--eval_seed` defaults to 12345 and uses a separate RNG;
+`--n_eval_examples` controls both periodic and final evaluation size. The saved
+indices refer to the nonempty JSONL records in validation-file order, and the
+file SHA-256 identifies the dataset used. `--skip_eval` disables all evaluation
+without changing rollout GPU placement or reading validation data.
+
+Every invocation creates a unique subdirectory beneath `--output`. It contains
+`run_config.json` (arguments, actual package versions, GPU information, source/
+input fingerprints, resolved devices and batch size), `evaluation_subset.json`,
+and the run's evaluation logs. Checkpoints also use that unique run identifier.
+Pass the printed run directory to plotting tools. Existing logs, pictures,
+checkpoints and saved data are preserved.
+
+Historical Section 8 curves used newly sampled validation subsets at each
+periodic evaluation; final evaluation could use up to 2048 examples. Their
+reported values remain historical results and should not be silently compared
+with the new fixed-subset protocol. The Section 8.4 no-std experiment retained
+sequence-length normalization: the complete 2026 Dr. GRPO preset also requires
+constant loss normalization.
+
+Microbatch means are now weighted by their share of the actual optimizer batch,
+including a shorter final batch. Evenly divisible configurations retain the
+previous scaling. GPU failures abort the run instead of silently skipping data
+and discarding accumulated gradients.
+
+The legacy stack remains unchanged: vLLM 0.7.2 and FlashAttention 2.7.4.post1,
+Qwen2.5-Math-1.5B, MATH, and the existing prompt/reward choices. Existing experiment
+scripts retain their hyperparameters. `uv.lock` records dependency candidates;
+`run_config.json` records the packages actually installed on the cloud machine.
+W&B is pinned to 0.22.3 for newer API key compatibility; it is installed by the
+normal environment sync without patching installed files. GPU dependency
+upgrades remain part of Stage 2.
+
+Local validation passed: 20 targeted tests (14 existing GRPO tests and 6 new
+regression checks), Python syntax, and shell syntax checks. Tests used CPU
+tensors only, without loading checkpoints. Reproduce the test checks with:
+
+```bash
+CUDA_VISIBLE_DEVICES='' .venv/bin/python -m pytest tests/test_grpo.py tests/test_grpo_run_config.py -q
+bash -n cs336_alignment/section7_grpo/part_5_7.sh
+```
+
+For a fresh Vast.ai instance, follow the [cloud setup and validation guide](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md). It covers code transfer, the legacy GPU environment, W&B and a script that runs both smoke checks.
+
+Cloud-only smoke validation (from the project root, using the existing compatible
+environment and replacing paths with those on the cloud machine):
+
+```bash
+.venv/bin/python -m cs336_alignment.section7_grpo.train_grpo \
+  --model /path/to/Qwen2.5-Math-1.5B \
+  --data /path/to/train.jsonl --val_data /path/to/validation.jsonl \
+  --output results/section7/stage1_cloud --run_name stage1_fixed_eval \
+  --n_grpo_steps 3 --max_train_examples 64 --group_size 4 \
+  --rollout_batch_size 16 --train_batch_size 16 --gradient_accumulation_steps 8 \
+  --max_response_tokens 256 --n_eval_examples 32 --eval_interval 1 \
+  --eval_seed 12345 --no_wandb
+```
+
+Prefer two cloud GPUs with sufficient memory. Repeat that command with
+`--run_name stage1_skip_eval --skip_eval` to verify that rollouts still use the
+second GPU while evaluation is disabled. Neither command should run locally.
+Check the saved configuration and subset, three periodic evaluation records plus
+final evaluation in the first run, and no evaluation records or final evaluation
+file in the second. These short runs verify execution; they are not new accuracy
+benchmarks. GPU validation and actual cloud environment capture remain pending.
+
 ### Usage
 
 ```bash
 cd cs336_alignment/section7_grpo
 
-# Smoke test (3 steps, 64 examples — single GPU OK)
+# Cloud smoke test (3 steps, 64 examples, no evaluation)
 bash part_5_7.sh --smoke-test
 
 # Dry-run: print the command without running
@@ -341,7 +410,7 @@ bash part_5_7.sh --dry-run --loss-type=grpo_clip --off-policy
 # Full run (2× A100 required)
 bash part_5_7.sh --lr=1e-5
 bash part_5_7.sh --lr=1e-5 --loss-type=grpo_clip --off-policy
-bash part_5_7.sh --lr=1e-5 --no-std            # Dr. GRPO variant
+bash part_5_7.sh --lr=1e-5 --no-std            # GRPO without group-std normalization
 bash part_5_7.sh --lr=1e-5 --prompt-type=question_only
 ```
 
@@ -501,7 +570,7 @@ bash cs336_alignment/section7_grpo/part_5_8_3.sh --dry-run
 
 ### §8.4 — Effect of Group Standard Deviation Normalization
 
-Compares standard GRPO (`use_std_normalization=True`, divides advantage by group std) against Dr. GRPO (`use_std_normalization=False`, advantage = reward − group mean only) at the best LR (`1e-5`) with `reinforce_with_baseline` and `masked_mean`.
+Compares standard GRPO (`use_std_normalization=True`, divides advantage by group std) against GRPO without group-std normalization (`use_std_normalization=False`, advantage = reward − group mean only) at the best LR (`1e-5`) with `reinforce_with_baseline` and `masked_mean`.
 
 ```bash
 bash cs336_alignment/section7_grpo/part_5_8_4.sh             # full run (~1.5 hrs)
@@ -514,7 +583,7 @@ bash cs336_alignment/section7_grpo/part_5_8_4.sh --dry-run
 | Run | Best Acc | Best Step | Final Acc | Final Entropy | Grad Norm |
 |-----|----------|-----------|-----------|---------------|-----------|
 | **`with_std` (standard GRPO)** | **50.6%** | **145** | **47.3%** | 0.158 | 6.78 |
-| `no_std` (Dr. GRPO) | 48.0% | 145 | 46.5% | **0.097** | **3.42** |
+| `no_std` (no group-std normalization) | 48.0% | 145 | 46.5% | **0.097** | **3.42** |
 
 **Key findings:**
 - `with_std` outperforms `no_std` on both peak (50.6% vs 48.0%) and final accuracy (47.3% vs 46.5%), though the final accuracy gap is modest (~1 point)
