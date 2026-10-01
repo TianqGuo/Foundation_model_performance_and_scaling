@@ -16,18 +16,13 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 | [Part 6](#part-6-instruction-tuning--rlhf) | Instruction Tuning & RLHF | SFT raises AlpacaEval win rate 37.8%→62.9% and GSM8K 16.3%→30.6%; DPO improves MMLU to 58.9% and safety to 72%; loss formulation ablation identifies dominant safety regression factor | [README](Foundation_model_performance_and_scaling/part6-instruction-tuning-rlhf/README.md) |
 
 ---
+## Hardware & Environment
 
-## Hardware
+Experiments were run across local and cloud GPU environments using NVIDIA RTX 4090, A100, H100, and H200 GPUs, with CPU-based processing for scaling-law and data-pipeline workloads. Both single- and multi-GPU configurations were used depending on the experiment.
 
-| Part | Hardware | Key library versions |
-|------|----------|---------------------|
-| Part 1 | RTX 4090 24 GB | PyTorch 2.6, Triton 3.0, CUDA 12.4 |
-| Part 2 | RTX 4090 24 GB · H100/H200 80 GB | PyTorch 2.6, Triton 3.0, CUDA 12.4 |
-| Part 3 | CPU only | PyTorch 2.7, scipy 1.11+ |
-| Part 4 | 16-core CPU (filtering) · 2× A100 40 GB (training) | PyTorch 2.7, CUDA 12.4 |
-| Part 5 | RTX 4090 (smoke) · 2× A100 40/80 GB (full) | PyTorch 2.5+, flash-attn 2.7.4, vLLM 0.7.2, CUDA 12.4 |
-| Part 6 | RTX 4090 (smoke) · H100 80 GB (SFT) · 2× H100 80 GB (DPO) | PyTorch 2.5+, flash-attn 2.7.4, vLLM 0.7.2, CUDA 12.4 |
+**Primary software stack:** PyTorch 2.5–2.7, Triton 3.0, CUDA 12.4, FlashAttention-2, and vLLM.
 
+Exact hardware configurations, benchmark settings, and GPU counts are documented in the corresponding part READMEs and experiment sections.
 ---
 
 ## Tech Stack
@@ -285,6 +280,21 @@ Trained an 85M-parameter GPT-2 scale model on 2× A100 GPUs for 100,000 steps.
 ---
 
 ## Part 5: Alignment & Reasoning RL
+
+**Maintenance status:** Stage 1 baseline cleanup is complete and cloud-validated
+(2026-10-01 UTC). GRPO now saves a fixed evaluation subset with an independent
+sampling seed, records environment/input/source configuration, isolates new
+logs/checkpoints, and handles partial gradient accumulation and `skip_eval`
+consistently. All 20 targeted CPU tests and both three-step cloud smoke runs
+passed on 2× A100 40 GB GPUs. W&B 0.22.3 is pinned for newer API keys.
+
+The accuracy results below are historical experiments; GRPO curves used
+resampled evaluation subsets and should be distinguished from the new fixed
+protocol. The no-std ablation retained sequence-length normalization rather than
+implementing the complete Dr. GRPO preset. The separate vLLM server/NCCL backend
+is planned for Stage 2 and has not been implemented. See the
+[Part 5 cloud runbook](Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md)
+and [modernization plan](Foundation_model_performance_and_scaling/part5-alignment/PART5_MODERNIZATION_PLAN.md).
 
 Post-training pipeline for teaching Qwen 2.5 Math 1.5B Base to reason step-by-step on competition math (MATH dataset). Uses string-match verified rewards throughout — no cross-entropy, direct correctness measurement.
 
