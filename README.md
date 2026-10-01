@@ -291,8 +291,16 @@ passed on 2× A100 40 GB GPUs. W&B 0.22.3 is pinned for newer API keys.
 The accuracy results below are historical experiments; GRPO curves used
 resampled evaluation subsets and should be distinguished from the new fixed
 protocol. The no-std ablation retained sequence-length normalization rather than
-implementing the complete Dr. GRPO preset. The separate vLLM server/NCCL backend
-is planned for Stage 2 and has not been implemented. See the
+implementing the complete Dr. GRPO preset. Stage 2 now provides an optional
+separate vLLM 0.19.1 server with NCCL policy transfer, cache invalidation and
+sync/rollout timing in its own locked environment. Both three-step cloud runs
+passed on 2× A100 40 GB GPUs (2026-10-01 UTC), with downloaded artifacts verified
+locally. Rollout synchronization took 0.20–0.28 s per step and generation
+3.61–3.86 s for 16 responses with a 256-token cap in eager inference; these are
+execution checks, not accuracy or speedup benchmarks. The legacy backend remains
+the default, historical results are preserved, and no full historical rerun is
+required. Cache reset was requested on each transfer; changed cached hidden
+states were not independently verified numerically. See the
 [Part 5 cloud runbook](Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md)
 and [modernization plan](Foundation_model_performance_and_scaling/part5-alignment/PART5_MODERNIZATION_PLAN.md).
 

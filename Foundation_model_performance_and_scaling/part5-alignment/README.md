@@ -327,6 +327,44 @@ Each GRPO step:
 
 Logs per-step to JSONL: step, accuracy, reward, token entropy, response length, grad norm, clip fraction, and wall-clock timestamp (for elapsed-time plots).
 
+### Stage 2 rollout backend — cloud-validated 2026-10-01 UTC
+
+The optional `--rollout_backend server` path runs vLLM 0.19.1 on a separate
+inference GPU and transfers policy parameters over NCCL. It pauses serving,
+updates weights, resets prefix caches and resumes. It preserves the evaluation
+interface, records native completion IDs/finish reasons, and logs synchronization
+and generation timings. Training uses the native IDs and validates prompt-token
+alignment. The legacy backend remains the default for existing runners.
+
+Use the separate locked `.venv-server` environment (Torch 2.10.0/cu129,
+Transformers 4.57.6, W&B 0.22.3; SDPA trainer). On the cloud, after transferring
+local edits and restoring the usual MATH data:
+
+```bash
+bash cs336_alignment/section7_grpo/stage2_cloud_setup.sh
+bash cs336_alignment/section7_grpo/stage2_cloud_smoke.sh
+```
+
+See [the Stage 2 cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md#stage-2-separate-server-and-nccl-transfer-validated-2026-10-01-utc)
+for source transfer, driver requirements, CPU checks and output preservation.
+Do not use the legacy FlashAttention wheel for this environment. Local checks
+load no checkpoints. Both three-step cloud runs passed on two A100-SXM4 40 GB
+GPUs, and the downloaded configs, probe, rollout/evaluation records and shutdown
+files were verified locally. Actual stack: Python 3.12.14, Torch 2.10.0/cu129,
+vLLM 0.19.1, Transformers 4.57.6 and W&B 0.22.3; no standalone `flash-attn`.
+Rollout weight synchronization took 0.20–0.28 seconds per step and generation
+3.61–3.86 seconds for 16 responses with a 256-token cap (eager inference).
+These are smoke timings, not a speedup or accuracy benchmark. The probe verified
+changed output weights and restoration on a repeated prompt; cache reset was
+requested on each transfer, but changed cached hidden states were not independently
+verified numerically. Historical results remain unchanged. No historical full
+retraining or reevaluation is required to complete Stages 1–2.
+
+Downloaded artifacts are currently under
+`../../2026_spring/assignment5-alignment/results/section7/stage2_cloud/validation_tyNT5Avp/`.
+Smoke checkpoints were checked for existence on cloud but were not downloaded;
+the instance has been destroyed. W&B authentication was not exercised.
+
 ### Stage 1 baseline cleanup — validated 2026-10-01 UTC
 
 Future GRPO runs evaluate the same saved subset at every periodic evaluation and
@@ -893,7 +931,8 @@ The broader suite includes tokenizer/model fixtures and should run on the cloud:
 ```
 
 Run from the Part 5 root so snapshot paths resolve correctly. Stage 1 passed
-20 targeted CPU tests and both cloud smoke runs; Stage 2 remains planned.
+20 targeted CPU tests and both cloud smoke runs. Stage 2 implementation is available;
+both Stage 2 cloud runs and local artifact review passed (see the cloud runbook).
 
 ---
 
