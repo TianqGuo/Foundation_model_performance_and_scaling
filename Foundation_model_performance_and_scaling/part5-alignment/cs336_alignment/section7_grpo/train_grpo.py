@@ -7,6 +7,8 @@ Run via part_5_7.sh or directly:
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
+import signal
 import json
 import random
 import time
@@ -50,6 +52,9 @@ def init_vllm(model_id: str, device: str, seed: int, gpu_memory_utilization: flo
 
 
 def load_policy_into_vllm(policy: torch.nn.Module, llm: LLM) -> None:
+    if hasattr(llm, "sync_policy_weights"):
+        llm.sync_policy_weights(policy)
+        return
     state_dict = {k: v.cpu() for k, v in policy.state_dict().items()}
     llm_model = llm.llm_engine.model_executor.driver_worker.model_runner.model
     llm_model.load_weights(state_dict.items())
@@ -87,6 +92,7 @@ def precompute_old_log_probs(
     tokenizer,
     micro_batch_size: int,
     device: str,
+    output_token_ids: list[list[int]] | None = None,
 ) -> torch.Tensor:
     """Compute log-probs for all rollout examples under the current (frozen) policy.
 
@@ -101,7 +107,8 @@ def precompute_old_log_probs(
         for start in range(0, len(rollout_prompts), micro_batch_size):
             end = min(start + micro_batch_size, len(rollout_prompts))
             tok = tokenize_prompt_and_output(
-                rollout_prompts[start:end], rollout_responses[start:end], tokenizer
+                rollout_prompts[start:end], rollout_responses[start:end], tokenizer,
+                output_token_ids=None if output_token_ids is None else output_token_ids[start:end],
             )
             lp = get_response_log_probs(
                 policy, tok["input_ids"].to(device), tok["labels"].to(device)
@@ -157,6 +164,19 @@ def run_eval(
 # ---------------------------------------------------------------------------
 
 def train(args: argparse.Namespace) -> None:
+    # TERM from the cloud runner's timeout unwinds the owned server/resources.
+    previous = signal.getsignal(signal.SIGTERM)
+    def terminate(signum, frame):
+        raise SystemExit(128 + signum)
+    signal.signal(signal.SIGTERM, terminate)
+    try:
+        with ExitStack() as cleanup:
+            _train(args, cleanup)
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+
+def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
     from cs336_alignment.drgrpo_grader import question_only_reward_fn, r1_zero_reward_fn
     import wandb
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -189,6 +209,14 @@ def train(args: argparse.Namespace) -> None:
     print(f"GPUs available: {n_gpus}")
     train_device = args.train_device
     vllm_device, shares_device = resolve_rollout_device(n_gpus, train_device, args.vllm_device)
+    if args.rollout_backend == "server":
+        from importlib.metadata import version
+        if version("vllm") != "0.19.1" or version("torch").split("+")[0] != "2.10.0":
+            raise ValueError("Server backend requires the locked .venv-server environment")
+        if shares_device or n_gpus < 2:
+            raise ValueError("Server backend requires separate training/inference GPUs")
+    if args.verify_weight_sync and args.rollout_backend != "server":
+        raise ValueError("--verify_weight_sync requires --rollout_backend server")
     vllm_mem = 0.30 if shares_device else args.gpu_memory_utilization
     if shares_device:
         print(f"INFO: vLLM shares {train_device} with policy (vllm_mem=0.30).")
@@ -231,13 +259,17 @@ def train(args: argparse.Namespace) -> None:
             Path(__file__).with_name("run_utils.py"), project_root / "pyproject.toml",
             project_root / "cs336_alignment/section4_sft/helpers.py",
             project_root / "cs336_alignment/drgrpo_grader.py",
-            project_root / "uv.lock") if p.exists()],
+            project_root / "uv.lock", Path(__file__).with_name("rollout_backend.py"),
+            Path(__file__).with_name("weight_sync_probe.py"),
+            Path(__file__).parent / "server_environment/pyproject.toml",
+            Path(__file__).parent / "server_environment/uv.lock") if p.exists()],
     }
     (output_path / "run_config.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
     # --- wandb ---
     if not args.no_wandb:
         wandb.init(project=args.wandb_project, name=args.run_name, config=vars(args))
+        cleanup.callback(wandb.finish)
         wandb.define_metric("grpo_step")
         wandb.define_metric("train_step")
         wandb.define_metric("eval_step")
@@ -251,8 +283,12 @@ def train(args: argparse.Namespace) -> None:
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
+    attention = args.attn_implementation or ("sdpa" if args.rollout_backend == "server" else "flash_attention_2")
+    manifest["resolved"]["attn_implementation"] = attention
+    manifest["resolved"]["rollout_backend"] = args.rollout_backend
+    manifest["resolved"]["training_tokens"] = "generated_ids" if args.rollout_backend == "server" else "retokenized_text"
     policy = AutoModelForCausalLM.from_pretrained(
-        args.model, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2"
+        args.model, torch_dtype=torch.bfloat16, attn_implementation=attention
     ).to(train_device)
     manifest["model"] = {"source": args.model, "config": policy.config.to_dict(),
                          "tokenizer_source": tokenizer.name_or_path}
@@ -264,7 +300,20 @@ def train(args: argparse.Namespace) -> None:
 
     # --- vLLM ---
     print(f"Initializing vLLM on {vllm_device} ...")
-    vllm_model = init_vllm(args.model, vllm_device, args.seed, vllm_mem)
+    if args.rollout_backend == "server":
+        from cs336_alignment.section7_grpo.rollout_backend import VLLMServerBackend
+        vllm_model = cleanup.enter_context(VLLMServerBackend(
+            args.model, vllm_device, args.seed, output_path, vllm_mem,
+            port=args.server_port, startup_timeout=args.server_startup_timeout,
+            request_timeout=args.server_request_timeout, max_model_len=args.server_max_model_len,
+            enforce_eager=args.server_enforce_eager,
+        ))
+        vllm_model.init_weight_sync(train_device)
+        if args.verify_weight_sync:
+            from cs336_alignment.section7_grpo.weight_sync_probe import verify_weight_transfer
+            verify_weight_transfer(policy, tokenizer, vllm_model, output_path)
+    else:
+        vllm_model = init_vllm(args.model, vllm_device, args.seed, vllm_mem)
     print("vLLM ready")
 
     # --- Prompt template and reward function ---
@@ -294,6 +343,9 @@ def train(args: argparse.Namespace) -> None:
         include_stop_str_in_output=True,
     )
 
+    if args.rollout_backend == "server":
+        eval_params.seed = args.eval_seed
+
     # --- Derived hyperparameters ---
     n_prompts = args.rollout_batch_size // args.group_size
     micro_bs = args.train_batch_size // args.gradient_accumulation_steps
@@ -314,7 +366,9 @@ def train(args: argparse.Namespace) -> None:
 
     # --- Metrics file ---
     metrics_path = output_path / f"eval_metrics_{args.run_name}.jsonl"
-    metrics_file = open(metrics_path, "x")
+    metrics_file = cleanup.enter_context(open(metrics_path, "x"))
+    system_file = cleanup.enter_context((output_path / "system_metrics.jsonl").open("x"))
+    rollout_file = cleanup.enter_context((output_path / "rollouts.jsonl").open("x")) if args.rollout_backend == "server" else None
 
     train_step = 0
     eval_step = 0
@@ -328,24 +382,47 @@ def train(args: argparse.Namespace) -> None:
 
         # --- Sync policy weights into vLLM ---
         policy.eval()
+        torch.cuda.synchronize(train_device)
+        sync_start = time.perf_counter()
         load_policy_into_vllm(policy, vllm_model)
+        sync_seconds = time.perf_counter() - sync_start
 
         # --- Sample questions and generate rollouts ---
         batch_qs = random.sample(train_examples, min(n_prompts, len(train_examples)))
         prompts = [prompt_template.format(question=ex.get("problem", ex.get("question", ""))) for ex in batch_qs]
         ground_truths = [get_ground_truth(ex) for ex in batch_qs]
 
+        if args.rollout_backend == "server":
+            rollout_params.seed = args.seed + grpo_step
+        rollout_start = time.perf_counter()
         vllm_outputs = vllm_model.generate(prompts, rollout_params)
+        rollout_seconds = time.perf_counter() - rollout_start
 
         # Flatten: [q1_r1, q1_r2, ..., q1_rG, q2_r1, ...]
         rollout_prompts: list[str] = []
         rollout_responses: list[str] = []
         rollout_gts: list[str] = []
+        generated_ids: list[list[int]] | None = [] if args.rollout_backend == "server" else None
         for prompt, gt, out in zip(prompts, ground_truths, vllm_outputs):
+            if len(out.outputs) != args.group_size:
+                raise ValueError("Rollout response group size mismatch")
             for completion in out.outputs:
                 rollout_prompts.append(prompt)
                 rollout_responses.append(completion.text)
                 rollout_gts.append(gt)
+                if generated_ids is not None:
+                    if out.prompt_token_ids != tokenizer.encode(prompt, add_special_tokens=True):
+                        raise ValueError("Server/trainer prompt token alignment mismatch")
+                    generated_ids.append(completion.token_ids)
+                    rollout_file.write(json.dumps({"grpo_step": grpo_step,
+                        "weight_version": vllm_model.weight_version, "index": len(rollout_responses)-1,
+                        "text": completion.text, "token_ids": completion.token_ids,
+                        "prompt_token_ids": out.prompt_token_ids,
+                        "finish_reason": completion.finish_reason}) + "\n")
+        if len(vllm_outputs) != len(prompts):
+            raise ValueError("Rollout prompt count mismatch")
+        if rollout_file is not None:
+            rollout_file.flush()
         rollout_bs = len(rollout_responses)
 
         # --- Compute rewards and advantages ---
@@ -378,7 +455,7 @@ def train(args: argparse.Namespace) -> None:
         all_old_log_probs: torch.Tensor | None = None
         if needs_old_lp:
             all_old_log_probs = precompute_old_log_probs(
-                policy, rollout_prompts, rollout_responses, tokenizer, micro_bs, train_device
+                policy, rollout_prompts, rollout_responses, tokenizer, micro_bs, train_device, generated_ids
             )
 
         policy.train()
@@ -410,7 +487,8 @@ def train(args: argparse.Namespace) -> None:
                 update_start = (mb_start // args.train_batch_size) * args.train_batch_size
                 update_size = min(args.train_batch_size, rollout_bs - update_start)
 
-                tok = tokenize_prompt_and_output(mb_p, mb_r, tokenizer)
+                tok = tokenize_prompt_and_output(mb_p, mb_r, tokenizer,
+                    output_token_ids=None if generated_ids is None else [generated_ids[i] for i in mb_idx])
                 input_ids = tok["input_ids"].to(train_device)
                 labels = tok["labels"].to(train_device)
                 response_mask = tok["response_mask"].to(train_device)
@@ -500,6 +578,15 @@ def train(args: argparse.Namespace) -> None:
                 train_step += 1
                 step_grad_norms.append(grad_norm)
 
+        system_file.write(json.dumps({"grpo_step": grpo_step,
+            "backend": args.rollout_backend, "sync_seconds": sync_seconds,
+            "rollout_seconds": rollout_seconds, "responses": rollout_bs,
+            "generated_tokens": sum(map(len, generated_ids)) if generated_ids is not None else None,
+            "truncated": sum(c.finish_reason == "length" for o in vllm_outputs for c in o.outputs),
+            "weight_version": getattr(vllm_model, "weight_version", None),
+            "grad_norms": step_grad_norms}) + "\n")
+        system_file.flush()
+
         # --- Periodic evaluation ---
         if should_evaluate(args.skip_eval, len(val_examples), grpo_step, args.eval_interval):
             print(f"  Running eval on {args.n_eval_examples} val examples ...")
@@ -577,8 +664,6 @@ def train(args: argparse.Namespace) -> None:
 
     metrics_file.close()
     print(f"Eval metrics saved to {metrics_path}")
-    if not args.no_wandb:
-        wandb.finish()
     print(f"Results saved to {output_path}")
 
 
@@ -629,6 +714,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--max_response_tokens", type=int, default=1024)
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.85)
+    parser.add_argument("--rollout_backend", choices=["legacy", "server"], default="legacy")
+    parser.add_argument("--attn_implementation", choices=["sdpa", "flash_attention_2"], default=None)
+    parser.add_argument("--server_port", type=int, default=0)
+    parser.add_argument("--server_startup_timeout", type=float, default=600)
+    parser.add_argument("--server_request_timeout", type=float, default=300)
+    parser.add_argument("--server_max_model_len", type=int, default=4096)
+    parser.add_argument("--server_enforce_eager", action="store_true")
+    parser.add_argument("--verify_weight_sync", action="store_true",
+                        help="Cloud-only controlled weight perturbation and prefix-cache probe")
     # Evaluation
     parser.add_argument("--eval_interval", type=int, default=5)
     parser.add_argument("--n_eval_examples", type=int, default=1024)

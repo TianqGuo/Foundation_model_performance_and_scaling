@@ -14,15 +14,23 @@ def tokenize_prompt_and_output(
     prompt_strs: list[str],
     output_strs: list[str],
     tokenizer: PreTrainedTokenizerBase,
+    output_token_ids: list[list[int]] | None = None,
 ) -> dict[str, torch.Tensor]:
     """Tokenize prompt+output pairs and construct a causal-LM training batch.
 
     Returns input_ids and labels as the standard causal LM left/right shift of
     the concatenated sequence, plus response_mask = True only for output tokens
-    in labels (prompt and padding positions are False).
+    in labels (prompt and padding positions are False). Optional output_token_ids
+    preserves the server sampling trajectory, including EOS/stop tokens; legacy
+    SFT/EI callers continue to tokenize output text.
     """
+    if len(prompt_strs) != len(output_strs) or not prompt_strs:
+        raise ValueError("Prompt/output batches must have equal nonzero sizes")
+    if output_token_ids is not None and (len(output_token_ids) != len(output_strs) or
+            any(not ids or any(type(t) is not int or t < 0 for t in ids) for ids in output_token_ids)):
+        raise ValueError("Generated token batches must match outputs and contain nonempty valid IDs")
     prompt_ids = [tokenizer.encode(p, add_special_tokens=True) for p in prompt_strs]
-    output_ids = [tokenizer.encode(o, add_special_tokens=False) for o in output_strs]
+    output_ids = output_token_ids if output_token_ids is not None else [tokenizer.encode(o, add_special_tokens=False) for o in output_strs]
 
     sequences = [p + o for p, o in zip(prompt_ids, output_ids)]
     prompt_lens = [len(p) for p in prompt_ids]
