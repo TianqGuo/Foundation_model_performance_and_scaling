@@ -1,4 +1,4 @@
-"""Cloud-only transfer/cache probe; temporarily alters one untied output row.
+"""Cloud-only transfer/cache probe; temporarily alters one output row absent from the prompt.
 
 No checkpoint loading occurs here. The caller owns an already loaded policy.
 Restore the row before ordinary rollouts. This is an execution check, never an
@@ -11,8 +11,6 @@ import json
 def verify_weight_transfer(policy, tokenizer, backend, output_dir: Path) -> None:
     import torch
 
-    if policy.config.tie_word_embeddings:
-        raise ValueError("Controlled cache probe requires untied output embeddings (Qwen/MATH)")
     prompt = "The sum of two and three is"
     inputs = torch.tensor([tokenizer.encode(prompt, add_special_tokens=True)],
                           device=next(policy.parameters()).device)
@@ -27,7 +25,17 @@ def verify_weight_transfer(policy, tokenizer, backend, output_dir: Path) -> None
             before = int(output.logits[0, -1].argmax())
             hidden = output.hidden_states[-1][0, -1].float()
             max_logit = float(output.logits[0, -1].float().abs().max())
-            target = (before + 1) % output.logits.shape[-1]
+            # With tied embeddings this row also belongs to the input table.
+            # Choose a token absent from the probe prompt so changing its row
+            # cannot change this prompt's hidden states or cached input path.
+            forbidden = set(inputs[0].tolist()) | {before}
+            forbidden.update(getattr(tokenizer, "all_special_ids", []))
+            vocab_size = output.logits.shape[-1]
+            target = next(((before + offset) % vocab_size
+                           for offset in range(1, vocab_size + 1)
+                           if (before + offset) % vocab_size not in forbidden), None)
+            if target is None:
+                raise ValueError("No non-prompt token available for the controlled weight probe")
             head = policy.get_output_embeddings().weight
             row_backup = head[target].clone()  # GPU row only; no CPU policy copy.
             del output
@@ -53,7 +61,9 @@ def verify_weight_transfer(policy, tokenizer, backend, output_dir: Path) -> None
             (output_dir / "weight_sync_probe.json").write_text(json.dumps({
                 "passed": True, "initial_token": before, "changed_token": target,
                 "restored_token": restored[0], "prompt": prompt,
-                "checks": ["initial_parity", "changed_weights", "cache_invalidation", "restoration"],
+                "tie_word_embeddings": bool(policy.config.tie_word_embeddings),
+                "changed_row_absent_from_prompt": target not in inputs[0].tolist(),
+                "checks": ["initial_parity", "changed_weights", "repeated_prompt_consistency", "restoration"],
             }, indent=2) + "\n")
     finally:
         if row_backup is not None:
