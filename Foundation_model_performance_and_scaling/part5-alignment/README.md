@@ -66,7 +66,7 @@ expected — RL training in later sections corrects it.
 ```bash
 cd cs336_alignment/section3_zero_shot
 ./part_5_3.sh                        # full evaluation on cluster (5K examples)
-./part_5_3.sh --max_examples 10      # smoke test (local, falls back to GSM8K)
+./part_5_3.sh --max_examples 10      # cloud smoke test (falls back to GSM8K)
 ```
 
 **Output:** `results/section3/zero_shot_eval.jsonl` — one JSON record per example  
@@ -136,7 +136,7 @@ cd cs336_alignment/section4_sft
 ./part_5_4.sh --tests-only           # helper tests only (CPU, works locally)
 ./part_5_4.sh --train-only           # all 7 training runs, skip tests
 ./part_5_4.sh --ablation-only        # re-run only n128/256/512/1024, preserve full/filtered
-./part_5_4.sh --smoke-test           # single-GPU local smoke test (32 examples, no eval)
+./part_5_4.sh --smoke-test           # cloud smoke test (32 examples, no eval)
 ./part_5_4.sh --filter-source auto   # filtered run: r1_zero_reward_fn only
 ./part_5_4.sh --filter-source repo   # filtered run: string-match file only
 ```
@@ -327,7 +327,7 @@ Each GRPO step:
 
 Logs per-step to JSONL: step, accuracy, reward, token entropy, response length, grad norm, clip fraction, and wall-clock timestamp (for elapsed-time plots).
 
-### Stage 1 baseline cleanup (2026-09-30)
+### Stage 1 baseline cleanup — validated 2026-10-01 UTC
 
 Future GRPO runs evaluate the same saved subset at every periodic evaluation and
 at final evaluation. `--eval_seed` defaults to 12345 and uses a separate RNG;
@@ -374,27 +374,46 @@ bash -n cs336_alignment/section7_grpo/part_5_7.sh
 
 For a fresh Vast.ai instance, follow the [cloud setup and validation guide](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md). It covers code transfer, the legacy GPU environment, W&B and a script that runs both smoke checks.
 
-Cloud-only smoke validation (from the project root, using the existing compatible
-environment and replacing paths with those on the cloud machine):
+After cloud initialization, run from the Part 5 root:
 
 ```bash
-.venv/bin/python -m cs336_alignment.section7_grpo.train_grpo \
-  --model /path/to/Qwen2.5-Math-1.5B \
-  --data /path/to/train.jsonl --val_data /path/to/validation.jsonl \
-  --output results/section7/stage1_cloud --run_name stage1_fixed_eval \
-  --n_grpo_steps 3 --max_train_examples 64 --group_size 4 \
-  --rollout_batch_size 16 --train_batch_size 16 --gradient_accumulation_steps 8 \
-  --max_response_tokens 256 --n_eval_examples 32 --eval_interval 1 \
-  --eval_seed 12345 --no_wandb
+bash cs336_alignment/section7_grpo/stage1_cloud_smoke.sh
 ```
 
-Prefer two cloud GPUs with sufficient memory. Repeat that command with
-`--run_name stage1_skip_eval --skip_eval` to verify that rollouts still use the
-second GPU while evaluation is disabled. Neither command should run locally.
-Check the saved configuration and subset, three periodic evaluation records plus
-final evaluation in the first run, and no evaluation records or final evaluation
-file in the second. These short runs verify execution; they are not new accuracy
-benchmarks. GPU validation and actual cloud environment capture remain pending.
+The script discovers model/data paths automatically, runs three steps with
+fixed evaluation and three with evaluation disabled, and checks the generated
+artifacts. No path variables are required for the standard layout. Run it only
+on the cloud; these short runs verify execution, not accuracy
+benchmarks. Cloud execution validation passed on 2026-10-01 UTC: both
+`stage1_fixed_eval` and `stage1_skip_eval` reported `PASS`. The downloaded artifacts and both console logs are preserved
+under `results/section7/stage1_cloud/` and were reviewed locally. Both runs used two A100-SXM4
+40 GB GPUs, Python 3.12.14, Torch 2.5.1 / CUDA 12.4, vLLM 0.7.2, Transformers
+4.51.3, FlashAttention 2.7.4.post1 and W&B 0.22.3. Source/dependency/input
+fingerprints match local files; the saved 32-example subset is reproducible
+from seed 12345. The enabled run contains exactly three evaluation records
+and a final evaluation matching the last record; the disabled run has none.
+Both console logs are free of tracebacks. W&B authentication was not exercised.
+The cloud instance has been destroyed; saved checkpoint paths identify its
+former locations, and the smoke checkpoints were not downloaded. An NCCL
+process-group cleanup warning occurred on shutdown
+without preventing completion; lifecycle cleanup remains a Stage 2 concern.
+
+Smoke results on the fixed 32-example subset (256-token response cap):
+
+| GRPO step | Accuracy | Mean reward | Gradient norm |
+|---|---|---|---|
+| 1 | 12.5% | 0.125 | 0.613 |
+| 2 | 18.75% | 0.1875 | 0.000 |
+| 3 / final | 18.75% | 0.1875 | 0.000 |
+
+The gradient norms at steps 2–3 are zero because all training rollout rewards
+were zero, giving zero group-centered advantages. This is expected for the small
+smoke batch. The skip-evaluation run had gradient norms 0.613, 0.660 and 0.863.
+These results validate execution and bookkeeping, not improvement against the
+historical benchmark. Evaluation and rollout generation share the legacy vLLM
+engine, so keep the evaluation schedule identical in future controlled algorithm
+comparisons; the fixed subset isolates Python evaluation sampling, not the
+engine's generation RNG.
 
 ### Usage
 
@@ -423,8 +442,15 @@ uv run python cs336_alignment/section7_grpo/plot_grpo_results.py \
     --x_axis grpo_step          # or eval_step, wall_clock_hours
 ```
 
-**Output files:**
-- `results/section8/<group>/eval_metrics_<run_name>.jsonl` — per-eval-step metrics (live append)
+**New GRPO output files:**
+
+- `results/section8/<unique-run>/run_config.json` and `evaluation_subset.json` — configuration and evaluation protocol
+- `results/section8/<unique-run>/eval_metrics_<run_name>.jsonl` — per-evaluation metrics; `final_eval.json` when enabled
+- Smoke runs use `results/section7/smoke/<unique-run>/`; the Stage 1 validation script uses `results/section7/stage1_cloud/`
+- Checkpoints use the unique run identifier under `assets/` or `/data/<user>/`
+
+**Historical comparison plots (preserved):**
+
 - `results/section8/<group>/grpo_accuracy.png` — accuracy comparison across runs in that group
 - `results/section8/<group>/grpo_format_rate.png`, `grpo_entropy.png`, `grpo_grad_norm.png`, `grpo_response_length.png`, `grpo_clip_frac.png`
 
@@ -444,7 +470,7 @@ Sweeps four log-spaced learning rates with `reinforce_with_baseline` (on-policy)
 
 ```bash
 bash cs336_alignment/section7_grpo/part_5_8_1.sh             # full sweep
-bash cs336_alignment/section7_grpo/part_5_8_1.sh --smoke-test # 3 steps each, local
+bash cs336_alignment/section7_grpo/part_5_8_1.sh --smoke-test # 3 steps each, cloud only
 bash cs336_alignment/section7_grpo/part_5_8_1.sh --dry-run    # print commands only
 ```
 
@@ -761,6 +787,9 @@ part5-alignment/
 │   └── section7_grpo/              # GRPO with verified rewards
 │       ├── helpers.py              # GRPO primitives (loss types, advantage, microbatch step)
 │       ├── train_grpo.py           # Full GRPO training loop
+│       ├── run_utils.py            # Reproducibility and isolated run outputs
+│       ├── stage1_cloud_smoke.sh   # Two cloud validation runs
+│       ├── CLOUD_RUNBOOK.md        # Cloud initialization and validation
 │       ├── plot_grpo_results.py    # Metric curves from eval_metrics_*.jsonl
 │       ├── part_5_7.sh             # Single GRPO run (all flags)
 │       ├── part_5_8_1.sh           # §8.1 LR sweep
@@ -780,8 +809,9 @@ part5-alignment/
 │   ├── section4/                   # dataset_info.json, eval_metrics_*.jsonl, final_eval.json
 │   ├── section5/                   # eval_metrics_*.jsonl, ei_accuracy.png, ei_entropy.png
 │   ├── section7/
-│   │   └── smoke/                  # Smoke-test JSONL and plots
-│   └── section8/                   # Full experiment JSONL (flat) + plots by group
+│   │   ├── smoke/                  # Historical artifacts + isolated new smoke runs
+│   │   └── stage1_cloud/           # Verified Stage 1 configs, metrics and console logs
+│   └── section8/                   # Historical artifacts + isolated new run folders
 │       ├── eval_metrics_*.jsonl    # All run data (flat, uniquely named)
 │       ├── lr_sweep/               # §8.1 comparison plots
 │       ├── baselines/              # §8.2 comparison plots
@@ -800,6 +830,8 @@ part5-alignment/
 
 ## Environment
 
+Historical experiment environments (retained for interpreting saved results):
+
 | | Smoke tests | SFT / Expert Iteration | GRPO full runs |
 |---|---|---|---|
 | GPU | RTX 4090 24 GB | 2× A100 SXM4 40 GB | 2× A100 SXM4 80 GB |
@@ -814,33 +846,54 @@ part5-alignment/
 
 ## Setup
 
+Model loading, inference and training run on cloud machines such as Vast.ai.
+Local work is limited to static checks and lightweight CPU tests without model
+checkpoints. For the full initialization and transfer instructions, use the
+[cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md).
+
+The validated Stage 1 cloud environment uses Python 3.12.14, Torch 2.5.1 / CUDA
+12.4, Transformers 4.51.3, vLLM 0.7.2, FlashAttention 2.7.4.post1 and W&B 0.22.3.
+Two A100-SXM4 40 GB GPUs passed the smoke checks; the historical full GRPO runs
+used two A100 80 GB GPUs. GPU dependency modernization has not started.
+
+From the Part 5 root on a fresh compatible cloud instance:
+
 ```bash
-uv sync --no-install-package flash-attn
-uv sync
+uv python install 3.12
+uv sync --frozen --python 3.12 --no-install-package flash-attn
+uv pip install --python .venv/bin/python --no-deps \
+  'https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.5cxx11abiFALSE-cp312-cp312-linux_x86_64.whl'
+export UV_NO_SYNC=1
 ```
 
-**First-time model download (local, ~3 GB):**
+The wheel requires Linux x86_64, CPython 3.12, Torch 2.5 and the matching CUDA/C++
+ABI; the runbook includes compatibility checks. W&B 0.22.3 is pinned and installs
+through normal sync. Smoke validation disables tracking; later tracked runs
+require authentication, without patching installed SDK files.
 
-```bash
-uv run huggingface-cli download Qwen/Qwen2.5-Math-1.5B \
-    --local-dir assets/Qwen2.5-Math-1.5B
-```
-
-Shell scripts auto-detect and download the model if not found locally or on the cluster.
-
-**WSL2 CUDA:** If `torch.cuda.is_available()` returns False, set Lenovo Vantage
-graphics mode to **Hybrid** (not integrated-only).
+Shell scripts discover cached models and data in the established project/cluster
+locations and download a missing model on the cloud. Preserve the same MATH
+files. New cloud clones also need unpublished local changes transferred; the
+runbook includes a bundle command containing source and dependency files.
 
 ---
 
 ## Running Tests
 
+Safe local CPU regression checks (no checkpoint loading):
+
 ```bash
-uv run pytest -v                     # all tests
-uv run pytest tests/test_sft.py -v  # Section 4 helpers only
+CUDA_VISIBLE_DEVICES='' .venv/bin/python -m pytest tests/test_grpo.py tests/test_grpo_run_config.py -q
 ```
 
-Run from the repo root (`part5-alignment/`) so snapshot paths resolve correctly.
+The broader suite includes tokenizer/model fixtures and should run on the cloud:
+
+```bash
+.venv/bin/python -m pytest -v
+```
+
+Run from the Part 5 root so snapshot paths resolve correctly. Stage 1 passed
+20 targeted CPU tests and both cloud smoke runs; Stage 2 remains planned.
 
 ---
 
