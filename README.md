@@ -23,6 +23,7 @@ Experiments were run across local and cloud GPU environments using NVIDIA RTX 40
 **Primary software stack:** PyTorch 2.5–2.7, Triton 3.0, CUDA 12.4, FlashAttention-2, and vLLM.
 
 Exact hardware configurations, benchmark settings, and GPU counts are documented in the corresponding part READMEs and experiment sections.
+
 ---
 
 ## Tech Stack
