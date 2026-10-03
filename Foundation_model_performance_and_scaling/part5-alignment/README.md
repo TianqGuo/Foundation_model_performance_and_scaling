@@ -327,6 +327,44 @@ Each GRPO step:
 
 Logs per-step to JSONL: step, accuracy, reward, token entropy, response length, grad norm, clip fraction, and wall-clock timestamp (for elapsed-time plots).
 
+### Stage 3 unified estimators / GSPO — cloud validation pending
+
+GRPO now resolves independent `--baseline`, `--advantage_normalizer`,
+`--importance_reweighting` and `--loss_normalization` options. Existing
+`--loss_type`, `--no_std_normalization` and `--length_norm` remain compatibility
+aliases; explicit options take precedence and the resolved estimator is saved
+in `run_config.json`. Reward scoring, advantages, surrogate loss and loss
+aggregation are separate helpers. No zero-advantage pruning is introduced.
+
+GSPO uses `s = exp(sum_response(log_pi - log_pi_old) / response_length)` and
+clips the sequence surrogate `-min(s*A, clip(s)*A)`. With sequence normalization,
+each response contributes that surrogate once. Constant normalization uses
+`sum(masked_token_loss)/(batch_size * max_response_tokens)`; for GSPO this
+weights each sequence surrogate by `response_length/max_response_tokens`, so
+it is a distinct length-weighted variant. Ratios use FP32 arithmetic for half-
+precision log probabilities; zero-length responses/nonfinite ratios abort rather
+than silently skipping data. Standard deviation uses sample statistics, with a
+zero standard deviation for singleton groups.
+
+For the first matched comparison, use the validated Stage 2 environment on the
+cloud, after transferring/pulling Stage 3 edits:
+
+```bash
+bash cs336_alignment/section7_grpo/stage3_cloud_compare.sh
+# After smoke passes:
+bash cs336_alignment/section7_grpo/stage3_cloud_compare.sh --pilot
+```
+
+The first command runs both estimators for three steps; the pilot uses 20 steps
+and four optimization epochs per rollout. Both retain Qwen/MATH, matched seeds,
+fixed evaluation, sequence normalization and epsilon 0.2. This is a controlled
+single-seed pilot, not a tuned GSPO replication or evidence of superiority.
+See [the Stage 3 cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md#stage-3-unified-estimators-and-matched-grpogspo-comparison).
+The [GSPO paper](https://arxiv.org/abs/2507.18071) motivates the sequence ratio.
+All 64 targeted CPU checks passed, including legacy objective/gradient equivalence
+and GSPO reference gradients; Python/shell syntax and whitespace checks passed.
+Historical accuracy results remain unchanged; Stage 3 GPU results are pending.
+
 ### Stage 2 rollout backend — cloud-validated 2026-10-01 UTC
 
 The optional `--rollout_backend server` path runs vLLM 0.19.1 on a separate

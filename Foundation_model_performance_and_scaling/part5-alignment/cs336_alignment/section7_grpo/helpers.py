@@ -18,38 +18,9 @@ def compute_group_normalized_rewards(
     rollout_responses and repeated_ground_truths are both length
     n_prompts * group_size, laid out as [q1_r1, q1_r2, ..., q1_rG, q2_r1, ...].
     """
-    n = len(rollout_responses)
-    assert n % group_size == 0
-
-    rewards_data = [
-        reward_fn(resp, gt)
-        for resp, gt in zip(rollout_responses, repeated_ground_truths)
-    ]
-    raw_rewards = torch.tensor([d["reward"] for d in rewards_data], dtype=torch.float32)
-
-    n_groups = n // group_size
-    rewards_grouped = raw_rewards.view(n_groups, group_size)
-
-    group_means = rewards_grouped.mean(dim=1, keepdim=True)
-    centered = rewards_grouped - group_means
-
-    if normalize_by_std:
-        group_stds = rewards_grouped.std(dim=1, keepdim=True, unbiased=True)
-        advantages_grouped = centered / (group_stds + advantage_eps)
-    else:
-        advantages_grouped = centered
-
-    advantages = advantages_grouped.view(-1)
-
-    metadata: dict[str, float] = {
-        "mean_reward": raw_rewards.mean().item(),
-        "std_reward": raw_rewards.std().item() if n > 1 else 0.0,
-        "max_reward": raw_rewards.max().item(),
-        "min_reward": raw_rewards.min().item(),
-        "fraction_correct": (raw_rewards == 1.0).float().mean().item(),
-        "mean_format_reward": sum(d["format_reward"] for d in rewards_data) / n,
-        "mean_answer_reward": sum(d["answer_reward"] for d in rewards_data) / n,
-    }
+    from cs336_alignment.section7_grpo.estimators import score_rewards, build_advantages
+    raw_rewards, metadata = score_rewards(reward_fn, rollout_responses, repeated_ground_truths)
+    advantages = build_advantages(raw_rewards, group_size, normalizer="std" if normalize_by_std else "none", eps=advantage_eps)
     return advantages, raw_rewards, metadata
 
 
@@ -177,6 +148,7 @@ def grpo_microbatch_train_step(
     length_norm: Literal["masked_mean", "masked_normalize"] = "masked_mean",
     max_response_tokens: int | None = None,
     loss_scale: float | None = None,
+    estimator_config=None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Forward + backward pass for one GRPO microbatch.
 
@@ -186,6 +158,19 @@ def grpo_microbatch_train_step(
     microbatch's share of the actual optimizer batch), and calls loss.backward().
     Returns the detached scalar loss.
     """
+    if estimator_config is not None:
+        from cs336_alignment.section7_grpo.estimators import estimator_loss, aggregate_loss
+        if advantages is None:
+            raise ValueError("Unified estimator requires resolved advantages")
+        token_loss, metadata = estimator_loss(advantages, policy_log_probs, response_mask,
+            estimator_config.importance_reweighting, old_log_probs, cliprange)
+        loss = aggregate_loss(token_loss, response_mask, estimator_config.loss_normalization,
+                              max_response_tokens)
+        scale = 1.0 / gradient_accumulation_steps if loss_scale is None else loss_scale
+        loss = loss * scale
+        loss.backward()
+        return loss.detach(), metadata
+
     per_token_loss, metadata = compute_policy_gradient_loss(
         policy_log_probs=policy_log_probs,
         loss_type=loss_type,

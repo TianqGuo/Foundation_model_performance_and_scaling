@@ -184,10 +184,12 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
 
     from cs336_alignment.section4_sft.helpers import get_response_log_probs, tokenize_prompt_and_output
     from cs336_alignment.section7_grpo.helpers import (
-        compute_group_normalized_rewards,
         grpo_microbatch_train_step,
         masked_mean,
     )
+
+    from cs336_alignment.section7_grpo.estimators import resolve_estimator, score_rewards, build_advantages
+    estimator = resolve_estimator(args)
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -246,7 +248,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
         eval_record.update({"indices": indices, "dataset": file_fingerprint(Path(args.val_data))})
     (output_path / "evaluation_subset.json").write_text(json.dumps(eval_record, indent=2) + "\n")
     manifest = {
-        "args": vars(args), "environment": environment_versions(),
+        "args": vars(args), "estimator": estimator.to_dict(), "environment": environment_versions(),
         "train_data": file_fingerprint(Path(args.data)), "train_examples": len(train_examples),
         "prompt": file_fingerprint(prompt_path), "evaluation": eval_record,
         "resolved": {"train_device": train_device, "vllm_device": vllm_device,
@@ -256,7 +258,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
         "gpus": [torch.cuda.get_device_name(i) for i in range(n_gpus)],
         "sources": [file_fingerprint(p) for p in (
             Path(__file__), Path(__file__).with_name("helpers.py"),
-            Path(__file__).with_name("run_utils.py"), project_root / "pyproject.toml",
+            Path(__file__).with_name("run_utils.py"), Path(__file__).with_name("estimators.py"), project_root / "pyproject.toml",
             project_root / "cs336_alignment/section4_sft/helpers.py",
             project_root / "cs336_alignment/drgrpo_grader.py",
             project_root / "uv.lock", Path(__file__).with_name("rollout_backend.py"),
@@ -372,7 +374,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
 
     train_step = 0
     eval_step = 0
-    needs_old_lp = (args.loss_type in ("grpo_clip", "grpo_no_clip")) or (args.epochs_per_rollout_batch > 1)
+    needs_old_lp = estimator.importance_reweighting != "none"
 
     # -----------------------------------------------------------------------
     # GRPO loop
@@ -426,14 +428,9 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
         rollout_bs = len(rollout_responses)
 
         # --- Compute rewards and advantages ---
-        advantages, raw_rewards, reward_meta = compute_group_normalized_rewards(
-            reward_fn=reward_fn,
-            rollout_responses=rollout_responses,
-            repeated_ground_truths=rollout_gts,
-            group_size=args.group_size,
-            advantage_eps=args.advantage_eps,
-            normalize_by_std=args.use_std_normalization,
-        )
+        raw_rewards, reward_meta = score_rewards(reward_fn, rollout_responses, rollout_gts)
+        advantages = build_advantages(raw_rewards, args.group_size, estimator.baseline,
+            estimator.advantage_normalizer, args.advantage_eps)
 
         print(
             f"  rewards: mean={reward_meta['mean_reward']:.3f} "
@@ -463,6 +460,12 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
         # Accumulators across all epochs in this GRPO step (for JSONL logging)
         step_grad_norms: list[float] = []
         step_clip_fracs: list[float] = []
+        sequence_clips: list[float] = []
+        active_clips: list[float] = []
+        clipped_token_count = 0.
+        response_token_count = 0
+        entropy_sum = 0.
+        micro_losses: list[float] = []
 
         # --- Training epochs on this rollout batch ---
         for epoch in range(args.epochs_per_rollout_batch):
@@ -511,7 +514,8 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                         gradient_accumulation_steps=args.gradient_accumulation_steps,
                         loss_type=args.loss_type,
                         raw_rewards=mb_raw if args.loss_type == "no_baseline" else None,
-                        advantages=mb_adv if args.loss_type != "no_baseline" else None,
+                        advantages=mb_adv,
+                        estimator_config=estimator,
                         old_log_probs=mb_old_lp,
                         cliprange=args.cliprange,
                         length_norm=args.length_norm,
@@ -530,6 +534,16 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                         ) from e
                     raise
 
+                micro_losses.append(loss.item() / accumulation_weight(len(mb_idx), update_size))
+                response_token_count += int(response_mask.sum())
+                if "is_clipped" in meta:
+                    clipped_token_count += float((meta["is_clipped"] * response_mask).sum())
+                if token_ent is not None:
+                    entropy_sum += float(torch.where(response_mask, token_ent, 0.).sum())
+                if "sequence_is_clipped" in meta:
+                    sequence_clips.extend(meta["sequence_is_clipped"].detach().cpu().tolist())
+                if "clip_active" in meta:
+                    active_clips.extend(masked_mean(meta["clip_active"], response_mask, dim=1).detach().cpu().tolist())
                 epoch_loss += loss.item() / accumulation_weight(len(mb_idx), update_size)
                 if "is_clipped" in meta and response_mask.any():
                     clip_frac = masked_mean(meta["is_clipped"], response_mask.float()).item()
@@ -554,7 +568,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                     print(
                         f"  train_step={train_step} loss={avg_loss:.4f} "
                         f"grad_norm={grad_norm:.3f} entropy={avg_ent:.3f}"
-                        + (f" clip_frac={avg_clip:.3f}" if args.loss_type in ("grpo_clip", "grpo_no_clip") else "")
+                        + (f" clip_frac={avg_clip:.3f}" if estimator.importance_reweighting in ("grpo", "gspo", "noclip") else "")
                     )
 
                     if not args.no_wandb:
@@ -566,7 +580,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                             "train/fraction_correct": reward_meta["fraction_correct"],
                             "train_step": train_step,
                         }
-                        if args.loss_type in ("grpo_clip", "grpo_no_clip"):
+                        if estimator.importance_reweighting in ("grpo", "gspo", "noclip"):
                             log_dict["train/clip_fraction"] = avg_clip
                         wandb.log(log_dict)
 
@@ -584,7 +598,13 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
             "generated_tokens": sum(map(len, generated_ids)) if generated_ids is not None else None,
             "truncated": sum(c.finish_reason == "length" for o in vllm_outputs for c in o.outputs),
             "weight_version": getattr(vllm_model, "weight_version", None),
-            "grad_norms": step_grad_norms}) + "\n")
+            "grad_norms": step_grad_norms, "reward": reward_meta,
+            "mean_microbatch_loss": sum(micro_losses)/len(micro_losses),
+            "token_entropy": entropy_sum/max(response_token_count,1),
+            "response_token_weighted_ratio_outside_clip_fraction": clipped_token_count/max(response_token_count,1),
+            "mean_response_tokens": sum(map(len, generated_ids))/rollout_bs if generated_ids is not None else None,
+            "mean_sequence_clip_fraction": sum(sequence_clips)/len(sequence_clips) if sequence_clips else None,
+            "mean_active_clip_fraction": sum(active_clips)/len(active_clips) if active_clips else None}) + "\n")
         system_file.flush()
 
         # --- Periodic evaluation ---
@@ -723,6 +743,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--server_enforce_eager", action="store_true")
     parser.add_argument("--verify_weight_sync", action="store_true",
                         help="Cloud-only controlled weight perturbation and prefix-cache probe")
+    parser.add_argument("--baseline", choices=["mean", "none"], default=None)
+    parser.add_argument("--advantage_normalizer", choices=["std", "none", "mean"], default=None)
+    parser.add_argument("--importance_reweighting", choices=["none", "noclip", "grpo", "gspo"], default=None)
+    parser.add_argument("--loss_normalization", choices=["sequence", "constant"], default=None)
     # Evaluation
     parser.add_argument("--eval_interval", type=int, default=5)
     parser.add_argument("--n_eval_examples", type=int, default=1024)
