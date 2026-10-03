@@ -262,7 +262,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
             Path(__file__), Path(__file__).with_name("helpers.py"),
             Path(__file__).with_name("run_utils.py"), Path(__file__).with_name("estimators.py"),
             Path(__file__).with_name("policy_diagnostics.py"),
-            Path(__file__).with_name("scoring_parity.py"), project_root / "pyproject.toml",
+            project_root / "pyproject.toml",
             project_root / "cs336_alignment/section4_sft/helpers.py",
             project_root / "cs336_alignment/drgrpo_grader.py",
             project_root / "uv.lock", Path(__file__).with_name("rollout_backend.py"),
@@ -506,35 +506,10 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                 if args.scoring_probe_only and epoch == 0 and mb_start == 0:
                     if all_old_log_probs is None:
                         raise ValueError("Scoring probe requires an importance-weighted estimator")
-                    from cs336_alignment.section7_grpo.scoring_parity import probe_scoring_parity, select_probe_batch
-                    candidates = []
-                    for offset in range(0, rollout_bs, micro_bs):
-                        indices = perm[offset:offset + micro_bs]
-                        tokens = tokenize_prompt_and_output(
-                            [rollout_prompts[i] for i in indices], [rollout_responses[i] for i in indices], tokenizer,
-                            output_token_ids=None if generated_ids is None else [generated_ids[i] for i in indices])
-                        candidates.append({"indices": indices, "tokens": tokens,
-                                           "old": all_old_log_probs[indices, :tokens["input_ids"].shape[1]]})
-                    selected, candidate_diagnostics = select_probe_batch(policy, candidates)
-                    tok = candidates[selected]["tokens"]
-                    mb_idx = candidates[selected]["indices"]
-                    input_ids = tok["input_ids"].to(train_device)
-                    original_batches = []
-                    for start in sorted({(i // micro_bs) * micro_bs for i in mb_idx}):
-                        end = min(start + micro_bs, rollout_bs)
-                        original = tokenize_prompt_and_output(
-                            rollout_prompts[start:end], rollout_responses[start:end], tokenizer,
-                            output_token_ids=None if generated_ids is None else generated_ids[start:end])
-                        original = {key: value.to(train_device) for key, value in original.items()}
-                        positions = [(row, i-start) for row, i in enumerate(mb_idx) if start <= i < end]
-                        original_batches.append((original, positions))
-                    probe = probe_scoring_parity(
-                        policy, {key: value.to(train_device) for key, value in tok.items()},
-                        original_batches, all_old_log_probs[mb_idx, :input_ids.shape[1]],
-                        tokenizer.pad_token_id, args.scoring_probe_fp32_model)
-                    probe["candidate_diagnostics"] = candidate_diagnostics
-                    probe["selected_candidate"] = selected
-                    probe["example_indices"] = mb_idx
+                    from cs336_alignment.section7_grpo.policy_diagnostics import investigate_rollout_scoring
+                    probe = investigate_rollout_scoring(
+                        policy, rollout_prompts, rollout_responses, tokenizer, generated_ids,
+                        all_old_log_probs, perm, micro_bs, args.scoring_probe_fp32_model)
                     probe["grpo_step"] = grpo_step
                     (output_path / "scoring_parity_probe.json").write_text(json.dumps(probe, indent=2) + "\n")
                     print("Scoring parity probe saved; no optimizer updates or checkpoint saves.")
