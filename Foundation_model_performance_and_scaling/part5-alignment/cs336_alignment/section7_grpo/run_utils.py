@@ -56,3 +56,42 @@ def accumulation_weight(microbatch_size: int, update_size: int) -> float:
     if not 0 < microbatch_size <= update_size:
         raise ValueError("Expected 0 < microbatch_size <= update_size")
     return microbatch_size / update_size
+
+
+def training_microbatches(size: int, micro_size: int, accumulation_steps: int,
+                          layout: str = 'stable', rng=None) -> list[tuple[int, list[int], int]]:
+    """Return (example offset, row indices, actual optimizer-batch size).
+
+    Stable layout shuffles intact original microbatches, including a partial one.
+    Reshuffle reproduces the legacy per-example permutation. Each optimizer
+    update collects accumulation_steps microbatches and uses their actual count.
+    """
+    if min(size, micro_size, accumulation_steps) <= 0 or layout not in ('stable', 'reshuffle'):
+        raise ValueError('Positive batch sizes and stable/reshuffle layout required')
+    rng = random if rng is None else rng
+    indices = list(range(size))
+    if layout == 'reshuffle':
+        rng.shuffle(indices)
+    batches = [indices[start:start + micro_size] for start in range(0, size, micro_size)]
+    if layout == 'stable':
+        rng.shuffle(batches)
+    result = []
+    offset = 0
+    for i, batch in enumerate(batches):
+        start = (i // accumulation_steps) * accumulation_steps
+        actual_size = sum(len(b) for b in batches[start:start + accumulation_steps])
+        result.append((offset, batch, actual_size))
+        offset += len(batch)
+    return result
+
+
+def validate_frozen_policy_agreement(diagnostics: list[dict]) -> None:
+    """Guard stable scoring before updates; tolerances are below tight GSPO bounds."""
+    import math
+    if not diagnostics or any(
+        not math.isfinite(d['max_abs_token_log_ratio']) or
+        not math.isfinite(d['max_abs_sequence_ratio_minus_one']) or
+        d['max_abs_token_log_ratio'] > 1e-4 or
+        d['max_abs_sequence_ratio_minus_one'] > 1e-5 for d in diagnostics
+    ):
+        raise ValueError(f'Stable frozen-policy scoring agreement failed; defer tighter clipping. Diagnostics: {diagnostics}')

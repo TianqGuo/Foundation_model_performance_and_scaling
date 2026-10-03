@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 from pathlib import Path
+from cs336_alignment.section7_grpo.run_utils import validate_frozen_policy_agreement
 
 
 def summarize(base, allow_clipping_difference=False):
@@ -41,6 +42,8 @@ def summarize(base, allow_clipping_difference=False):
                 raise ValueError('Expected FP32 old/current log probabilities')
             if any(not math.isfinite(d['max_abs_sequence_ratio_minus_one']) for d in agreement):
                 raise ValueError('Nonfinite frozen-policy agreement')
+        if config.get('resolved', {}).get('microbatch_layout') == 'stable':
+            validate_frozen_policy_agreement(agreement)
         summary[method]={'run':str(run), 'final_accuracy':final['accuracy'],
             'mean_sync_seconds':sum(m['sync_seconds'] for m in metrics)/len(metrics),
             'mean_rollout_seconds':sum(m['rollout_seconds'] for m in metrics)/len(metrics),

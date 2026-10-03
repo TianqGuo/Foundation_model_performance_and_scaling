@@ -107,11 +107,11 @@ COMMON_ARGS=(
     --seed 42 --eval_seed 12345 --train_device cuda:0 --vllm_device cuda:1
     --rollout_backend server --server_enforce_eager --no_wandb
     --loss_type grpo_clip --baseline mean --advantage_normalizer std
-    --loss_normalization sequence --cliprange 0.2
+    --loss_normalization sequence --cliprange 0.2 --microbatch_layout stable
 )
 METHODS=(grpo gspo)
 if [ "${PARITY}" = 1 ]; then
-    COMMON_ARGS+=(--skip_eval --scoring_probe_only --scoring_probe_fp32_model)
+    COMMON_ARGS+=(--skip_eval --scoring_probe_only --scoring_probe_fp32_model --microbatch_layout reshuffle)
     METHODS=(grpo)
 fi
 for METHOD in "${METHODS[@]}"; do

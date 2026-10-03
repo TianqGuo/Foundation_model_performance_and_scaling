@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 from cs336_alignment.section7_grpo.run_utils import (
     accumulation_weight, create_run_directory, environment_versions,
-    evaluation_indices, file_fingerprint, resolve_rollout_device, should_evaluate,
+    evaluation_indices, file_fingerprint, resolve_rollout_device, should_evaluate, training_microbatches, validate_frozen_policy_agreement,
 )
 
 if TYPE_CHECKING:
@@ -192,6 +192,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
 
     from cs336_alignment.section7_grpo.estimators import resolve_estimator, score_rewards, build_advantages
     estimator = resolve_estimator(args)
+    microbatch_layout = args.microbatch_layout or ("stable" if args.rollout_backend == "server" else "reshuffle")
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -255,6 +256,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
         "prompt": file_fingerprint(prompt_path), "evaluation": eval_record,
         "resolved": {"train_device": train_device, "vllm_device": vllm_device,
                      "gpu_memory_utilization": vllm_mem,
+                     "microbatch_layout": microbatch_layout,
                      "micro_batch_size": args.train_batch_size // args.gradient_accumulation_steps},
         "cuda_runtime": torch.version.cuda,
         "gpus": [torch.cuda.get_device_name(i) for i in range(n_gpus)],
@@ -466,6 +468,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
         agreement = []
         initial_train_step = train_step
         step_grad_norms: list[float] = []
+        optimizer_batch_sizes: list[int] = []
         step_clip_fracs: list[float] = []
         sequence_clips: list[float] = []
         active_clips: list[float] = []
@@ -476,8 +479,9 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
 
         # --- Training epochs on this rollout batch ---
         for epoch in range(args.epochs_per_rollout_batch):
-            perm = list(range(rollout_bs))
-            random.shuffle(perm)
+            epoch_batches = training_microbatches(rollout_bs, micro_bs,
+                args.gradient_accumulation_steps, microbatch_layout)
+            perm = [i for _, indices, _ in epoch_batches for i in indices]
 
             optimizer.zero_grad()
             microbatch_count = 0
@@ -486,16 +490,12 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
             epoch_entropy = 0.0
             n_mb = 0
 
-            for mb_start in range(0, rollout_bs, micro_bs):
-                mb_end = min(mb_start + micro_bs, rollout_bs)
-                mb_idx = perm[mb_start:mb_end]
+            for mb_start, mb_idx, update_size in epoch_batches:
 
                 mb_p = [rollout_prompts[i] for i in mb_idx]
                 mb_r = [rollout_responses[i] for i in mb_idx]
                 mb_adv = advantages[mb_idx].unsqueeze(1).to(train_device)
                 mb_raw = raw_rewards[mb_idx].unsqueeze(1).to(train_device)
-                update_start = (mb_start // args.train_batch_size) * args.train_batch_size
-                update_size = min(args.train_batch_size, rollout_bs - update_start)
 
                 tok = tokenize_prompt_and_output(mb_p, mb_r, tokenizer,
                     output_token_ids=None if generated_ids is None else [generated_ids[i] for i in mb_idx])
@@ -529,7 +529,10 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                         mb_old_lp = all_old_log_probs[mb_idx, :curr_sl].to(train_device)
                         if epoch == 0 and train_step == initial_train_step:
                             from cs336_alignment.section7_grpo.policy_diagnostics import policy_agreement
-                            agreement.append(policy_agreement(policy_lp, mb_old_lp, response_mask))
+                            diagnostic = policy_agreement(policy_lp, mb_old_lp, response_mask)
+                            if microbatch_layout == "stable":
+                                validate_frozen_policy_agreement([diagnostic])
+                            agreement.append(diagnostic)
 
                     loss, meta = grpo_microbatch_train_step(
                         policy_log_probs=policy_lp,
@@ -584,6 +587,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                     train_step += 1
                     microbatch_count = 0
                     step_grad_norms.append(grad_norm)
+                    optimizer_batch_sizes.append(update_size)
 
                     avg_loss = epoch_loss / max(n_mb, 1)
                     avg_clip = epoch_clip_frac / max(n_mb, 1)
@@ -615,6 +619,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                 optimizer.zero_grad()
                 train_step += 1
                 step_grad_norms.append(grad_norm)
+                optimizer_batch_sizes.append(update_size)
 
         system_file.write(json.dumps({"grpo_step": grpo_step,
             "backend": args.rollout_backend, "sync_seconds": sync_seconds,
@@ -622,7 +627,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
             "generated_tokens": sum(map(len, generated_ids)) if generated_ids is not None else None,
             "truncated": sum(c.finish_reason == "length" for o in vllm_outputs for c in o.outputs),
             "weight_version": getattr(vllm_model, "weight_version", None),
-            "grad_norms": step_grad_norms, "reward": reward_meta,
+            "grad_norms": step_grad_norms, "optimizer_batch_sizes": optimizer_batch_sizes, "reward": reward_meta,
             "policy_agreement_before_first_update": agreement,
             "mean_microbatch_loss": sum(micro_losses)/len(micro_losses),
             "token_entropy": entropy_sum/max(response_token_count,1),
@@ -742,6 +747,8 @@ def parse_args() -> argparse.Namespace:
         default="reinforce_with_baseline",
         choices=["no_baseline", "reinforce_with_baseline", "grpo_clip", "grpo_no_clip"],
     )
+    parser.add_argument("--microbatch_layout", choices=["stable", "reshuffle"], default=None,
+                        help="Default: stable original microbatches on server; legacy example reshuffle otherwise")
     parser.add_argument("--scoring_probe_only", action="store_true",
                         help="Diagnose first rollout scoring and exit before optimizer updates")
     parser.add_argument("--scoring_probe_fp32_model", action="store_true",
