@@ -72,7 +72,7 @@ def build_advantages(rewards, group_size, baseline='mean', normalizer='std', eps
     return advantages.reshape(-1)
 
 
-def estimator_loss(advantages, policy_log_probs, response_mask, method='none', old_log_probs=None, cliprange=.2):
+def estimator_loss(advantages, policy_log_probs, response_mask, method='none', old_log_probs=None, cliprange=.2, cliprange_low=None, cliprange_high=None):
     EstimatorConfig(importance_reweighting=method)
     if policy_log_probs.ndim != 2 or response_mask.shape != policy_log_probs.shape:
         raise ValueError('Log probabilities/mask must have matching batch x token shapes')
@@ -93,10 +93,13 @@ def estimator_loss(advantages, policy_log_probs, response_mask, method='none', o
     ratio = delta.exp()
     if not torch.isfinite(ratio).all(): raise ValueError('Importance ratio overflow; abort instead of silently clipping log ratios')
     if method == 'noclip': return -a*ratio, {}
-    if cliprange is None or not 0 < cliprange < 1: raise ValueError('Clipping epsilon must be between 0 and 1')
-    clipped = ratio.clamp(1-cliprange,1+cliprange)
+    low = cliprange if cliprange_low is None else cliprange_low
+    high = cliprange if cliprange_high is None else cliprange_high
+    if low is None or high is None or not (0 < low < 1 and 0 < high < 1):
+        raise ValueError('Clipping epsilon must be between 0 and 1')
+    clipped = ratio.clamp(1-low,1+high)
     loss = -torch.minimum(ratio*a,clipped*a)
-    outside = (ratio<1-cliprange)|(ratio>1+cliprange)
+    outside = (ratio<1-low)|(ratio>1+high)
     active = (ratio*a > clipped*a)
     meta = {'is_clipped': outside.expand_as(lp).float(),
             'clip_active': active.expand_as(lp).float()}

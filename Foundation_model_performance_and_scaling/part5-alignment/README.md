@@ -327,7 +327,7 @@ Each GRPO step:
 
 Logs per-step to JSONL: step, accuracy, reward, token entropy, response length, grad norm, clip fraction, and wall-clock timestamp (for elapsed-time plots).
 
-### Stage 3 unified estimators / GSPO — cloud validation pending
+### Stage 3 unified estimators / GSPO — numerical follow-up pending
 
 GRPO now resolves independent `--baseline`, `--advantage_normalizer`,
 `--importance_reweighting` and `--loss_normalization` options. Existing
@@ -363,7 +363,11 @@ See [the Stage 3 cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md#s
 The [GSPO paper](https://arxiv.org/abs/2507.18071) motivates the sequence ratio.
 All 64 targeted CPU checks passed, including legacy objective/gradient equivalence
 and GSPO reference gradients; Python/shell syntax and whitespace checks passed.
-Historical accuracy results remain unchanged; Stage 3 GPU results are pending.
+Historical accuracy results remain unchanged. The copied 20-step pilot finished
+at 48/128 (GRPO) and 38/128 (GSPO); this single-seed comparison does not
+establish superiority. The subsequent FP32 normalization/agreement diagnostics
+and optional tighter-clipping experiment require new cloud validation. See
+the cloud runbook for commands; existing pilot artifacts remain unchanged.
 
 ### Stage 2 rollout backend — cloud-validated 2026-10-01 UTC
 

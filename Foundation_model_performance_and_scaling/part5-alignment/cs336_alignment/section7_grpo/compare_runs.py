@@ -9,7 +9,7 @@ import math
 from pathlib import Path
 
 
-def summarize(base):
+def summarize(base, allow_clipping_difference=False):
     summary={}; configs={}; subsets={}
     for method in ('grpo','gspo'):
         runs=list(base.glob(f'stage3_{method}_*'))
@@ -33,12 +33,25 @@ def summarize(base):
         # Validate saved files on cloud; never load the model.
         if not (checkpoint/'config.json').exists(): raise ValueError('Missing checkpoint configuration')
         if not list(checkpoint.glob('*.safetensors')): raise ValueError('Missing checkpoint weights')
+        agreement = [d for m in metrics for d in m.get('policy_agreement_before_first_update', [])]
+        if config['args'].get('log_prob_precision') == 'fp32':
+            if any(not m.get('policy_agreement_before_first_update') for m in metrics):
+                raise ValueError('Missing frozen-policy agreement diagnostics')
+            if any(d['current_dtype'] != 'torch.float32' or d['old_dtype'] != 'torch.float32' for d in agreement):
+                raise ValueError('Expected FP32 old/current log probabilities')
+            if any(not math.isfinite(d['max_abs_sequence_ratio_minus_one']) for d in agreement):
+                raise ValueError('Nonfinite frozen-policy agreement')
         summary[method]={'run':str(run), 'final_accuracy':final['accuracy'],
             'mean_sync_seconds':sum(m['sync_seconds'] for m in metrics)/len(metrics),
             'mean_rollout_seconds':sum(m['rollout_seconds'] for m in metrics)/len(metrics),
-            'steps':metrics,'evaluations':evaluation}
+            'steps':metrics,'evaluations':evaluation,
+            'max_frozen_sequence_ratio_deviation':max((d['max_abs_sequence_ratio_minus_one'] for d in agreement), default=None),
+            'cliprange_low':config['args'].get('cliprange_low') if config['args'].get('cliprange_low') is not None else config['args'].get('cliprange'),
+            'cliprange_high':config['args'].get('cliprange_high') if config['args'].get('cliprange_high') is not None else config['args'].get('cliprange')}
     a,b=configs['grpo'],configs['gspo']
     excluded={'run_name','importance_reweighting'}
+    if allow_clipping_difference:
+        excluded.update({'cliprange_low','cliprange_high'})
     if {k:v for k,v in a['args'].items() if k not in excluded}!={k:v for k,v in b['args'].items() if k not in excluded}:
         raise ValueError('Comparison settings differ beyond importance weighting/run name')
     for key in ('train_data','prompt','environment','resolved','sources','model','gpus','cuda_runtime'):
@@ -46,12 +59,14 @@ def summarize(base):
     if subsets['grpo']!=subsets['gspo']: raise ValueError('Evaluation subsets differ')
     (base/'comparison_summary.json').write_text(json.dumps(summary,indent=2)+'\n')
     (base/'comparison_summary.md').write_text(
-        '# Stage 3 matched comparison\n\nSingle-seed smoke/pilot; no superiority claim. '
-        'Same clipping range (0.2), sequence normalization and eager inference; '
+        '# Stage 3 matched comparison\n\nSingle-seed smoke/pilot; no superiority claim. ' +
+        ('Different clipping bounds explicitly allowed; exploratory comparison. ' if allow_clipping_difference else
+         'Matched clipping bounds. ') +
+        'Sequence normalization and eager inference; '
         'this is not a tuned GSPO replication.\n\n'
-        '| Method | Final accuracy | Mean sync (s) | Mean rollout (s) |\n'
-        '|---|---:|---:|---:|\n'+''.join(
-            f"| {k} | {v['final_accuracy']:.4f} | {v['mean_sync_seconds']:.3f} | {v['mean_rollout_seconds']:.3f} |\n"
+        '| Method | Clip low/high | Final accuracy | Mean sync (s) | Mean rollout (s) |\n'
+        '|---|---|---:|---:|---:|\n'+''.join(
+            f"| {k} | {v['cliprange_low']}/{v['cliprange_high']} | {v['final_accuracy']:.4f} | {v['mean_sync_seconds']:.3f} | {v['mean_rollout_seconds']:.3f} |\n"
             for k,v in summary.items()))
     print(f'PASS: matched GRPO/GSPO artifacts; summary saved to {base}')
 
@@ -59,6 +74,8 @@ def summarize(base):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('results',type=Path)
-    summarize(parser.parse_args().results)
+    parser.add_argument("--allow-clipping-difference", action="store_true")
+    args = parser.parse_args()
+    summarize(args.results, args.allow_clipping_difference)
 
 if __name__=='__main__':main()

@@ -93,6 +93,7 @@ def precompute_old_log_probs(
     micro_batch_size: int,
     device: str,
     output_token_ids: list[list[int]] | None = None,
+    log_probs_dtype: torch.dtype | None = None,
 ) -> torch.Tensor:
     """Compute log-probs for all rollout examples under the current (frozen) policy.
 
@@ -111,7 +112,8 @@ def precompute_old_log_probs(
                 output_token_ids=None if output_token_ids is None else output_token_ids[start:end],
             )
             lp = get_response_log_probs(
-                policy, tok["input_ids"].to(device), tok["labels"].to(device)
+                policy, tok["input_ids"].to(device), tok["labels"].to(device),
+                log_probs_dtype=log_probs_dtype,
             )["log_probs"]          # (mb, seq_len)
             chunks.append(lp.cpu())
     policy.train()
@@ -258,7 +260,8 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
         "gpus": [torch.cuda.get_device_name(i) for i in range(n_gpus)],
         "sources": [file_fingerprint(p) for p in (
             Path(__file__), Path(__file__).with_name("helpers.py"),
-            Path(__file__).with_name("run_utils.py"), Path(__file__).with_name("estimators.py"), project_root / "pyproject.toml",
+            Path(__file__).with_name("run_utils.py"), Path(__file__).with_name("estimators.py"),
+            Path(__file__).with_name("policy_diagnostics.py"), project_root / "pyproject.toml",
             project_root / "cs336_alignment/section4_sft/helpers.py",
             project_root / "cs336_alignment/drgrpo_grader.py",
             project_root / "uv.lock", Path(__file__).with_name("rollout_backend.py"),
@@ -452,12 +455,15 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
         all_old_log_probs: torch.Tensor | None = None
         if needs_old_lp:
             all_old_log_probs = precompute_old_log_probs(
-                policy, rollout_prompts, rollout_responses, tokenizer, micro_bs, train_device, generated_ids
+                policy, rollout_prompts, rollout_responses, tokenizer, micro_bs, train_device, generated_ids,
+                log_probs_dtype=torch.float32 if args.log_prob_precision == "fp32" else None,
             )
 
         policy.train()
 
         # Accumulators across all epochs in this GRPO step (for JSONL logging)
+        agreement = []
+        initial_train_step = train_step
         step_grad_norms: list[float] = []
         step_clip_fracs: list[float] = []
         sequence_clips: list[float] = []
@@ -498,7 +504,8 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
 
                 try:
                     lp_out = get_response_log_probs(
-                        policy, input_ids, labels, return_token_entropy=True
+                        policy, input_ids, labels, return_token_entropy=True,
+                        log_probs_dtype=torch.float32 if args.log_prob_precision == "fp32" else None,
                     )
                     policy_lp = lp_out["log_probs"]       # (mb, seq_len)
                     token_ent = lp_out.get("token_entropy")
@@ -507,6 +514,9 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                     if all_old_log_probs is not None:
                         curr_sl = policy_lp.shape[1]
                         mb_old_lp = all_old_log_probs[mb_idx, :curr_sl].to(train_device)
+                        if epoch == 0 and train_step == initial_train_step:
+                            from cs336_alignment.section7_grpo.policy_diagnostics import policy_agreement
+                            agreement.append(policy_agreement(policy_lp, mb_old_lp, response_mask))
 
                     loss, meta = grpo_microbatch_train_step(
                         policy_log_probs=policy_lp,
@@ -518,6 +528,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
                         estimator_config=estimator,
                         old_log_probs=mb_old_lp,
                         cliprange=args.cliprange,
+                        cliprange_low=args.cliprange_low, cliprange_high=args.cliprange_high,
                         length_norm=args.length_norm,
                         max_response_tokens=args.max_response_tokens,
                         loss_scale=accumulation_weight(len(mb_idx), update_size),
@@ -599,6 +610,7 @@ def _train(args: argparse.Namespace, cleanup: ExitStack) -> None:
             "truncated": sum(c.finish_reason == "length" for o in vllm_outputs for c in o.outputs),
             "weight_version": getattr(vllm_model, "weight_version", None),
             "grad_norms": step_grad_norms, "reward": reward_meta,
+            "policy_agreement_before_first_update": agreement,
             "mean_microbatch_loss": sum(micro_losses)/len(micro_losses),
             "token_entropy": entropy_sum/max(response_token_count,1),
             "response_token_weighted_ratio_outside_clip_fraction": clipped_token_count/max(response_token_count,1),
@@ -717,6 +729,10 @@ def parse_args() -> argparse.Namespace:
         default="reinforce_with_baseline",
         choices=["no_baseline", "reinforce_with_baseline", "grpo_clip", "grpo_no_clip"],
     )
+    parser.add_argument("--log_prob_precision", choices=["fp32", "model"], default="fp32",
+                        help="Normalize old/current training log probabilities in FP32 (model reproduces legacy precision)")
+    parser.add_argument("--cliprange_low", type=float, default=None)
+    parser.add_argument("--cliprange_high", type=float, default=None)
     parser.add_argument("--cliprange", type=float, default=0.2)
     parser.add_argument(
         "--length_norm",

@@ -149,6 +149,8 @@ def grpo_microbatch_train_step(
     max_response_tokens: int | None = None,
     loss_scale: float | None = None,
     estimator_config=None,
+    cliprange_low: float | None = None,
+    cliprange_high: float | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Forward + backward pass for one GRPO microbatch.
 
@@ -163,7 +165,7 @@ def grpo_microbatch_train_step(
         if advantages is None:
             raise ValueError("Unified estimator requires resolved advantages")
         token_loss, metadata = estimator_loss(advantages, policy_log_probs, response_mask,
-            estimator_config.importance_reweighting, old_log_probs, cliprange)
+            estimator_config.importance_reweighting, old_log_probs, cliprange, cliprange_low, cliprange_high)
         loss = aggregate_loss(token_loss, response_mask, estimator_config.loss_normalization,
                               max_response_tokens)
         scale = 1.0 / gradient_accumulation_steps if loss_scale is None else loss_scale

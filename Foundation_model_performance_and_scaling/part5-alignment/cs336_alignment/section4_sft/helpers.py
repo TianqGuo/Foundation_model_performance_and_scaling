@@ -78,6 +78,7 @@ def get_response_log_probs(
     input_ids: torch.Tensor,
     labels: torch.Tensor,
     return_token_entropy: bool = False,
+    log_probs_dtype: torch.dtype | None = None,
 ) -> dict[str, torch.Tensor]:
     """Per-token conditional log-probs from a causal LM, optionally with token entropy.
 
@@ -85,19 +86,20 @@ def get_response_log_probs(
         model:                HuggingFace causal LM
         input_ids:            (batch_size, sequence_length)
         labels:               (batch_size, sequence_length) — shifted input_ids
+        log_probs_dtype: optional normalization dtype; None preserves legacy behavior
         return_token_entropy: if True, also return per-token entropy
     Returns:
         dict with "log_probs" and optionally "token_entropy", both (batch, seq_len)
     """
     logits = model(input_ids).logits                          # (batch, seq_len, vocab)
-    log_probs_all = F.log_softmax(logits, dim=-1)
+    log_probs_all = F.log_softmax(logits, dim=-1, dtype=log_probs_dtype)
     log_probs = log_probs_all.gather(
         dim=-1, index=labels.unsqueeze(-1)
     ).squeeze(-1)                                             # (batch, seq_len)
 
     result: dict[str, torch.Tensor] = {"log_probs": log_probs}
     if return_token_entropy:
-        result["token_entropy"] = compute_entropy(logits)
+        result["token_entropy"] = -(log_probs_all.exp() * log_probs_all).nan_to_num(0.0).sum(dim=-1)
     return result
 
 
