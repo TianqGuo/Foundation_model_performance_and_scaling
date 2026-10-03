@@ -1,0 +1,3 @@
+{"grpo_step": 1, "backend": "server", "sync_seconds": 0.2009728718549013, "rollout_seconds": 3.680807155556977, "responses": 16, "generated_tokens": 3384, "truncated": 8, "weight_version": 4, "grad_norms": [0.0]}
+{"grpo_step": 2, "backend": "server", "sync_seconds": 0.21335845068097115, "rollout_seconds": 3.6089135566726327, "responses": 16, "generated_tokens": 1594, "truncated": 2, "weight_version": 5, "grad_norms": [1.609375]}
+{"grpo_step": 3, "backend": "server", "sync_seconds": 0.22475200053304434, "rollout_seconds": 3.6437863307073712, "responses": 16, "generated_tokens": 3119, "truncated": 7, "weight_version": 6, "grad_norms": [0.0]}

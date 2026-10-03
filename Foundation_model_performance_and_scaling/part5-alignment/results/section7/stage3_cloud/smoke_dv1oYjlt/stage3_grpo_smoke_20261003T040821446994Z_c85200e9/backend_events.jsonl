@@ -1,0 +1,16 @@
+{"kind": "startup", "seconds": 41.73191470094025, "weight_version": 0, "port": 35775}
+{"kind": "init_weight_sync", "seconds": 0.5614051735028625, "weight_version": 0}
+{"kind": "weight_sync", "seconds": 0.22314370144158602, "weight_version": 1, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.344350070692599, "weight_version": 1, "prompts": 4, "completions": 16, "generated_tokens": 2641, "truncated": 6}
+{"kind": "weight_sync", "seconds": 0.25019156001508236, "weight_version": 2, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.8181712543591857, "weight_version": 2, "prompts": 32, "completions": 32, "generated_tokens": 6359, "truncated": 15}
+{"kind": "weight_sync", "seconds": 0.23426242917776108, "weight_version": 3, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.683858019299805, "weight_version": 3, "prompts": 4, "completions": 16, "generated_tokens": 2720, "truncated": 7}
+{"kind": "weight_sync", "seconds": 0.2580249533057213, "weight_version": 4, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.830077774822712, "weight_version": 4, "prompts": 32, "completions": 32, "generated_tokens": 6593, "truncated": 17}
+{"kind": "weight_sync", "seconds": 0.22883424255996943, "weight_version": 5, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.6922951005399227, "weight_version": 5, "prompts": 4, "completions": 16, "generated_tokens": 3512, "truncated": 9}
+{"kind": "weight_sync", "seconds": 0.24448252841830254, "weight_version": 6, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.837962186895311, "weight_version": 6, "prompts": 32, "completions": 32, "generated_tokens": 6411, "truncated": 15}
+{"kind": "weight_sync", "seconds": 0.2830199208110571, "weight_version": 7, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.78672768548131, "weight_version": 7, "prompts": 32, "completions": 32, "generated_tokens": 6411, "truncated": 15}

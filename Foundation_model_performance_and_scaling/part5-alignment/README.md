@@ -398,8 +398,8 @@ requested on each transfer, but changed cached hidden states were not independen
 verified numerically. Historical results remain unchanged. No historical full
 retraining or reevaluation is required to complete Stages 1–2.
 
-Downloaded artifacts are currently under
-`../../2026_spring/assignment5-alignment/results/section7/stage2_cloud/validation_tyNT5Avp/`.
+Downloaded artifacts are stored under
+`results/section7/stage2_cloud/validation_tyNT5Avp/`.
 Smoke checkpoints were checked for existence on cloud but were not downloaded;
 the instance has been destroyed. W&B authentication was not exercised.
 

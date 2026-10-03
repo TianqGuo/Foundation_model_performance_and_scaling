@@ -1,0 +1,274 @@
+{
+  "grpo": {
+    "run": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/results/section7/stage3_cloud/smoke_dv1oYjlt/stage3_grpo_smoke_20261003T040821446994Z_c85200e9",
+    "final_accuracy": 0.125,
+    "mean_sync_seconds": 0.23010102411111197,
+    "mean_rollout_seconds": 3.9070947586248317,
+    "steps": [
+      {
+        "grpo_step": 1,
+        "backend": "server",
+        "sync_seconds": 0.22519927192479372,
+        "rollout_seconds": 4.344569315202534,
+        "responses": 16,
+        "generated_tokens": 2641,
+        "truncated": 6,
+        "weight_version": 1,
+        "grad_norms": [
+          0.5234375,
+          0.326171875
+        ],
+        "reward": {
+          "mean_reward": 0.0625,
+          "std_reward": 0.25,
+          "max_reward": 1.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0625,
+          "mean_format_reward": 0.0625,
+          "mean_answer_reward": 0.0625
+        },
+        "mean_microbatch_loss": -0.0022136140614748,
+        "token_entropy": 1.0177016281711473,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.008519500189322226,
+        "mean_response_tokens": 165.0625,
+        "mean_sequence_clip_fraction": null,
+        "mean_active_clip_fraction": 0.009321496821939945
+      },
+      {
+        "grpo_step": 2,
+        "backend": "server",
+        "sync_seconds": 0.23529941868036985,
+        "rollout_seconds": 3.684200305491686,
+        "responses": 16,
+        "generated_tokens": 2720,
+        "truncated": 7,
+        "weight_version": 3,
+        "grad_norms": [
+          0.0,
+          0.0
+        ],
+        "reward": {
+          "mean_reward": 0.0,
+          "std_reward": 0.0,
+          "max_reward": 0.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0,
+          "mean_format_reward": 0.125,
+          "mean_answer_reward": 0.0
+        },
+        "mean_microbatch_loss": 0.0,
+        "token_entropy": 0.5125919117647059,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.0007352941176470588,
+        "mean_response_tokens": 170.0,
+        "mean_sequence_clip_fraction": null,
+        "mean_active_clip_fraction": 0.0
+      },
+      {
+        "grpo_step": 3,
+        "backend": "server",
+        "sync_seconds": 0.2298043817281723,
+        "rollout_seconds": 3.6925146551802754,
+        "responses": 16,
+        "generated_tokens": 3512,
+        "truncated": 9,
+        "weight_version": 5,
+        "grad_norms": [
+          0.0,
+          0.0
+        ],
+        "reward": {
+          "mean_reward": 0.0,
+          "std_reward": 0.0,
+          "max_reward": 0.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0,
+          "mean_format_reward": 0.25,
+          "mean_answer_reward": 0.0
+        },
+        "mean_microbatch_loss": 0.0,
+        "token_entropy": 0.5766657175398633,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.00014236902050113895,
+        "mean_response_tokens": 219.5,
+        "mean_sequence_clip_fraction": null,
+        "mean_active_clip_fraction": 0.0
+      }
+    ],
+    "evaluations": [
+      {
+        "grpo_step": 1,
+        "train_step": 2,
+        "eval_step": 1,
+        "timestamp": 1791000556.9072664,
+        "accuracy": 0.125,
+        "format_rate": 0.40625,
+        "avg_reward": 0.125,
+        "avg_token_entropy": 0.24306943714618684,
+        "avg_response_length": 198.625,
+        "avg_grad_norm": 0.4248046875,
+        "avg_clip_frac": 0.013316140917595476
+      },
+      {
+        "grpo_step": 2,
+        "train_step": 4,
+        "eval_step": 2,
+        "timestamp": 1791000566.8910382,
+        "accuracy": 0.125,
+        "format_rate": 0.375,
+        "avg_reward": 0.125,
+        "avg_token_entropy": 0.23499253392219543,
+        "avg_response_length": 206.03125,
+        "avg_grad_norm": 0.0,
+        "avg_clip_frac": 0.0006570895493496209
+      },
+      {
+        "grpo_step": 3,
+        "train_step": 6,
+        "eval_step": 3,
+        "timestamp": 1791000576.9150352,
+        "accuracy": 0.125,
+        "format_rate": 0.4375,
+        "avg_reward": 0.125,
+        "avg_token_entropy": 0.22206100821495056,
+        "avg_response_length": 200.34375,
+        "avg_grad_norm": 0.0,
+        "avg_clip_frac": 0.0001755617995513603
+      }
+    ]
+  },
+  "gspo": {
+    "run": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/results/section7/stage3_cloud/smoke_dv1oYjlt/stage3_gspo_smoke_20261003T040954179382Z_0f937480",
+    "final_accuracy": 0.09375,
+    "mean_sync_seconds": 0.2622314340745409,
+    "mean_rollout_seconds": 3.7463787316034236,
+    "steps": [
+      {
+        "grpo_step": 1,
+        "backend": "server",
+        "sync_seconds": 0.2168220654129982,
+        "rollout_seconds": 3.8118970673531294,
+        "responses": 16,
+        "generated_tokens": 2641,
+        "truncated": 6,
+        "weight_version": 1,
+        "grad_norms": [
+          0.515625,
+          0.515625
+        ],
+        "reward": {
+          "mean_reward": 0.0625,
+          "std_reward": 0.25,
+          "max_reward": 1.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0625,
+          "mean_format_reward": 0.0625,
+          "mean_answer_reward": 0.0625
+        },
+        "mean_microbatch_loss": -0.0039859674870967865,
+        "token_entropy": 1.0184589170768648,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.0,
+        "mean_response_tokens": 165.0625,
+        "mean_sequence_clip_fraction": 0.0,
+        "mean_active_clip_fraction": 0.0
+      },
+      {
+        "grpo_step": 2,
+        "backend": "server",
+        "sync_seconds": 0.293969364836812,
+        "rollout_seconds": 3.7325864750891924,
+        "responses": 16,
+        "generated_tokens": 3271,
+        "truncated": 9,
+        "weight_version": 3,
+        "grad_norms": [
+          0.0,
+          0.0
+        ],
+        "reward": {
+          "mean_reward": 0.0,
+          "std_reward": 0.0,
+          "max_reward": 0.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0,
+          "mean_format_reward": 0.125,
+          "mean_answer_reward": 0.0
+        },
+        "mean_microbatch_loss": 0.0,
+        "token_entropy": 0.4945735249159279,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.0,
+        "mean_response_tokens": 204.4375,
+        "mean_sequence_clip_fraction": 0.0,
+        "mean_active_clip_fraction": 0.0
+      },
+      {
+        "grpo_step": 3,
+        "backend": "server",
+        "sync_seconds": 0.2759028719738126,
+        "rollout_seconds": 3.6946526523679495,
+        "responses": 16,
+        "generated_tokens": 3440,
+        "truncated": 11,
+        "weight_version": 5,
+        "grad_norms": [
+          0.0,
+          0.0
+        ],
+        "reward": {
+          "mean_reward": 0.0,
+          "std_reward": 0.0,
+          "max_reward": 0.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0,
+          "mean_format_reward": 0.125,
+          "mean_answer_reward": 0.0
+        },
+        "mean_microbatch_loss": 0.0,
+        "token_entropy": 0.3882267441860465,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.0,
+        "mean_response_tokens": 215.0,
+        "mean_sequence_clip_fraction": 0.0,
+        "mean_active_clip_fraction": 0.0
+      }
+    ],
+    "evaluations": [
+      {
+        "grpo_step": 1,
+        "train_step": 2,
+        "eval_step": 1,
+        "timestamp": 1791000627.3443983,
+        "accuracy": 0.125,
+        "format_rate": 0.34375,
+        "avg_reward": 0.125,
+        "avg_token_entropy": 0.2741601526737213,
+        "avg_response_length": 205.03125,
+        "avg_grad_norm": 0.515625,
+        "avg_clip_frac": 0.0
+      },
+      {
+        "grpo_step": 2,
+        "train_step": 4,
+        "eval_step": 2,
+        "timestamp": 1791000637.5649023,
+        "accuracy": 0.15625,
+        "format_rate": 0.28125,
+        "avg_reward": 0.15625,
+        "avg_token_entropy": 0.2516406089067459,
+        "avg_response_length": 214.0625,
+        "avg_grad_norm": 0.0,
+        "avg_clip_frac": 0.0
+      },
+      {
+        "grpo_step": 3,
+        "train_step": 6,
+        "eval_step": 3,
+        "timestamp": 1791000647.5815566,
+        "accuracy": 0.125,
+        "format_rate": 0.28125,
+        "avg_reward": 0.125,
+        "avg_token_entropy": 0.2586372196674347,
+        "avg_response_length": 215.65625,
+        "avg_grad_norm": 0.0,
+        "avg_clip_frac": 0.0
+      }
+    ]
+  }
+}

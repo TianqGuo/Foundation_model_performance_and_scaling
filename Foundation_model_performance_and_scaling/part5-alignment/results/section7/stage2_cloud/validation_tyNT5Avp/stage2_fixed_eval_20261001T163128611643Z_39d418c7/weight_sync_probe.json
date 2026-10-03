@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "initial_token": 29235,
+  "changed_token": 29236,
+  "restored_token": 29235,
+  "prompt": "The sum of two and three is",
+  "tie_word_embeddings": true,
+  "changed_row_absent_from_prompt": true,
+  "checks": [
+    "initial_parity",
+    "changed_weights",
+    "repeated_prompt_consistency",
+    "restoration"
+  ]
+}
