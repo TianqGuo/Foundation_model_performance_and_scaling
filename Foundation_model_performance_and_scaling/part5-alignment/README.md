@@ -327,173 +327,53 @@ Each GRPO step:
 
 Logs per-step to JSONL: step, accuracy, reward, token entropy, response length, grad norm, clip fraction, and wall-clock timestamp (for elapsed-time plots).
 
-### Stage 3 unified estimators / GSPO — numerical follow-up pending
+### Modernized training and rollout backend
 
-GRPO now resolves independent `--baseline`, `--advantage_normalizer`,
-`--importance_reweighting` and `--loss_normalization` options. Existing
-`--loss_type`, `--no_std_normalization` and `--length_norm` remain compatibility
-aliases; explicit options take precedence and the resolved estimator is saved
-in `run_config.json`. Reward scoring, advantages, surrogate loss and loss
-aggregation are separate helpers. No zero-advantage pruning is introduced.
+The server backend separates policy training and vLLM inference across GPUs,
+with NCCL policy-weight synchronization. The validated modern stack uses
+Torch 2.10.0/cu129, vLLM 0.19.1 and Transformers 4.57.6 with SDPA training.
+Existing runners retain the legacy backend.
 
-GSPO uses `s = exp(sum_response(log_pi - log_pi_old) / response_length)` and
-clips the sequence surrogate `-min(s*A, clip(s)*A)`. With sequence normalization,
-each response contributes that surrogate once. Constant normalization uses
-`sum(masked_token_loss)/(batch_size * max_response_tokens)`; for GSPO this
-weights each sequence surrogate by `response_length/max_response_tokens`, so
-it is a distinct length-weighted variant. Ratios use FP32 arithmetic for half-
-precision log probabilities; zero-length responses/nonfinite ratios abort rather
-than silently skipping data. Standard deviation uses sample statistics, with a
-zero standard deviation for singleton groups.
+Two-GPU execution checks passed on A100-SXM4 40 GB GPUs. Synchronization took
+0.20–0.28 seconds and generation took 3.61–3.86 seconds for 16 responses capped
+at 256 tokens with eager inference. These are smoke timings, not a comparative
+throughput benchmark.
 
-For the first matched comparison, use the validated Stage 2 environment on the
-cloud, after transferring/pulling Stage 3 edits:
+The unified estimator supports independent baseline, advantage normalization,
+importance weighting and loss normalization settings. GSPO adds sequence-level
+importance weighting and clipping; existing GRPO options remain supported.
 
-```bash
-bash cs336_alignment/section7_grpo/stage3_cloud_compare.sh
-# After smoke passes:
-bash cs336_alignment/section7_grpo/stage3_cloud_compare.sh --pilot
-```
+### GRPO-Clip versus GSPO: preliminary comparison
 
-The first command runs both estimators for three steps; the pilot uses 20 steps
-and four optimization epochs per rollout. Both retain Qwen/MATH, matched seeds,
-fixed evaluation, sequence normalization and epsilon 0.2. This is a controlled
-single-seed pilot, not a tuned GSPO replication or evidence of superiority.
-See [the Stage 3 cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md#stage-3-unified-estimators-and-matched-grpogspo-comparison).
-The [GSPO paper](https://arxiv.org/abs/2507.18071) motivates the sequence ratio.
-All 64 targeted CPU checks passed, including legacy objective/gradient equivalence
-and GSPO reference gradients; Python/shell syntax and whitespace checks passed.
-Historical accuracy results remain unchanged. The copied 20-step pilot finished
-at 48/128 (GRPO) and 38/128 (GSPO); this single-seed comparison does not
-establish superiority. The subsequent FP32 normalization/agreement diagnostics
-and optional tighter-clipping experiment require new cloud validation. See
-the cloud runbook for commands; existing pilot artifacts remain unchanged.
+Qwen2.5-Math-1.5B on MATH; one matched seed, 20 rollout steps, four optimization
+epochs per rollout, a fixed 128-example evaluation subset, sequence-normalized
+loss, and a 256-token response cap. Both methods used clipping epsilon 0.2 and
+BF16 log-probability normalization in this original pilot.
 
-### Stage 2 rollout backend — cloud-validated 2026-10-01 UTC
+| Method | Final accuracy | Correct / evaluated |
+|---|---:|---:|
+| GRPO-Clip | 37.50% | 48 / 128 |
+| GSPO | 29.69% | 38 / 128 |
 
-The optional `--rollout_backend server` path runs vLLM 0.19.1 on a separate
-inference GPU and transfers policy parameters over NCCL. It pauses serving,
-updates weights, resets prefix caches and resumes. It preserves the evaluation
-interface, records native completion IDs/finish reasons, and logs synchronization
-and generation timings. Training uses the native IDs and validates prompt-token
-alignment. The legacy backend remains the default for existing runners.
+This single-seed pilot is not a tuned GSPO replication and does not establish
+algorithm superiority. Equal numeric clipping bounds do not impose equivalent
+constraints for token-level GRPO and sequence-level GSPO.
+[Experiment artifacts](results/section7/stage3_cloud/pilot_JrROtPmB/).
 
-Use the separate locked `.venv-server` environment (Torch 2.10.0/cu129,
-Transformers 4.57.6, W&B 0.22.3; SDPA trainer). On the cloud, after transferring
-local edits and restoring the usual MATH data:
+### Evaluation protocol
 
-```bash
-bash cs336_alignment/section7_grpo/stage2_cloud_setup.sh
-bash cs336_alignment/section7_grpo/stage2_cloud_smoke.sh
-```
+New runs save a fixed evaluation subset and record configuration, package
+versions, input/source fingerprints and hardware in `run_config.json`. Output
+folders are unique per run. Partial optimizer batches use example-weighted
+accumulation; `--skip_eval` disables evaluation independently of rollout placement.
 
-See [the Stage 2 cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md#stage-2-separate-server-and-nccl-transfer-validated-2026-10-01-utc)
-for source transfer, driver requirements, CPU checks and output preservation.
-Do not use the legacy FlashAttention wheel for this environment. Local checks
-load no checkpoints. Both three-step cloud runs passed on two A100-SXM4 40 GB
-GPUs, and the downloaded configs, probe, rollout/evaluation records and shutdown
-files were verified locally. Actual stack: Python 3.12.14, Torch 2.10.0/cu129,
-vLLM 0.19.1, Transformers 4.57.6 and W&B 0.22.3; no standalone `flash-attn`.
-Rollout weight synchronization took 0.20–0.28 seconds per step and generation
-3.61–3.86 seconds for 16 responses with a 256-token cap (eager inference).
-These are smoke timings, not a speedup or accuracy benchmark. The probe verified
-changed output weights and restoration on a repeated prompt; cache reset was
-requested on each transfer, but changed cached hidden states were not independently
-verified numerically. Historical results remain unchanged. No historical full
-retraining or reevaluation is required to complete Stages 1–2.
+Historical Section 8 curves used resampled evaluation subsets and retain their
+original results. Their no-std ablation retained sequence normalization; it is
+not the complete Dr. GRPO configuration, which also requires constant loss
+normalization.
 
-Downloaded artifacts are stored under
-`results/section7/stage2_cloud/validation_tyNT5Avp/`.
-Smoke checkpoints were checked for existence on cloud but were not downloaded;
-the instance has been destroyed. W&B authentication was not exercised.
-
-### Stage 1 baseline cleanup — validated 2026-10-01 UTC
-
-Future GRPO runs evaluate the same saved subset at every periodic evaluation and
-at final evaluation. `--eval_seed` defaults to 12345 and uses a separate RNG;
-`--n_eval_examples` controls both periodic and final evaluation size. The saved
-indices refer to the nonempty JSONL records in validation-file order, and the
-file SHA-256 identifies the dataset used. `--skip_eval` disables all evaluation
-without changing rollout GPU placement or reading validation data.
-
-Every invocation creates a unique subdirectory beneath `--output`. It contains
-`run_config.json` (arguments, actual package versions, GPU information, source/
-input fingerprints, resolved devices and batch size), `evaluation_subset.json`,
-and the run's evaluation logs. Checkpoints also use that unique run identifier.
-Pass the printed run directory to plotting tools. Existing logs, pictures,
-checkpoints and saved data are preserved.
-
-Historical Section 8 curves used newly sampled validation subsets at each
-periodic evaluation; final evaluation could use up to 2048 examples. Their
-reported values remain historical results and should not be silently compared
-with the new fixed-subset protocol. The Section 8.4 no-std experiment retained
-sequence-length normalization: the complete 2026 Dr. GRPO preset also requires
-constant loss normalization.
-
-Microbatch means are now weighted by their share of the actual optimizer batch,
-including a shorter final batch. Evenly divisible configurations retain the
-previous scaling. GPU failures abort the run instead of silently skipping data
-and discarding accumulated gradients.
-
-The legacy stack remains unchanged: vLLM 0.7.2 and FlashAttention 2.7.4.post1,
-Qwen2.5-Math-1.5B, MATH, and the existing prompt/reward choices. Existing experiment
-scripts retain their hyperparameters. `uv.lock` records dependency candidates;
-`run_config.json` records the packages actually installed on the cloud machine.
-W&B is pinned to 0.22.3 for newer API key compatibility; it is installed by the
-normal environment sync without patching installed files. GPU dependency
-upgrades remain part of Stage 2.
-
-Local validation passed: 20 targeted tests (14 existing GRPO tests and 6 new
-regression checks), Python syntax, and shell syntax checks. Tests used CPU
-tensors only, without loading checkpoints. Reproduce the test checks with:
-
-```bash
-CUDA_VISIBLE_DEVICES='' .venv/bin/python -m pytest tests/test_grpo.py tests/test_grpo_run_config.py -q
-bash -n cs336_alignment/section7_grpo/part_5_7.sh
-```
-
-For a fresh Vast.ai instance, follow the [cloud setup and validation guide](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md). It covers code transfer, the legacy GPU environment, W&B and a script that runs both smoke checks.
-
-After cloud initialization, run from the Part 5 root:
-
-```bash
-bash cs336_alignment/section7_grpo/stage1_cloud_smoke.sh
-```
-
-The script discovers model/data paths automatically, runs three steps with
-fixed evaluation and three with evaluation disabled, and checks the generated
-artifacts. No path variables are required for the standard layout. Run it only
-on the cloud; these short runs verify execution, not accuracy
-benchmarks. Cloud execution validation passed on 2026-10-01 UTC: both
-`stage1_fixed_eval` and `stage1_skip_eval` reported `PASS`. The downloaded artifacts and both console logs are preserved
-under `results/section7/stage1_cloud/` and were reviewed locally. Both runs used two A100-SXM4
-40 GB GPUs, Python 3.12.14, Torch 2.5.1 / CUDA 12.4, vLLM 0.7.2, Transformers
-4.51.3, FlashAttention 2.7.4.post1 and W&B 0.22.3. Source/dependency/input
-fingerprints match local files; the saved 32-example subset is reproducible
-from seed 12345. The enabled run contains exactly three evaluation records
-and a final evaluation matching the last record; the disabled run has none.
-Both console logs are free of tracebacks. W&B authentication was not exercised.
-The cloud instance has been destroyed; saved checkpoint paths identify its
-former locations, and the smoke checkpoints were not downloaded. An NCCL
-process-group cleanup warning occurred on shutdown
-without preventing completion; lifecycle cleanup remains a Stage 2 concern.
-
-Smoke results on the fixed 32-example subset (256-token response cap):
-
-| GRPO step | Accuracy | Mean reward | Gradient norm |
-|---|---|---|---|
-| 1 | 12.5% | 0.125 | 0.613 |
-| 2 | 18.75% | 0.1875 | 0.000 |
-| 3 / final | 18.75% | 0.1875 | 0.000 |
-
-The gradient norms at steps 2–3 are zero because all training rollout rewards
-were zero, giving zero group-centered advantages. This is expected for the small
-smoke batch. The skip-evaluation run had gradient norms 0.613, 0.660 and 0.863.
-These results validate execution and bookkeeping, not improvement against the
-historical benchmark. Evaluation and rollout generation share the legacy vLLM
-engine, so keep the evaluation schedule identical in future controlled algorithm
-comparisons; the fixed subset isolates Python evaluation sampling, not the
-engine's generation RNG.
+Reproduction and cloud setup instructions are in the
+[cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md).
 
 ### Usage
 
@@ -926,35 +806,13 @@ Historical experiment environments (retained for interpreting saved results):
 
 ## Setup
 
-Model loading, inference and training run on cloud machines such as Vast.ai.
-Local work is limited to static checks and lightweight CPU tests without model
-checkpoints. For the full initialization and transfer instructions, use the
-[cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md).
+Run model loading, inference and training on cloud GPUs. The modern server
+backend uses `.venv-server`; legacy runners use `.venv`. Historical full GRPO
+experiments used two A100 80 GB GPUs; execution checks used two A100 40 GB GPUs.
 
-The validated Stage 1 cloud environment uses Python 3.12.14, Torch 2.5.1 / CUDA
-12.4, Transformers 4.51.3, vLLM 0.7.2, FlashAttention 2.7.4.post1 and W&B 0.22.3.
-Two A100-SXM4 40 GB GPUs passed the smoke checks; the historical full GRPO runs
-used two A100 80 GB GPUs. GPU dependency modernization has not started.
-
-From the Part 5 root on a fresh compatible cloud instance:
-
-```bash
-uv python install 3.12
-uv sync --frozen --python 3.12 --no-install-package flash-attn
-uv pip install --python .venv/bin/python --no-deps \
-  'https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.5cxx11abiFALSE-cp312-cp312-linux_x86_64.whl'
-export UV_NO_SYNC=1
-```
-
-The wheel requires Linux x86_64, CPython 3.12, Torch 2.5 and the matching CUDA/C++
-ABI; the runbook includes compatibility checks. W&B 0.22.3 is pinned and installs
-through normal sync. Smoke validation disables tracking; later tracked runs
-require authentication, without patching installed SDK files.
-
-Shell scripts discover cached models and data in the established project/cluster
-locations and download a missing model on the cloud. Preserve the same MATH
-files. New cloud clones also need unpublished local changes transferred; the
-runbook includes a bundle command containing source and dependency files.
+See the [cloud runbook](cs336_alignment/section7_grpo/CLOUD_RUNBOOK.md) for
+compatible environments, initialization commands, data/model discovery and
+artifact preservation.
 
 ---
 
@@ -972,9 +830,7 @@ The broader suite includes tokenizer/model fixtures and should run on the cloud:
 .venv/bin/python -m pytest -v
 ```
 
-Run from the Part 5 root so snapshot paths resolve correctly. Stage 1 passed
-20 targeted CPU tests and both cloud smoke runs. Stage 2 implementation is available;
-both Stage 2 cloud runs and local artifact review passed (see the cloud runbook).
+Run from the Part 5 root so snapshot paths resolve correctly.
 
 ---
 

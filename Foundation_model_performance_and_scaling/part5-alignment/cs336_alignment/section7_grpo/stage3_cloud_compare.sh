@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # CLOUD ONLY: matched GRPO-Clip / GSPO runs in the validated Stage 2 environment.
-# USAGE: bash cs336_alignment/section7_grpo/stage3_cloud_compare.sh [--pilot] [--gspo-tight]
+# USAGE: bash cs336_alignment/section7_grpo/stage3_cloud_compare.sh [--pilot] [--gspo-tight] [--parity-only]
+# --parity-only: one rollout, BF16/FP32 scoring probes, no optimizer updates.
 # Default: two 3-step smoke runs, 16 rollouts, 2 optimization epochs, eval32.
 # --pilot: two 20-step pilot runs, 64 rollouts, 4 epochs, fixed eval128 every5.
 # --gspo-tight: exploratory GSPO bounds 3e-4/4e-4; GRPO remains .2.
@@ -74,20 +75,26 @@ EVAL=32
 INTERVAL=1
 TIME_LIMIT=20m
 TIGHT=0
+PARITY=0
 for OPTION in "$@"; do
 if [ "${OPTION}" = --pilot ]; then
     MODE=pilot; STEPS=20; ROLLOUT=64; TRAIN_BATCH=32; EPOCHS=4
     EVAL=128; INTERVAL=5; TIME_LIMIT=90m
+elif [ "${OPTION}" = --parity-only ]; then
+    PARITY=1
 elif [ "${OPTION}" = --gspo-tight ]; then
     TIGHT=1
 else
-    echo 'Usage: stage3_cloud_compare.sh [--pilot] [--gspo-tight]'; exit 2
+    echo 'Usage: stage3_cloud_compare.sh [--pilot] [--gspo-tight] [--parity-only]'; exit 2
 fi
 done
 COMPARE_ARGS=()
 if [ "${TIGHT}" = 1 ]; then
     MODE="tight_${MODE}"
     COMPARE_ARGS=(--allow-clipping-difference)
+fi
+if [ "${PARITY}" = 1 ]; then
+    MODE=parity; STEPS=1
 fi
 mkdir -p "${ROOT}/results/section7/stage3_cloud"
 OUTPUT_DIR="$(mktemp -d "${ROOT}/results/section7/stage3_cloud/${MODE}_XXXXXXXX")"
@@ -102,7 +109,12 @@ COMMON_ARGS=(
     --loss_type grpo_clip --baseline mean --advantage_normalizer std
     --loss_normalization sequence --cliprange 0.2
 )
-for METHOD in grpo gspo; do
+METHODS=(grpo gspo)
+if [ "${PARITY}" = 1 ]; then
+    COMMON_ARGS+=(--skip_eval --scoring_probe_only --scoring_probe_fp32_model)
+    METHODS=(grpo)
+fi
+for METHOD in "${METHODS[@]}"; do
     METHOD_ARGS=()
     if [ "${TIGHT}" = 1 ] && [ "${METHOD}" = gspo ]; then
         METHOD_ARGS=(--cliprange_low 0.0003 --cliprange_high 0.0004)
@@ -113,5 +125,25 @@ for METHOD in grpo gspo; do
       --importance_reweighting "${METHOD}" --run_name "stage3_${METHOD}_${MODE}" \
       2>&1 | tee "${OUTPUT_DIR}/${METHOD}_console.log"
 done
-"${PYTHON}" -m cs336_alignment.section7_grpo.compare_runs "${OUTPUT_DIR}" "${COMPARE_ARGS[@]}"
+if [ "${PARITY}" = 1 ]; then
+    "${PYTHON}" - "${OUTPUT_DIR}" <<'PYCHECK'
+import json, math, sys
+from pathlib import Path
+base = Path(sys.argv[1])
+runs = list(base.glob('stage3_grpo_*'))
+assert len(runs) == 1
+run = runs[0]
+probe = json.loads((run/'scoring_parity_probe.json').read_text())
+assert probe['optimizer_updates'] == 0 and 'fp32_model' in probe
+shutdown = json.loads((run/'server_shutdown.json').read_text())
+assert shutdown['stopped'] and shutdown['returncode'] == 0
+for group in ('model_precision', 'fp32_model'):
+    for name, item in probe[group].items():
+        assert math.isfinite(item['max_abs_sequence_ratio_minus_one'])
+        print(group, name, item['max_abs_sequence_ratio_minus_one'])
+print('PASS: scoring investigation executed; numerical parity is NOT asserted.')
+PYCHECK
+else
+    "${PYTHON}" -m cs336_alignment.section7_grpo.compare_runs "${OUTPUT_DIR}" "${COMPARE_ARGS[@]}"
+fi
 echo "Keep this folder before destroying the instance: ${OUTPUT_DIR}"
