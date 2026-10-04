@@ -16,11 +16,9 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 | [Part 6](#part-6-instruction-tuning--rlhf) | Instruction Tuning & RLHF | SFT raises AlpacaEval win rate 37.8%→62.9% and GSM8K 16.3%→30.6%; DPO improves MMLU to 58.9% and safety to 72%; loss formulation ablation identifies dominant safety regression factor | [README](Foundation_model_performance_and_scaling/part6-instruction-tuning-rlhf/README.md) |
 
 ---
-## Hardware & Environment
+## Hardware
 
 Experiments were run across local and cloud GPU environments using NVIDIA RTX 4090, A100, H100, and H200 GPUs, with CPU-based processing for scaling-law and data-pipeline workloads. Both single- and multi-GPU configurations were used depending on the experiment.
-
-**Primary software stack:** PyTorch 2.5–2.7, Triton 3.0, CUDA 12.4, FlashAttention-2, and vLLM.
 
 Exact hardware configurations, benchmark settings, and GPU counts are documented in the corresponding part READMEs and experiment sections.
 
