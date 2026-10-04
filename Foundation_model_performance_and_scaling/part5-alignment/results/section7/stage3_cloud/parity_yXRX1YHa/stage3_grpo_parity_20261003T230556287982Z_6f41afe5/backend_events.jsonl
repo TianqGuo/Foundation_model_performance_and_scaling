@@ -1,0 +1,4 @@
+{"kind": "startup", "seconds": 43.714802008122206, "weight_version": 0, "port": 50389}
+{"kind": "init_weight_sync", "seconds": 0.5756758600473404, "weight_version": 0}
+{"kind": "weight_sync", "seconds": 0.2282627560198307, "weight_version": 1, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.337611071765423, "weight_version": 1, "prompts": 4, "completions": 16, "generated_tokens": 2641, "truncated": 6}

@@ -1,0 +1,16 @@
+{"kind": "startup", "seconds": 20.637083910405636, "weight_version": 0, "port": 36135}
+{"kind": "init_weight_sync", "seconds": 0.5802656188607216, "weight_version": 0}
+{"kind": "weight_sync", "seconds": 0.22282233648002148, "weight_version": 1, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.878817832097411, "weight_version": 1, "prompts": 4, "completions": 16, "generated_tokens": 2641, "truncated": 6}
+{"kind": "weight_sync", "seconds": 0.31537559628486633, "weight_version": 2, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.916062820702791, "weight_version": 2, "prompts": 32, "completions": 32, "generated_tokens": 6557, "truncated": 15}
+{"kind": "weight_sync", "seconds": 0.31746650114655495, "weight_version": 3, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.7411240208894014, "weight_version": 3, "prompts": 4, "completions": 16, "generated_tokens": 2526, "truncated": 5}
+{"kind": "weight_sync", "seconds": 0.282768189907074, "weight_version": 4, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.890211995691061, "weight_version": 4, "prompts": 32, "completions": 32, "generated_tokens": 6629, "truncated": 18}
+{"kind": "weight_sync", "seconds": 0.2935652229934931, "weight_version": 5, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.755525752902031, "weight_version": 5, "prompts": 4, "completions": 16, "generated_tokens": 3306, "truncated": 11}
+{"kind": "weight_sync", "seconds": 0.315155653283, "weight_version": 6, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.8933194261044264, "weight_version": 6, "prompts": 32, "completions": 32, "generated_tokens": 6811, "truncated": 19}
+{"kind": "weight_sync", "seconds": 0.2567399386316538, "weight_version": 7, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.865392232313752, "weight_version": 7, "prompts": 32, "completions": 32, "generated_tokens": 6811, "truncated": 19}

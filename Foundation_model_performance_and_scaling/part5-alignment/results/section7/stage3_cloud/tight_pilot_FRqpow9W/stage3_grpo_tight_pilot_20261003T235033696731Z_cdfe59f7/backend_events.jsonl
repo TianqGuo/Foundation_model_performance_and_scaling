@@ -1,0 +1,52 @@
+{"kind": "startup", "seconds": 21.074105637148023, "weight_version": 0, "port": 49315}
+{"kind": "init_weight_sync", "seconds": 0.5421465635299683, "weight_version": 0}
+{"kind": "weight_sync", "seconds": 0.2367444708943367, "weight_version": 1, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.083776406943798, "weight_version": 1, "prompts": 16, "completions": 64, "generated_tokens": 12476, "truncated": 29}
+{"kind": "weight_sync", "seconds": 0.23077114298939705, "weight_version": 2, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.0270422752946615, "weight_version": 2, "prompts": 16, "completions": 64, "generated_tokens": 11105, "truncated": 23}
+{"kind": "weight_sync", "seconds": 0.29929593950510025, "weight_version": 3, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.592980956658721, "weight_version": 3, "prompts": 16, "completions": 64, "generated_tokens": 12283, "truncated": 30}
+{"kind": "weight_sync", "seconds": 0.2659497559070587, "weight_version": 4, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.952754771336913, "weight_version": 4, "prompts": 16, "completions": 64, "generated_tokens": 11488, "truncated": 28}
+{"kind": "weight_sync", "seconds": 0.23269617184996605, "weight_version": 5, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.359359225258231, "weight_version": 5, "prompts": 16, "completions": 64, "generated_tokens": 8759, "truncated": 19}
+{"kind": "weight_sync", "seconds": 0.29924660362303257, "weight_version": 6, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.2825584448874, "weight_version": 6, "prompts": 128, "completions": 128, "generated_tokens": 23133, "truncated": 45}
+{"kind": "weight_sync", "seconds": 0.21561742387712002, "weight_version": 7, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.865531189367175, "weight_version": 7, "prompts": 16, "completions": 64, "generated_tokens": 9396, "truncated": 19}
+{"kind": "weight_sync", "seconds": 0.285736670717597, "weight_version": 8, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.9157469924539328, "weight_version": 8, "prompts": 16, "completions": 64, "generated_tokens": 10745, "truncated": 25}
+{"kind": "weight_sync", "seconds": 0.2785089761018753, "weight_version": 9, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.9357442874461412, "weight_version": 9, "prompts": 16, "completions": 64, "generated_tokens": 9049, "truncated": 15}
+{"kind": "weight_sync", "seconds": 0.33591631799936295, "weight_version": 10, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.9903911780565977, "weight_version": 10, "prompts": 16, "completions": 64, "generated_tokens": 10305, "truncated": 17}
+{"kind": "weight_sync", "seconds": 0.24826515838503838, "weight_version": 11, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.939229840412736, "weight_version": 11, "prompts": 16, "completions": 64, "generated_tokens": 10554, "truncated": 20}
+{"kind": "weight_sync", "seconds": 0.2598057072609663, "weight_version": 12, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.249644776806235, "weight_version": 12, "prompts": 128, "completions": 128, "generated_tokens": 19596, "truncated": 25}
+{"kind": "weight_sync", "seconds": 0.25626404769718647, "weight_version": 13, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.915248215198517, "weight_version": 13, "prompts": 16, "completions": 64, "generated_tokens": 10694, "truncated": 22}
+{"kind": "weight_sync", "seconds": 0.2734884973615408, "weight_version": 14, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.8696098644286394, "weight_version": 14, "prompts": 16, "completions": 64, "generated_tokens": 9382, "truncated": 14}
+{"kind": "weight_sync", "seconds": 0.2687493581324816, "weight_version": 15, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.94962864741683, "weight_version": 15, "prompts": 16, "completions": 64, "generated_tokens": 9314, "truncated": 13}
+{"kind": "weight_sync", "seconds": 0.3271464928984642, "weight_version": 16, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.9053369909524918, "weight_version": 16, "prompts": 16, "completions": 64, "generated_tokens": 9833, "truncated": 18}
+{"kind": "weight_sync", "seconds": 0.2449956927448511, "weight_version": 17, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.9158647805452347, "weight_version": 17, "prompts": 16, "completions": 64, "generated_tokens": 10528, "truncated": 20}
+{"kind": "weight_sync", "seconds": 0.26195865496993065, "weight_version": 18, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.1731527876108885, "weight_version": 18, "prompts": 128, "completions": 128, "generated_tokens": 20356, "truncated": 29}
+{"kind": "weight_sync", "seconds": 0.25501999631524086, "weight_version": 19, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.8993555530905724, "weight_version": 19, "prompts": 16, "completions": 64, "generated_tokens": 9465, "truncated": 20}
+{"kind": "weight_sync", "seconds": 0.2509408760815859, "weight_version": 20, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.9476821161806583, "weight_version": 20, "prompts": 16, "completions": 64, "generated_tokens": 9879, "truncated": 12}
+{"kind": "weight_sync", "seconds": 0.22568555176258087, "weight_version": 21, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.9334751162678003, "weight_version": 21, "prompts": 16, "completions": 64, "generated_tokens": 10243, "truncated": 13}
+{"kind": "weight_sync", "seconds": 0.2964473720639944, "weight_version": 22, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.9081105813384056, "weight_version": 22, "prompts": 16, "completions": 64, "generated_tokens": 9758, "truncated": 20}
+{"kind": "weight_sync", "seconds": 0.22123542055487633, "weight_version": 23, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.929360592737794, "weight_version": 23, "prompts": 16, "completions": 64, "generated_tokens": 9899, "truncated": 18}
+{"kind": "weight_sync", "seconds": 0.238683195784688, "weight_version": 24, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.251701358705759, "weight_version": 24, "prompts": 128, "completions": 128, "generated_tokens": 20713, "truncated": 29}
+{"kind": "weight_sync", "seconds": 0.30651773884892464, "weight_version": 25, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 4.250284558162093, "weight_version": 25, "prompts": 128, "completions": 128, "generated_tokens": 20713, "truncated": 29}

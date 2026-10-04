@@ -1,0 +1,772 @@
+{
+  "grpo": {
+    "run": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/results/section7/stage3_cloud/smoke_sztI4jia/stage3_grpo_smoke_20261003T223025906221Z_568132a8",
+    "final_accuracy": 0.09375,
+    "mean_sync_seconds": 0.25633861621220905,
+    "mean_rollout_seconds": 3.7455922197550535,
+    "steps": [
+      {
+        "grpo_step": 1,
+        "backend": "server",
+        "sync_seconds": 0.23676593229174614,
+        "rollout_seconds": 3.8525263592600822,
+        "responses": 16,
+        "generated_tokens": 2641,
+        "truncated": 6,
+        "weight_version": 1,
+        "grad_norms": [
+          0.5234375,
+          0.3359375
+        ],
+        "reward": {
+          "mean_reward": 0.0625,
+          "std_reward": 0.25,
+          "max_reward": 1.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0625,
+          "mean_format_reward": 0.0625,
+          "mean_answer_reward": 0.0625
+        },
+        "policy_agreement_before_first_update": [
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 304,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0034799003042280674,
+            "max_abs_token_log_ratio": 0.11558270454406738,
+            "max_abs_sequence_log_ratio": 0.007167461793869734,
+            "max_abs_sequence_ratio_minus_one": 0.007141836918890476
+          },
+          {
+            "responses": 2,
+            "tokens": 197,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.02182335965335369,
+            "max_abs_token_log_ratio": 0.16065335273742676,
+            "max_abs_sequence_log_ratio": 0.0028913042042404413,
+            "max_abs_sequence_ratio_minus_one": 0.0028954881709069014
+          },
+          {
+            "responses": 2,
+            "tokens": 322,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.004136805422604084,
+            "max_abs_token_log_ratio": 0.13990402221679688,
+            "max_abs_sequence_log_ratio": 0.004103899467736483,
+            "max_abs_sequence_ratio_minus_one": 0.0041123321279883385
+          },
+          {
+            "responses": 2,
+            "tokens": 303,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0029606064781546593,
+            "max_abs_token_log_ratio": 0.12078714370727539,
+            "max_abs_sequence_log_ratio": 0.002640555612742901,
+            "max_abs_sequence_ratio_minus_one": 0.0026440450455993414
+          },
+          {
+            "responses": 2,
+            "tokens": 204,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 287,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          }
+        ],
+        "mean_microbatch_loss": -0.0022366950288414955,
+        "token_entropy": 1.0182469608836984,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.008519500189322226,
+        "mean_response_tokens": 165.0625,
+        "mean_sequence_clip_fraction": null,
+        "mean_active_clip_fraction": 0.008656603284180164
+      },
+      {
+        "grpo_step": 2,
+        "backend": "server",
+        "sync_seconds": 0.2363786343485117,
+        "rollout_seconds": 3.6981202960014343,
+        "responses": 16,
+        "generated_tokens": 2976,
+        "truncated": 8,
+        "weight_version": 3,
+        "grad_norms": [
+          0.384765625,
+          0.283203125
+        ],
+        "reward": {
+          "mean_reward": 0.0625,
+          "std_reward": 0.25,
+          "max_reward": 1.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0625,
+          "mean_format_reward": 0.1875,
+          "mean_answer_reward": 0.0625
+        },
+        "policy_agreement_before_first_update": [
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 306,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 231,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.022917551919817924,
+            "max_abs_token_log_ratio": 0.14351797103881836,
+            "max_abs_sequence_log_ratio": 0.0021907081827521324,
+            "max_abs_sequence_ratio_minus_one": 0.002188310259953141
+          },
+          {
+            "responses": 2,
+            "tokens": 442,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 193,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.007847581058740616,
+            "max_abs_token_log_ratio": 0.1137537956237793,
+            "max_abs_sequence_log_ratio": 0.007162841968238354,
+            "max_abs_sequence_ratio_minus_one": 0.007137250155210495
+          },
+          {
+            "responses": 2,
+            "tokens": 328,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0033849000465124846,
+            "max_abs_token_log_ratio": 0.09981846809387207,
+            "max_abs_sequence_log_ratio": 0.0005423803231678903,
+            "max_abs_sequence_ratio_minus_one": 0.0005422332906164229
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 452,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          }
+        ],
+        "mean_microbatch_loss": -0.0009025922045111656,
+        "token_entropy": 0.4893650598423455,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.003360215053763441,
+        "mean_response_tokens": 186.0,
+        "mean_sequence_clip_fraction": null,
+        "mean_active_clip_fraction": 0.001924971118569374
+      },
+      {
+        "grpo_step": 3,
+        "backend": "server",
+        "sync_seconds": 0.29587128199636936,
+        "rollout_seconds": 3.686130004003644,
+        "responses": 16,
+        "generated_tokens": 3500,
+        "truncated": 10,
+        "weight_version": 5,
+        "grad_norms": [
+          1.25,
+          0.85546875
+        ],
+        "reward": {
+          "mean_reward": 0.0625,
+          "std_reward": 0.25,
+          "max_reward": 1.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0625,
+          "mean_format_reward": 0.125,
+          "mean_answer_reward": 0.0625
+        },
+        "policy_agreement_before_first_update": [
+          {
+            "responses": 2,
+            "tokens": 423,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.002682972699403763,
+            "max_abs_token_log_ratio": 0.10744822025299072,
+            "max_abs_sequence_log_ratio": 0.0013429545797407627,
+            "max_abs_sequence_ratio_minus_one": 0.0013438567984849215
+          },
+          {
+            "responses": 2,
+            "tokens": 452,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0038062045350670815,
+            "max_abs_token_log_ratio": 0.19460487365722656,
+            "max_abs_sequence_log_ratio": 0.00033672270365059376,
+            "max_abs_sequence_ratio_minus_one": 0.00033666600938886404
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 282,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 295,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.001898559625260532,
+            "max_abs_token_log_ratio": 0.12284517288208008,
+            "max_abs_sequence_log_ratio": 0.005564838647842407,
+            "max_abs_sequence_ratio_minus_one": 0.005549383815377951
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0021914541721343994,
+            "max_abs_token_log_ratio": 0.12242698669433594,
+            "max_abs_sequence_log_ratio": 9.56599396886304e-05,
+            "max_abs_sequence_ratio_minus_one": 9.566451626596972e-05
+          }
+        ],
+        "mean_microbatch_loss": -0.0019016005098819733,
+        "token_entropy": 0.3958262939453125,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.0015714285714285715,
+        "mean_response_tokens": 218.75,
+        "mean_sequence_clip_fraction": null,
+        "mean_active_clip_fraction": 0.0034722222480922937
+      }
+    ],
+    "evaluations": [
+      {
+        "grpo_step": 1,
+        "train_step": 2,
+        "eval_step": 1,
+        "timestamp": 1791066660.0630498,
+        "accuracy": 0.09375,
+        "format_rate": 0.3125,
+        "avg_reward": 0.09375,
+        "avg_token_entropy": 0.24573030769824983,
+        "avg_response_length": 203.875,
+        "avg_grad_norm": 0.4296875,
+        "avg_clip_frac": 0.013671095133759081
+      },
+      {
+        "grpo_step": 2,
+        "train_step": 4,
+        "eval_step": 2,
+        "timestamp": 1791066670.2380705,
+        "accuracy": 0.09375,
+        "format_rate": 0.375,
+        "avg_reward": 0.09375,
+        "avg_token_entropy": 0.22273173034191132,
+        "avg_response_length": 209.625,
+        "avg_grad_norm": 0.333984375,
+        "avg_clip_frac": 0.0033417869126424193
+      },
+      {
+        "grpo_step": 3,
+        "train_step": 6,
+        "eval_step": 3,
+        "timestamp": 1791066680.5145125,
+        "accuracy": 0.09375,
+        "format_rate": 0.3125,
+        "avg_reward": 0.09375,
+        "avg_token_entropy": 0.20630966126918793,
+        "avg_response_length": 209.84375,
+        "avg_grad_norm": 1.052734375,
+        "avg_clip_frac": 0.0020396996987983584
+      }
+    ],
+    "max_frozen_sequence_ratio_deviation": 0.007141836918890476,
+    "cliprange_low": 0.2,
+    "cliprange_high": 0.2
+  },
+  "gspo": {
+    "run": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/results/section7/stage3_cloud/smoke_sztI4jia/stage3_gspo_smoke_20261003T223138516246Z_7740d571",
+    "final_accuracy": 0.09375,
+    "mean_sync_seconds": 0.23935134895145893,
+    "mean_rollout_seconds": 3.765096392482519,
+    "steps": [
+      {
+        "grpo_step": 1,
+        "backend": "server",
+        "sync_seconds": 0.2170062828809023,
+        "rollout_seconds": 3.852737132459879,
+        "responses": 16,
+        "generated_tokens": 2641,
+        "truncated": 6,
+        "weight_version": 1,
+        "grad_norms": [
+          0.515625,
+          0.515625
+        ],
+        "reward": {
+          "mean_reward": 0.0625,
+          "std_reward": 0.25,
+          "max_reward": 1.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0625,
+          "mean_format_reward": 0.0625,
+          "mean_answer_reward": 0.0625
+        },
+        "policy_agreement_before_first_update": [
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 304,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0034799003042280674,
+            "max_abs_token_log_ratio": 0.11558270454406738,
+            "max_abs_sequence_log_ratio": 0.007167461793869734,
+            "max_abs_sequence_ratio_minus_one": 0.007141836918890476
+          },
+          {
+            "responses": 2,
+            "tokens": 197,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.02182335965335369,
+            "max_abs_token_log_ratio": 0.16065335273742676,
+            "max_abs_sequence_log_ratio": 0.0028913042042404413,
+            "max_abs_sequence_ratio_minus_one": 0.0028954881709069014
+          },
+          {
+            "responses": 2,
+            "tokens": 322,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.004136805422604084,
+            "max_abs_token_log_ratio": 0.13990402221679688,
+            "max_abs_sequence_log_ratio": 0.004103899467736483,
+            "max_abs_sequence_ratio_minus_one": 0.0041123321279883385
+          },
+          {
+            "responses": 2,
+            "tokens": 303,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0029606064781546593,
+            "max_abs_token_log_ratio": 0.12078714370727539,
+            "max_abs_sequence_log_ratio": 0.002640555612742901,
+            "max_abs_sequence_ratio_minus_one": 0.0026440450455993414
+          },
+          {
+            "responses": 2,
+            "tokens": 204,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 287,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          }
+        ],
+        "mean_microbatch_loss": -0.004043571650981903,
+        "token_entropy": 1.0187909936236865,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.0,
+        "mean_response_tokens": 165.0625,
+        "mean_sequence_clip_fraction": 0.0,
+        "mean_active_clip_fraction": 0.0
+      },
+      {
+        "grpo_step": 2,
+        "backend": "server",
+        "sync_seconds": 0.2528223842382431,
+        "rollout_seconds": 3.7166968658566475,
+        "responses": 16,
+        "generated_tokens": 3206,
+        "truncated": 9,
+        "weight_version": 3,
+        "grad_norms": [
+          0.0,
+          0.0
+        ],
+        "reward": {
+          "mean_reward": 0.0,
+          "std_reward": 0.0,
+          "max_reward": 0.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0,
+          "mean_format_reward": 0.125,
+          "mean_answer_reward": 0.0
+        },
+        "policy_agreement_before_first_update": [
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 363,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 379,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 282,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.005415062885731459,
+            "max_abs_token_log_ratio": 0.13369226455688477,
+            "max_abs_sequence_log_ratio": 0.003048253944143653,
+            "max_abs_sequence_ratio_minus_one": 0.0030529045034199953
+          },
+          {
+            "responses": 2,
+            "tokens": 251,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.006699997931718826,
+            "max_abs_token_log_ratio": 0.12468099594116211,
+            "max_abs_sequence_log_ratio": 0.0015344696585088968,
+            "max_abs_sequence_ratio_minus_one": 0.0015356475487351418
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 395,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.00230348389595747,
+            "max_abs_token_log_ratio": 0.1088254451751709,
+            "max_abs_sequence_log_ratio": 0.0019347701454535127,
+            "max_abs_sequence_ratio_minus_one": 0.0019366430351510644
+          }
+        ],
+        "mean_microbatch_loss": 0.0,
+        "token_entropy": 0.5513440058964606,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.0,
+        "mean_response_tokens": 200.375,
+        "mean_sequence_clip_fraction": 0.0,
+        "mean_active_clip_fraction": 0.0
+      },
+      {
+        "grpo_step": 3,
+        "backend": "server",
+        "sync_seconds": 0.2482253797352314,
+        "rollout_seconds": 3.725855179131031,
+        "responses": 16,
+        "generated_tokens": 3493,
+        "truncated": 11,
+        "weight_version": 5,
+        "grad_norms": [
+          0.0,
+          0.0
+        ],
+        "reward": {
+          "mean_reward": 0.0,
+          "std_reward": 0.0,
+          "max_reward": 0.0,
+          "min_reward": 0.0,
+          "fraction_correct": 0.0,
+          "mean_format_reward": 0.0625,
+          "mean_answer_reward": 0.0
+        },
+        "policy_agreement_before_first_update": [
+          {
+            "responses": 2,
+            "tokens": 207,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0027562458999454975,
+            "max_abs_token_log_ratio": 0.09686613082885742,
+            "max_abs_sequence_log_ratio": 0.006341320462524891,
+            "max_abs_sequence_ratio_minus_one": 0.006321256514638662
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0037973469588905573,
+            "max_abs_token_log_ratio": 0.12401461601257324,
+            "max_abs_sequence_log_ratio": 0.0010409938404336572,
+            "max_abs_sequence_ratio_minus_one": 0.0010404521599411964
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 441,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0,
+            "max_abs_token_log_ratio": 0.0,
+            "max_abs_sequence_log_ratio": 0.0,
+            "max_abs_sequence_ratio_minus_one": 0.0
+          },
+          {
+            "responses": 2,
+            "tokens": 285,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.0025397748686373234,
+            "max_abs_token_log_ratio": 0.11386632919311523,
+            "max_abs_sequence_log_ratio": 0.0040810005739331245,
+            "max_abs_sequence_ratio_minus_one": 0.004072684794664383
+          },
+          {
+            "responses": 2,
+            "tokens": 512,
+            "current_dtype": "torch.float32",
+            "old_dtype": "torch.float32",
+            "mean_abs_token_log_ratio": 0.00291761988773942,
+            "max_abs_token_log_ratio": 0.12153911590576172,
+            "max_abs_sequence_log_ratio": 0.0006841158028692007,
+            "max_abs_sequence_ratio_minus_one": 0.0006843498558737338
+          }
+        ],
+        "mean_microbatch_loss": 0.0,
+        "token_entropy": 0.4273948527460893,
+        "response_token_weighted_ratio_outside_clip_fraction": 0.0,
+        "mean_response_tokens": 218.3125,
+        "mean_sequence_clip_fraction": 0.0,
+        "mean_active_clip_fraction": 0.0
+      }
+    ],
+    "evaluations": [
+      {
+        "grpo_step": 1,
+        "train_step": 2,
+        "eval_step": 1,
+        "timestamp": 1791066733.5526912,
+        "accuracy": 0.15625,
+        "format_rate": 0.34375,
+        "avg_reward": 0.15625,
+        "avg_token_entropy": 0.2647510081529617,
+        "avg_response_length": 206.09375,
+        "avg_grad_norm": 0.515625,
+        "avg_clip_frac": 0.0
+      },
+      {
+        "grpo_step": 2,
+        "train_step": 4,
+        "eval_step": 2,
+        "timestamp": 1791066743.6604133,
+        "accuracy": 0.125,
+        "format_rate": 0.25,
+        "avg_reward": 0.125,
+        "avg_token_entropy": 0.20307060778141023,
+        "avg_response_length": 218.6875,
+        "avg_grad_norm": 0.0,
+        "avg_clip_frac": 0.0
+      },
+      {
+        "grpo_step": 3,
+        "train_step": 6,
+        "eval_step": 3,
+        "timestamp": 1791066753.913276,
+        "accuracy": 0.09375,
+        "format_rate": 0.28125,
+        "avg_reward": 0.09375,
+        "avg_token_entropy": 0.25952528715133666,
+        "avg_response_length": 219.9375,
+        "avg_grad_norm": 0.0,
+        "avg_clip_frac": 0.0
+      }
+    ],
+    "max_frozen_sequence_ratio_deviation": 0.007141836918890476,
+    "cliprange_low": 0.2,
+    "cliprange_high": 0.2
+  }
+}

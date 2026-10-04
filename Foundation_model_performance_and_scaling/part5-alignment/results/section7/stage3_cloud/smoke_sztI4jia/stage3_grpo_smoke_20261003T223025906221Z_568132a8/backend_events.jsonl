@@ -1,0 +1,16 @@
+{"kind": "startup", "seconds": 21.016686351969838, "weight_version": 0, "port": 57589}
+{"kind": "init_weight_sync", "seconds": 0.5849768463522196, "weight_version": 0}
+{"kind": "weight_sync", "seconds": 0.23460634425282478, "weight_version": 1, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.852276273071766, "weight_version": 1, "prompts": 4, "completions": 16, "generated_tokens": 2641, "truncated": 6}
+{"kind": "weight_sync", "seconds": 0.31825572066009045, "weight_version": 2, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.8635898176580667, "weight_version": 2, "prompts": 32, "completions": 32, "generated_tokens": 6528, "truncated": 16}
+{"kind": "weight_sync", "seconds": 0.2353402003645897, "weight_version": 3, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.6979334466159344, "weight_version": 3, "prompts": 4, "completions": 16, "generated_tokens": 2976, "truncated": 8}
+{"kind": "weight_sync", "seconds": 0.29826467856764793, "weight_version": 4, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.8487853836268187, "weight_version": 4, "prompts": 32, "completions": 32, "generated_tokens": 6710, "truncated": 14}
+{"kind": "weight_sync", "seconds": 0.2948195468634367, "weight_version": 5, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.6858932115137577, "weight_version": 5, "prompts": 4, "completions": 16, "generated_tokens": 3500, "truncated": 10}
+{"kind": "weight_sync", "seconds": 0.3607894517481327, "weight_version": 6, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.8167222812771797, "weight_version": 6, "prompts": 32, "completions": 32, "generated_tokens": 6717, "truncated": 16}
+{"kind": "weight_sync", "seconds": 0.2997239697724581, "weight_version": 7, "bytes": 3087428608, "cache_reset": true, "transport": "nccl"}
+{"kind": "generation", "seconds": 3.8357097543776035, "weight_version": 7, "prompts": 32, "completions": 32, "generated_tokens": 6717, "truncated": 16}

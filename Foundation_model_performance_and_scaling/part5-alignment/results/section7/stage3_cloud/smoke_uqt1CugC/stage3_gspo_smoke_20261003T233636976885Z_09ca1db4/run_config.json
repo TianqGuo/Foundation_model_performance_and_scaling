@@ -1,0 +1,310 @@
+{
+  "args": {
+    "model": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/assets/Qwen2.5-Math-1.5B",
+    "data": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/data/math/train.jsonl",
+    "val_data": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/data/math/validation.jsonl",
+    "output": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/results/section7/stage3_cloud/smoke_uqt1CugC",
+    "max_train_examples": 1024,
+    "n_grpo_steps": 3,
+    "group_size": 4,
+    "rollout_batch_size": 16,
+    "epochs_per_rollout_batch": 2,
+    "train_batch_size": 16,
+    "gradient_accumulation_steps": 8,
+    "lr": 1e-05,
+    "advantage_eps": 1e-06,
+    "gradient_checkpointing": false,
+    "use_std_normalization": true,
+    "loss_type": "grpo_clip",
+    "microbatch_layout": "stable",
+    "scoring_probe_only": false,
+    "scoring_probe_fp32_model": false,
+    "log_prob_precision": "fp32",
+    "cliprange_low": null,
+    "cliprange_high": null,
+    "cliprange": 0.2,
+    "length_norm": "masked_mean",
+    "prompt_type": "r1_zero",
+    "temperature": 1.0,
+    "max_response_tokens": 256,
+    "gpu_memory_utilization": 0.85,
+    "rollout_backend": "server",
+    "attn_implementation": null,
+    "server_port": 0,
+    "server_startup_timeout": 600,
+    "server_request_timeout": 300,
+    "server_max_model_len": 4096,
+    "server_enforce_eager": true,
+    "verify_weight_sync": false,
+    "baseline": "mean",
+    "advantage_normalizer": "std",
+    "importance_reweighting": "gspo",
+    "loss_normalization": "sequence",
+    "eval_interval": 1,
+    "n_eval_examples": 32,
+    "eval_seed": 12345,
+    "skip_eval": false,
+    "train_device": "cuda:0",
+    "vllm_device": "cuda:1",
+    "seed": 42,
+    "wandb_project": "cs336-alignment-grpo",
+    "run_name": "stage3_gspo_smoke",
+    "no_wandb": true
+  },
+  "estimator": {
+    "baseline": "mean",
+    "advantage_normalizer": "std",
+    "importance_reweighting": "gspo",
+    "loss_normalization": "sequence"
+  },
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.17.0-1011-oracle-x86_64-with-glibc2.39",
+    "torch": "2.10.0+cu129",
+    "vllm": "0.19.1",
+    "transformers": "4.57.6",
+    "flash-attn": null,
+    "accelerate": "1.6.0",
+    "wandb": "0.22.3",
+    "math-verify": "0.7.0"
+  },
+  "train_data": {
+    "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/data/math/train.jsonl",
+    "sha256": "22ac3f59ec3b41afd056eb2a92b5447239d217624e798ee963361ea90401e91b"
+  },
+  "train_examples": 1024,
+  "prompt": {
+    "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/prompts/r1_zero.prompt",
+    "sha256": "56213732da87e12ace60a2b88a16df0af18280fb0563a957cbecc938a6a2ac0e"
+  },
+  "evaluation": {
+    "protocol": "fixed_subset_v1",
+    "seed": 12345,
+    "indices": [
+      3412,
+      83,
+      2446,
+      3018,
+      1586,
+      2213,
+      4636,
+      3573,
+      1324,
+      3056,
+      1017,
+      3546,
+      2138,
+      4604,
+      1428,
+      4531,
+      1530,
+      2907,
+      747,
+      4350,
+      3376,
+      4792,
+      4128,
+      1364,
+      1213,
+      1685,
+      637,
+      1556,
+      2798,
+      2638,
+      192,
+      3758
+    ],
+    "dataset": {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/data/math/validation.jsonl",
+      "sha256": "876aad1d989ec7c856dac86efd0460752a30de8898e67d8ff2e2c189739eb414"
+    }
+  },
+  "resolved": {
+    "train_device": "cuda:0",
+    "vllm_device": "cuda:1",
+    "gpu_memory_utilization": 0.85,
+    "microbatch_layout": "stable",
+    "micro_batch_size": 2,
+    "attn_implementation": "sdpa",
+    "rollout_backend": "server",
+    "training_tokens": "generated_ids"
+  },
+  "cuda_runtime": "12.9",
+  "gpus": [
+    "NVIDIA A100-SXM4-40GB",
+    "NVIDIA A100-SXM4-40GB"
+  ],
+  "sources": [
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/train_grpo.py",
+      "sha256": "a53c1187984f07c7fad673e70c7f839577373376f16684ed648cb1e77e9f8543"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/helpers.py",
+      "sha256": "b048f922cd9ddcb49551dc845d87d248c8704c7f77781481174aaa72b26ee50d"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/run_utils.py",
+      "sha256": "05b4247ee7fd61a5a197d7f220cbd66308eb24eafbc69afe8ebbf762776a4a0a"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/estimators.py",
+      "sha256": "5611c83fe5d4c223ddf7ca77adf1f73ffc69a44b103bf455282bbed69421822e"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/policy_diagnostics.py",
+      "sha256": "0ec4b7a490ba0b9cac357ab9e9aa7e678393ca572423a819cb5d44a9a549f05d"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/pyproject.toml",
+      "sha256": "61e64f4a3544502afddcb929863017a0cda3c25b8217ae17b6e8c658f90862de"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section4_sft/helpers.py",
+      "sha256": "8bf6fc73724d41e4b2a7af118761181c9ab2e1698935dffcaeeb95acaa0d4b37"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/drgrpo_grader.py",
+      "sha256": "f88b29b0e76b3c28f969cb8b2f945e01b70aed2753306445d30822a192c54ec7"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/uv.lock",
+      "sha256": "dd9d1693763b5104b098df13f8f10f2610ae90b198d1a1b4e1e3c9da779f739a"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/rollout_backend.py",
+      "sha256": "5b10bdb9087745d76bec20b7ae0856fa6fdc6a6ca3d3a19226ae35f5a5583025"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/weight_sync_probe.py",
+      "sha256": "4d5d552c59ddd2b75a9399ec7bfe3fc1bb9e3b69ecdf838233133bedd9175e63"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/server_environment/pyproject.toml",
+      "sha256": "49e3088d1d16159a172d2f39a333e90fe60d9d1ee002fba66df2f8ff758ca185"
+    },
+    {
+      "path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/cs336_alignment/section7_grpo/server_environment/uv.lock",
+      "sha256": "22dad00a883cef51d81adb62e65bf470bd8b7e71b238d430f398a523b40ff331"
+    }
+  ],
+  "model": {
+    "source": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/assets/Qwen2.5-Math-1.5B",
+    "config": {
+      "vocab_size": 151936,
+      "max_position_embeddings": 4096,
+      "hidden_size": 1536,
+      "intermediate_size": 8960,
+      "num_hidden_layers": 28,
+      "num_attention_heads": 12,
+      "use_sliding_window": false,
+      "sliding_window": null,
+      "max_window_layers": 21,
+      "num_key_value_heads": 2,
+      "hidden_act": "silu",
+      "initializer_range": 0.02,
+      "rms_norm_eps": 1e-06,
+      "use_cache": true,
+      "rope_theta": 10000,
+      "rope_scaling": null,
+      "attention_dropout": 0.0,
+      "layer_types": [
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention"
+      ],
+      "return_dict": true,
+      "output_hidden_states": false,
+      "torchscript": false,
+      "dtype": "bfloat16",
+      "pruned_heads": {},
+      "tie_word_embeddings": true,
+      "chunk_size_feed_forward": 0,
+      "is_encoder_decoder": false,
+      "is_decoder": false,
+      "cross_attention_hidden_size": null,
+      "add_cross_attention": false,
+      "tie_encoder_decoder": false,
+      "architectures": [
+        "Qwen2ForCausalLM"
+      ],
+      "finetuning_task": null,
+      "id2label": {
+        "0": "LABEL_0",
+        "1": "LABEL_1"
+      },
+      "label2id": {
+        "LABEL_0": 0,
+        "LABEL_1": 1
+      },
+      "task_specific_params": null,
+      "problem_type": null,
+      "tokenizer_class": null,
+      "prefix": null,
+      "bos_token_id": 151643,
+      "pad_token_id": null,
+      "eos_token_id": 151643,
+      "sep_token_id": null,
+      "decoder_start_token_id": null,
+      "max_length": 20,
+      "min_length": 0,
+      "do_sample": false,
+      "early_stopping": false,
+      "num_beams": 1,
+      "temperature": 1.0,
+      "top_k": 50,
+      "top_p": 1.0,
+      "typical_p": 1.0,
+      "repetition_penalty": 1.0,
+      "length_penalty": 1.0,
+      "no_repeat_ngram_size": 0,
+      "encoder_no_repeat_ngram_size": 0,
+      "bad_words_ids": null,
+      "num_return_sequences": 1,
+      "output_scores": false,
+      "return_dict_in_generate": false,
+      "forced_bos_token_id": null,
+      "forced_eos_token_id": null,
+      "remove_invalid_values": false,
+      "exponential_decay_length_penalty": null,
+      "suppress_tokens": null,
+      "begin_suppress_tokens": null,
+      "num_beam_groups": 1,
+      "diversity_penalty": 0.0,
+      "_name_or_path": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/assets/Qwen2.5-Math-1.5B",
+      "transformers_version": "4.57.6",
+      "model_type": "qwen2",
+      "use_mrope": false,
+      "tf_legacy_loss": false,
+      "use_bfloat16": false,
+      "output_attentions": false
+    },
+    "tokenizer_source": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/assets/Qwen2.5-Math-1.5B"
+  },
+  "checkpoint": "/workspace/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part5-alignment/assets/stage3_gspo_smoke_20261003T233636976885Z_09ca1db4"
+}
