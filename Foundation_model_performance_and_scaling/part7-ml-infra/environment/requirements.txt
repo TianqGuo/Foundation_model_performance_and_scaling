@@ -1,0 +1,17 @@
+# 7A core pins, source-reviewed on 2026-10-04; not a complete transitive lock.
+# Target: isolated cloud Linux x86_64 / Python 3.12 / CUDA 12.8 environment.
+# Do not install into Part 5. See ../documents/7A_ENVIRONMENT.md before cloud setup.
+# Resolve torch/torchvision/torchaudio from the official cu128 index in step 3.
+verl @ git+https://github.com/verl-project/verl.git@bec9ef74768dd201881cd4e54cd0385e87caae27
+vllm==0.11.0
+torch==2.8.0
+torchvision==0.23.0
+torchaudio==2.8.0
+ray[default,cgraph]==2.49.2
+transformers==4.55.4
+flash-attn==2.7.4.post1
+tensordict==0.10.0
+torchdata==0.11.0
+numpy==1.26.4
+peft==0.17.1
+wandb==0.22.3
