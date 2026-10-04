@@ -346,19 +346,26 @@ importance weighting and clipping; existing GRPO options remain supported.
 ### GRPO-Clip versus GSPO: preliminary comparison
 
 Qwen2.5-Math-1.5B on MATH; one matched seed, 20 rollout steps, four optimization
-epochs per rollout, a fixed 128-example evaluation subset, sequence-normalized
-loss, and a 256-token response cap. Both methods used clipping epsilon 0.2 and
-BF16 log-probability normalization in this original pilot.
+epochs per rollout (160 updates of 32 responses), and a fixed 128-example
+evaluation subset. Both use sequence-normalized loss, a 256-token response cap,
+BF16 model forwards, FP32 log-probability normalization and stable microbatches.
+Frozen-policy scoring matched exactly before updates in both runs.
 
-| Method | Final accuracy | Correct / evaluated |
-|---|---:|---:|
-| GRPO-Clip | 37.50% | 48 / 128 |
-| GSPO | 29.69% | 38 / 128 |
+| Method | Clip lower / upper | Final accuracy | Zero-gradient updates |
+|---|---|---:|---:|
+| GRPO-Clip | 0.2 / 0.2 | **42.19% (54/128)** | 0/160 |
+| GSPO | 0.0003 / 0.0004 | **38.28% (49/128)** | 67/160 |
 
-This single-seed pilot is not a tuned GSPO replication and does not establish
-algorithm superiority. Equal numeric clipping bounds do not impose equivalent
-constraints for token-level GRPO and sequence-level GSPO.
-[Experiment artifacts](results/section7/stage3_cloud/pilot_JrROtPmB/).
+Tight GSPO clipping suppressed many reused-rollout updates, while final token
+entropy remained higher (0.616 versus 0.481 nats). Clipping and rollout-reuse
+tuning are deferred. This single-seed experiment uses different bounds and
+does not establish algorithm superiority; 30.9% of GRPO and 36.1% of GSPO
+responses reached the token cap.
+[Current experiment artifacts](results/section7/stage3_cloud/tight_pilot_FRqpow9W/).
+
+The [earlier equal-epsilon pilot](results/section7/stage3_cloud/pilot_JrROtPmB/)
+reported 37.50% / 29.69% for GRPO / GSPO. Its batching and numerical settings
+differ, so it is not a controlled before/after comparison.
 
 ### Evaluation protocol
 
