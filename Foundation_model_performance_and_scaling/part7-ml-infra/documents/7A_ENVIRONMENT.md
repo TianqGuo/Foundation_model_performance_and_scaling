@@ -128,5 +128,6 @@ by this note.
   package-metadata checks, topology/checkpoint inspection and core version pins.
 - Pending: full dependency lock, image digest/build, resolved Hydra configuration,
   model/data revision fingerprints, CPU adapters/loss checks and every GPU check.
-- Next: 7A step 2 adapters and explicit GRPO mapping; preserve the configurable
-  model boundary. No reward or training code was implemented in step 1.
+- Step 2 is now implemented; see [adapters and GRPO mapping](7A_GRPO_MAPPING.md)
+  for CPU validation and outstanding numerical checks. No reward or training
+  code was implemented during step 1 itself.

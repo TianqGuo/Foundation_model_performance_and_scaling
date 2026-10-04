@@ -15,3 +15,10 @@ torchdata==0.11.0
 numpy==1.26.4
 peft==0.17.1
 wandb==0.22.3
+# CPU MATH adapter/grader dependencies; resolve the full stack in step 3.
+pyarrow==19.0.1
+math-verify[antlr4-13-2]==0.7.0
+latex2sympy2_extended==1.10.1
+pylatexenc==2.10
+sympy==1.14.0
+jinja2==3.1.6

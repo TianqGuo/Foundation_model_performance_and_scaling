@@ -3,8 +3,8 @@
 Distributed post-training and model serving on a shared Ray platform, carrying
 forward Qwen2.5-Math-1.5B and MATH from Part 5.
 
-**Status:** planning documentation is ready. Implementation, environment setup
-and cloud provisioning have not started; no Part 7 results are available yet.
+**Status:** environment selection and MATH adapters are implemented with CPU
+checks. Distributed training, serving and cloud validation remain pending.
 
 ## Roadmap
 
@@ -36,5 +36,4 @@ scalability and production reliability remain unclaimed.
 Parts 1–6 remain preserved. Part 5 modernization is complete, and deferred GSPO
 tuning does not block this roadmap. Implementation favors thin adapters and
 framework configuration over additional training code.
-
 
