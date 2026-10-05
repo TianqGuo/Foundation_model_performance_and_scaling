@@ -5,3 +5,4 @@ results/
 data/
 assets/
 checkpoints/
+.cuda-7a/

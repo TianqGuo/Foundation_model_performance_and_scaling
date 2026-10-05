@@ -3,7 +3,10 @@
 Updated: 2026-10-04
 
 Status: 7A steps 1–3 complete within source review, adapters, dependency resolution
-and CPU preparation; cloud installation, framework execution and provisioning unstarted.
+and CPU preparation. User-provided cloud logs show the first setup attempt stopped
+at the image's CUDA 13.0 toolkit check, before Python installation/training.
+Setup now prepares/selects a separate CUDA 12.8 toolkit without rebuilding the
+image or installing a driver; the revised cloud installation remains unverified.
 The cloud launcher now automatically downloads a missing model snapshot and
 reuses existing snapshots; local configuration checks remain download-free.
 `infrastructure/7a_verl/part7A.sh` is the single cloud entry point: setup/reuse, optional data preparation,

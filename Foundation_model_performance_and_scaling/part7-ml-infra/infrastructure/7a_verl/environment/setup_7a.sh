@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cloud only: bash infrastructure/7a_verl/environment/setup_7a.sh --cloud
-# Requires uv, git, a CUDA 12.8 development toolkit, and two approved cloud GPUs.
+# Requires uv, git, g++, curl and two cloud GPUs; installs CUDA 12.8 if needed.
 set -euo pipefail
 if [[ "${1:-}" != "--cloud" ]]; then
   echo 'Run only on the approved cloud instance with --cloud.' >&2
@@ -12,9 +12,10 @@ if [[ -e "$root/.venv-7a" ]]; then
   exit 2
 fi
 command -v uv >/dev/null
-command -v nvcc >/dev/null
 [[ "$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)" -eq 2 ]]
 mkdir -p "$root/results/7a/environment"
+source "$root/infrastructure/7a_verl/environment/cuda_7a.sh"
+select_7a_cuda "$root" install
 cuda_toolkit_version="$(nvcc --version)"
 printf '%s\n' "$cuda_toolkit_version" | tee "$root/results/7a/environment/cuda_version.txt"
 if [[ "$cuda_toolkit_version" != *"release 12.8"* ]]; then
@@ -41,4 +42,5 @@ uv pip freeze --python "$python_path" > "$root/results/7a/environment/installed.
 cd "$root"
 sha256sum infrastructure/7a_verl/environment/requirements.txt infrastructure/7a_verl/environment/requirements-cu128.in \
   infrastructure/7a_verl/environment/requirements.lock infrastructure/7a_verl/environment/uv.toml infrastructure/7a_verl/environment/setup_7a.sh \
+  infrastructure/7a_verl/environment/cuda_7a.sh \
   > .venv-7a/setup_inputs.sha256

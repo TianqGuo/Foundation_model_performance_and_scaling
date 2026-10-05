@@ -23,6 +23,8 @@ elif [[ ! -f .venv-7a/setup_inputs.sha256 ]]; then
   exit 1
 fi
 sha256sum --check .venv-7a/setup_inputs.sha256
+source "$part7_root/infrastructure/7a_verl/environment/cuda_7a.sh"
+select_7a_cuda "$part7_root" reuse
 "$python_path" -c 'import torch, vllm, verl, flash_attn, ray; assert torch.cuda.is_available() and torch.cuda.device_count() == 2, "Two cloud GPUs required"'
 
 # Inspect only the data override; pass model/path options unchanged to argparse.

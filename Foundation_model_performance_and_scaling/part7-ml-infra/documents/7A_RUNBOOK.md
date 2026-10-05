@@ -7,11 +7,27 @@ $5/hour for the whole instance, and at most $15 total including storage.
 
 ## Cloud prerequisites
 
-Use a fresh cloud CUDA 12.8 development environment with `nvcc`, `git`, `uv`,
+Use your existing cloud image with `git`, `uv`, `curl`, `g++`,
 two visible GPUs, sufficient shared memory (proposed 16 GB), and durable artifact
 storage. Confirm the provider image and driver support before rental. Capture its
 image identity/digest in `results/7a/environment/image_identity.txt`; a digest-pinned
-deployment image is still pending. Do not reuse Part 5's environment.
+deployment image is still pending. A CUDA 13 image is supported by automatically
+installing a separate CUDA 12.8 toolkit for Part 7; no image rebuild is required.
+Do not reuse Part 5's Python environment.
+
+Setup first looks for CUDA 12.8 in `CUDA_HOME`, the Part 7 toolkit directory and
+usual system paths. If absent, it downloads NVIDIA's CUDA 12.8.0 runfile and
+installs **only the toolkit** under `.cuda-7a/12.8/`. It never requests driver
+installation, and restores an existing `/usr/local/cuda` link if changed by the
+installer. `CUDA_HOME`/`PATH` selection applies to the Part 7 processes. The runner
+selects the same toolkit on subsequent runs. The installer checksum and selected
+compiler version are recorded under `results/7a/environment/`.
+Installer flags follow the [NVIDIA CUDA 12.8 installation guide](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-installation-guide-linux/index.html#advanced-options).
+
+The full installer and toolkit require several additional GB of disk and download
+time within the existing setup timeout. Installation on the reported Ubuntu 24.04 /
+CUDA 13 image is pending cloud validation. Mock CPU selection tests do not verify
+the installer or FlashAttention build.
 
 ## Main workflow — Git and one cloud command
 
