@@ -1,16 +1,16 @@
 # 7A core pins, source-reviewed on 2026-10-04; not a complete transitive lock.
-# Target: isolated cloud Linux x86_64 / Python 3.12 / CUDA 12.8 environment.
+# Target: isolated cloud Linux x86_64 / Python 3.12 / CUDA 13.0 environment.
 # Do not install into Part 5. See ../../../documents/7A_ENVIRONMENT.md before cloud setup.
-# requirements-cu128.in selects official CUDA wheels; requirements.lock resolves
+# requirements-cu130.in selects official CUDA wheels; requirements.lock resolves
 # the application stack. Cloud installation/import verification remains pending.
 verl @ git+https://github.com/verl-project/verl.git@bec9ef74768dd201881cd4e54cd0385e87caae27
-vllm==0.11.0
-torch==2.8.0
-torchvision==0.23.0
-torchaudio==2.8.0
+vllm==0.12.0
+torch==2.9.0
+torchvision==0.24.0
+torchaudio==2.9.0
 ray[default,cgraph]==2.49.2
-transformers==4.55.4
-flash-attn==2.7.4.post1
+transformers==4.57.6
+flash-attn==2.8.3
 tensordict==0.10.0
 torchdata==0.11.0
 numpy==1.26.4

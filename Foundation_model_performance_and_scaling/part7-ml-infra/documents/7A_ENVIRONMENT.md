@@ -1,7 +1,7 @@
 # 7A step 1 — Environment and topology decision
 
-Reviewed: 2026-10-04. Steps 1–3 source review and CPU preparation are complete;
-cloud installation and execution remain pending. No resources were provisioned.
+Reviewed: 2026-10-05. Steps 1–3 source review and CPU preparation are complete;
+cloud installation and execution remain pending. User-provided cloud logs show the old CUDA 12.8 setup stopped on the image toolkit check.
 Runnable setup is in the [step 3 runbook](7A_RUNBOOK.md).
 
 ## Selected starting stack
@@ -12,36 +12,33 @@ Use an isolated Part 7 cloud environment, Linux x86_64 and Python 3.12.
 | Component | Selection | Basis |
 | --- | --- | --- |
 | verl | v0.7.1, commit `bec9ef74768dd201881cd4e54cd0385e87caae27` | Fixed tagged source with FSDP2, model-engine workers and hybrid vLLM rollout. |
-| PyTorch / CUDA wheels | 2.8.0 / cu128 | vLLM 0.11.0 requires Torch 2.8.0; keep torchvision 0.23.0 and torchaudio 2.8.0 aligned. |
-| vLLM | 0.11.0 | Inside verl's declared 0.8.5–0.12.0 range; explicit API branch exists in reviewed source. |
-| Ray | 2.49.2, default and cgraph extras | Meets verl's >=2.41 and vLLM's >=2.48 requirements. Selected release pin, not an upstream certification of this combination. |
-| Transformers | 4.55.4 | Matches verl's cu128 base recipe and meets vLLM's >=4.55.2 requirement. |
-| FlashAttention | 2.7.4.post1 | Matches that base recipe; wheel/build must match Python 3.12, Torch 2.8 and its C++ ABI. |
+| PyTorch / CUDA wheels | 2.9.0 / cu130 | vLLM 0.12.0 requires Torch 2.9.0; torchvision 0.24.0 and torchaudio 2.9.0 align. |
+| vLLM | 0.12.0+cu130 official wheel | Inside the pinned verl release's declared range through 0.12.0. |
+| Ray | 2.49.2, default and cgraph extras | Retained; meets framework minimums. |
+| Transformers | 4.57.6 | Meets vLLM 0.12's >=4.56 and <5 requirement. |
+| FlashAttention | 2.8.3, cu13/Torch 2.9/cp312/C++11 ABI wheel | Official matching binary; no compilation or separate toolkit installation. |
 
-Sources: [verl package metadata](https://github.com/verl-project/verl/blob/bec9ef74768dd201881cd4e54cd0385e87caae27/setup.py),
-[cu128 base recipe](https://github.com/verl-project/verl/blob/bec9ef74768dd201881cd4e54cd0385e87caae27/docker/verl0.6-cu128-torch2.8.0-fa2.7.4/Dockerfile.base),
-[vLLM CUDA requirements](https://github.com/vllm-project/vllm/blob/v0.11.0/requirements/cuda.txt),
-[Ray release](https://github.com/ray-project/ray/releases/tag/ray-2.49.2).
+Sources: [verl metadata](https://github.com/verl-project/verl/blob/bec9ef74768dd201881cd4e54cd0385e87caae27/setup.py),
+[vLLM CUDA requirements](https://github.com/vllm-project/vllm/blob/v0.12.0/requirements/cuda.txt),
+[vLLM release wheels](https://github.com/vllm-project/vllm/releases/tag/v0.12.0),
+[FlashAttention release wheels](https://github.com/Dao-AILab/flash-attention/releases/tag/v2.8.3),
+[PyTorch releases](https://pytorch.org/get-started/previous-versions/).
 
-Why this bounded release: it preserves a documented CUDA 12.8/Torch 2.8 path
-without following moving latest dependencies. The tagged stable Dockerfile/CI
-instead use vLLM 0.17/Torch 2.10 while setup.py caps vLLM at 0.12. Do not combine
-that recipe with these pins or copy a `*.latest` image. This discrepancy makes
-cloud validation necessary; no claim of an already tested environment is made.
-[Tagged Dockerfile](https://github.com/verl-project/verl/blob/bec9ef74768dd201881cd4e54cd0385e87caae27/docker/Dockerfile.stable.vllm).
+The original CUDA 12.8/Torch 2.8/vLLM 0.11 selection and the subsequent toolkit
+installation workaround are superseded by the user's preference to keep the
+CUDA 13 image and avoid a multi-GB toolkit download. The verl commit, workload
+adapters, GRPO mapping and topology remain unchanged. This is a compatibility
+candidate, not an upstream certification or measured GPU result.
 
-Step 3 resolved the [dependency lock](../infrastructure/7a_verl/environment/requirements.lock) for
-Python 3.12/Linux x86_64 and selected Python 3.12.14 for cloud setup. CUDA wheels
-use explicit official URLs because resolver CUDA-index routing did not expose
-the pinned torchdata version. Resolution inputs and FlashAttention metadata
-override are checked in alongside the lock. Hydra requires ANTLR 4.9.3, so
-math-verify uses its supported `antlr4-9-3` extra; reward tests passed with it.
-Pin datasets 3.6.0/pandas 2.2.3/accelerate 1.10.1 to avoid old datasets/PyArrow APIs
-and constrain the data layer. The version lock has not been installed/tested on
-GPU; it is not an artifact-hash lock. Provider image identity/digest selection is
-pending before rental, and a digest-pinned deployment image remains future work.
-Verify package imports on cloud before loading the model. Build FlashAttention
-inside the cloud environment; never reuse Part 5's legacy wheel.
+[Resolution inputs](../infrastructure/7a_verl/environment/requirements-cu130.in)
+and [dependency lock](../infrastructure/7a_verl/environment/requirements.lock)
+select Python 3.12/Linux x86_64 (glibc >=2.31); cloud Python is 3.12.14. Official
+CUDA wheels use explicit URLs. vLLM and FlashAttention assets include SHA-256
+fragments from publisher metadata; the entire dependency lock is not hash-locked.
+Hydra and math-verify share ANTLR 4.9.3. Retain datasets 3.6.0, pandas 2.2.3,
+accelerate 1.10.1 and the existing CPU grading pins. Full resolution/import and
+CUDA ABI checks are distinct: GPU installation and execution remain unverified.
+Image digest recording and a digest-pinned deployment image remain pending.
 Do not install Megatron, DeepEP, Apex or TransformerEngine for this FSDP workload.
 
 ## Training and rollout topology
@@ -111,11 +108,10 @@ all-gathers, logits, rollout weights/cache and allocator overhead. Peak memory
 must be measured across initialization and phase changes. Keep model identity,
 lengths, batch sizes and parallelism configurable for a later larger-model run.
 
-Require a host driver suitable for CUDA 12.8 including JIT/PTX; prefer R570 or
-newer and check the selected wheel/image requirements on the actual host.
-CUDA 12.x's generic minimum alone does not establish support for all features.
-[NVIDIA compatibility guidance](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html),
-[vLLM 0.11 installation guidance](https://docs.vllm.ai/en/v0.11.0/getting_started/installation/gpu.html).
+Require a host driver compatible with CUDA 13 (R580 or newer), and verify CUDA
+initialization on the actual GPUs. A CUDA toolkit version alone does not prove
+that the host driver supports the wheel runtime.
+[NVIDIA compatibility guidance](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html).
 
 **Proposed cap, awaiting user agreement:** one node, maximum two billable hours,
 maximum $5/hour for the entire two-GPU instance, and maximum $15 total including

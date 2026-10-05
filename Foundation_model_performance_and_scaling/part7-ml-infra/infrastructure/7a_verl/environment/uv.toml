@@ -1,6 +1,0 @@
-# Resolve CUDA extension metadata without running its GPU-dependent setup locally.
-# Upstream v2.7.4.post1 setup.py declares torch and einops; build on cloud only.
-[[dependency-metadata]]
-name = "flash-attn"
-version = "2.7.4.post1"
-requires-dist = ["torch", "einops"]

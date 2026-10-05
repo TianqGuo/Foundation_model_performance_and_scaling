@@ -1,0 +1,7 @@
+# Python 3.12 / Linux x86_64. Use matching official CUDA 13 binaries.
+-r requirements.txt
+torch @ https://download.pytorch.org/whl/cu130/torch-2.9.0%2Bcu130-cp312-cp312-manylinux_2_28_x86_64.whl
+torchvision @ https://download.pytorch.org/whl/cu130/torchvision-0.24.0%2Bcu130-cp312-cp312-manylinux_2_28_x86_64.whl
+torchaudio @ https://download.pytorch.org/whl/cu130/torchaudio-2.9.0%2Bcu130-cp312-cp312-manylinux_2_28_x86_64.whl
+vllm @ https://github.com/vllm-project/vllm/releases/download/v0.12.0/vllm-0.12.0%2Bcu130-cp38-abi3-manylinux_2_31_x86_64.whl#sha256=d502464ebd285911cbd5403d00be2f8202bda0aa2105a1e535a274df09b1554e
+flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3%2Bcu13torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl#sha256=a4b43bd016f5d475dc34a87aa91b5a239bd0e8972c13f4fc32839b4032465d21

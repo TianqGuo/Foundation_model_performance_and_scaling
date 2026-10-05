@@ -1,12 +1,13 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-04
+Updated: 2026-10-05
 
 Status: 7A steps 1–3 complete within source review, adapters, dependency resolution
 and CPU preparation. User-provided cloud logs show the first setup attempt stopped
 at the image's CUDA 13.0 toolkit check, before Python installation/training.
-Setup now prepares/selects a separate CUDA 12.8 toolkit without rebuilding the
-image or installing a driver; the revised cloud installation remains unverified.
+Setup now uses the image CUDA 13 toolkit with official Torch 2.9.0, vLLM 0.12.0
+and FlashAttention 2.8.3 binaries, superseding the separate-toolkit workaround.
+There is no toolkit download or FlashAttention compilation; cloud validation remains pending.
 The cloud launcher now automatically downloads a missing model snapshot and
 reuses existing snapshots; local configuration checks remain download-free.
 `infrastructure/7a_verl/part7A.sh` is the single cloud entry point: setup/reuse, optional data preparation,
@@ -78,7 +79,7 @@ see [adapters and GRPO mapping](documents/7A_GRPO_MAPPING.md). Thirteen CPU test
 passed; real Parquet preparation produced 1,023 training/32 evaluation prompts,
 with explicit exclusion of one empty solution in the selected training prefix.
 Step 3 was authorized and completed as CPU preparation: a resolved Python 3.12 /
-CUDA 12.8 dependency lock, explicit smoke configuration, thin cloud launcher,
+CUDA 13 dependency lock, explicit smoke configuration, thin cloud launcher,
 numerical/sharding diagnostics and [runbook](documents/7A_RUNBOOK.md).
 Eighteen CPU tests passed, including composition against pinned upstream YAML,
 portable bundle integrity and the frozen-policy gate. GPU hooks and the complete

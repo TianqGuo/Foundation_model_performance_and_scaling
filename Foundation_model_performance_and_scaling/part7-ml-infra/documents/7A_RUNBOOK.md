@@ -7,27 +7,31 @@ $5/hour for the whole instance, and at most $15 total including storage.
 
 ## Cloud prerequisites
 
-Use your existing cloud image with `git`, `uv`, `curl`, `g++`,
-two visible GPUs, sufficient shared memory (proposed 16 GB), and durable artifact
-storage. Confirm the provider image and driver support before rental. Capture its
-image identity/digest in `results/7a/environment/image_identity.txt`; a digest-pinned
-deployment image is still pending. A CUDA 13 image is supported by automatically
-installing a separate CUDA 12.8 toolkit for Part 7; no image rebuild is required.
-Do not reuse Part 5's Python environment.
+Use the existing Vast Ubuntu 24.04 image with its **CUDA 13 toolkit**, `git`,
+`uv`, two visible GPUs and sufficient shared memory (proposed 16 GB). Record the
+resolved image identity and host driver; the automatically selected Vast tag is
+not a fixed image version. Keep Part 7's Python environment isolated from Parts 1–6.
 
-Setup first looks for CUDA 12.8 in `CUDA_HOME`, the Part 7 toolkit directory and
-usual system paths. If absent, it downloads NVIDIA's CUDA 12.8.0 runfile and
-installs **only the toolkit** under `.cuda-7a/12.8/`. It never requests driver
-installation, and restores an existing `/usr/local/cuda` link if changed by the
-installer. `CUDA_HOME`/`PATH` selection applies to the Part 7 processes. The runner
-selects the same toolkit on subsequent runs. The installer checksum and selected
-compiler version are recorded under `results/7a/environment/`.
-Installer flags follow the [NVIDIA CUDA 12.8 installation guide](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-installation-guide-linux/index.html#advanced-options).
+The selected stack uses official **prebuilt CUDA 13 wheels**: Torch 2.9.0,
+vLLM 0.12.0 and FlashAttention 2.8.3 (Python 3.12, C++11 ABI enabled). CUDA-wheel
+URLs are explicit; vLLM and FlashAttention wheel hashes are taken from their
+publisher release metadata. No CUDA 12.8 toolkit is downloaded, no image rebuild
+is needed, and the setup does not compile FlashAttention. CUDA runtime libraries
+are still installed with the Python dependencies, so setup involves package
+and model downloads. Exact versions remain pinned rather than following latest.
 
-The full installer and toolkit require several additional GB of disk and download
-time within the existing setup timeout. Installation on the reported Ubuntu 24.04 /
-CUDA 13 image is pending cloud validation. Mock CPU selection tests do not verify
-the installer or FlashAttention build.
+`cuda_7a.sh` selects the image toolkit through `CUDA_HOME` or the discovered
+`nvcc` location. It accepts CUDA 13.x, records the actual version, and changes
+only the calling process's environment. It never installs a toolkit/driver or
+changes system links. An explicitly set `CUDA_HOME` must point to CUDA 13.
+The pinned wheels target CUDA 13.0; later 13.x toolkit versions are accepted but
+are not separately GPU-validated. Require a host driver compatible with CUDA 13.
+
+This revised stack is metadata-resolved and CPU-checked; cloud imports, kernels,
+GPU memory and distributed integration remain pending validation. If an earlier
+attempt created `.venv-7a`, preserve it under a different name before retrying.
+An interrupted/stale environment is not silently reused. A successful GPU run
+is still required before calling this a validated environment.
 
 ## Main workflow — Git and one cloud command
 
@@ -99,12 +103,12 @@ Console output is retained under `results/7a/execution_TIMESTAMP_SUFFIX/`.
 Setup and smoke have 30-minute and 60-minute timeouts respectively.
 
 The setup selects Python 3.12.14 and the exact verl commit, installs the resolved
-dependency lock, builds FlashAttention after Torch, checks dependency consistency
-and imports, and records the installed packages. FlashAttention compilation is
-cloud-only and can consume meaningful setup time; stop if the approved time/budget
-cannot accommodate setup and the smoke. Setup intentionally fails on an existing
-environment/source directory rather than silently changing it. Save setup console
-output too. The lock is metadata-resolved; it is not a tested GPU environment.
+lock with GPU packages restricted to wheels, checks dependencies/imports and
+records installed versions. It verifies Torch's CUDA 13.0 build and C++11 ABI
+before importing the selected FlashAttention binary. Setup intentionally fails
+on an existing environment/source directory rather than silently changing it.
+Console output is retained by the wrapper. The lock is metadata-resolved; it is
+not a tested GPU environment.
 
 The launcher automatically calls Hugging Face `snapshot_download` **on cloud**
 when the default model snapshot is missing, as Part 5 did. It downloads the snapshot
