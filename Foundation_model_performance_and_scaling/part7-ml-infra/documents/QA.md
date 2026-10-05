@@ -2,8 +2,23 @@
 
 High-level notes from our discussions. Implementation details are in
 [PLAN.md](../PLAN.md), [GRPO mapping](7A_GRPO_MAPPING.md) and the
-[cloud runbook](7A_RUNBOOK.md). Current status: 7A CPU preparation is complete;
-cloud training and distributed integration remain unverified.
+[cloud runbook](7A_RUNBOOK.md). Current status: the bounded 7A cloud smoke,
+artifact uploads and pinned model-weight reload are verified. 7B has not started.
+
+## What did 7A verify, and what remains for 7B?
+
+Two A100 40 GB GPUs ran the verl workload with two training ranks, 338 sharded
+parameter tensors per rank, sampled sharded gradients/Adam moments, six optimizer
+calls per rank, evaluation and checkpoint save. The upload run had nonzero
+gradients on steps 2/3. Its BF16 model export and private Hub uploads completed,
+and a new smoke loaded that exported model at the recorded commit successfully.
+Logs and receipts are retained locally; the instance has been released.
+
+This is bounded infrastructure verification, not a reliable model-quality gain.
+The reload smoke had zero training rewards; 32-prompt evaluation scores varied
+between runs. Full-state restore, interruption recovery and Ray operations remain
+7B work. Multi-node execution and broader numerical/tokenizer equivalence remain
+unverified. Full training checkpoints were intentionally not backed up.
 
 ## Which model and dataset are we starting with? Can we switch later?
 
@@ -35,8 +50,9 @@ Yes. `math_workload.py` preserves the rendered Part 5 prompt and calls its
 `r1_zero_reward_fn` through a thin reward callback. Prepared bundles include exact
 reference snapshots so cloud workers do not depend on the Part 5 environment.
 The training reward is binary: a response must be correct and correctly formatted.
-Rendered-text equality passed CPU checks; tokenizer and response-mask behavior
-still need cloud validation.
+Rendered-text equality passed CPU checks, and the adapters were exercised in
+cloud generation, grading and evaluation. Full token-ID/response-mask equivalence
+to Part 5 has not been established; a successful smoke does not prove that parity.
 
 ## Why convert JSONL to Parquet? Does verl require it?
 
@@ -56,13 +72,34 @@ training state; vLLM generates responses. verl includes algorithm implementation
 and extension points as well as orchestration. Ray Train does not wrap our verl
 workload; it is reserved for optional SFT later in Part 7.
 
+## Did we implement FSDP2 or leave vLLM configuration to verl?
+
+We did not implement either engine. Our YAML selects FSDP2, two-rank sharding,
+mixed precision and parameter/optimizer offloading. PyTorch implements FSDP2,
+and verl integrates it into its workers. Diagnostics check actual sharding;
+configuration flags alone were not our completion evidence.
+
+The YAML's `rollout` section explicitly selects vLLM and sets parallelism,
+GPU-memory utilization, sequence limits, sampling and evaluation. verl handles
+worker coordination and model-weight synchronization; vLLM handles generation
+and KV-cache management. Unspecified settings inherit the pinned framework's defaults.
+
+## What changes when we use more GPUs or multiple instances?
+
+Revisit training node/GPU counts, FSDP sharding, global/microbatch sizes, rollout
+parallelism and memory limits together. Multiple machines also need Ray cluster
+connectivity, worker placement and durable model/data access. Increasing a rollout
+parallelism value alone does not configure multi-node training. Choose the topology
+for the model and hardware, then verify actual placement, sharding and performance.
+
 ## Why does `math_workload.py` barely mention verl?
 
 It handles data, prompts and rewards without importing the training framework,
 so those responsibilities can be checked with lightweight CPU tests.
 `r1_agent.py` extends verl's single-turn generation loop to preserve stopping and
 sampling settings. `run_7a.py` and the YAML files connect these adapters to the full
-framework. Small adapters do not mean verl is absent from the planned training run.
+framework. Both adapters were used in the verified cloud runs; their small size
+reflects delegation to the framework.
 
 ## Why call `run_ppo` when we want GRPO? Is it a placeholder?
 
@@ -101,6 +138,7 @@ No custom Part 5 algorithm port is currently requested or implemented.
 
 | Files | Purpose |
 | --- | --- |
+| `infrastructure/7a_verl/part7A.sh` | Single cloud entry point for setup, preparation, training and optional Hub retention. |
 | `infrastructure/7a_verl/environment/requirements.txt` | Deliberately selected direct library versions and exact verl commit. |
 | `infrastructure/7a_verl/environment/requirements-cu130.in` | Official CUDA wheel URLs used during resolution. |
 | `infrastructure/7a_verl/environment/requirements.lock` | Resolved direct and indirect application dependency versions. |
@@ -109,6 +147,7 @@ No custom Part 5 algorithm port is currently requested or implemented.
 | `infrastructure/7a_verl/config/r1_agents.yaml` | Registration of our generation adapter with verl. |
 | `infrastructure/7a_verl/run_7a.py` | Configuration/path assembly, bundle checks, evidence capture and framework launch. |
 | `infrastructure/7a_verl/verl_diagnostics.py` | Numerical checks and actual rank/sharding evidence during cloud execution. |
+| `infrastructure/7a_verl/hf_artifacts.py` | Authentication/account checks, private repository naming, verl model export, direct uploads and commit receipts. |
 
 This separation keeps installation choices, experiment settings and launch logic
 independently reviewable. The runner delegates training to verl rather than
@@ -129,3 +168,38 @@ For the fewest manual steps, use `bash infrastructure/7a_verl/part7A.sh --upload
 It reuses Part 6-style saved Hub authentication or prompts once for a write token,
 verifies its account and chooses private repository names automatically. A token
 provided through instance secrets makes the flow noninteractive.
+
+## Do I need separate CLI authentication or manual environment setup?
+
+No separate login command is required with `--upload-hf`: the runner prepares its
+isolated environment, reuses a saved Hugging Face login or `HF_TOKEN`, or prompts
+once for a write token. It verifies the token's account before training and chooses
+private destinations automatically. This uses the same Hub authentication as
+Part 6. A new VM needs a token again unless credentials are supplied through its
+secret configuration. Source must contain the latest changes before running.
+
+## How are uploads named, and can I go back to an earlier model?
+
+The default model repository is
+`ACCOUNT/part7-7a-smoke-execution-UTC_TIMESTAMP-RANDOM_SUFFIX`; the evidence
+repository adds `-artifacts`. Each default execution has a distinct name.
+`--output results/7a/grpo-smoke-001` instead uses
+`ACCOUNT/part7-7a-grpo-smoke-001`; choose a new name for each run. Repository
+variables can override automatic destinations. `hf_upload.json` records the
+repository IDs and exact commit revisions.
+
+Use `--model-id REPOSITORY --model-revision FULL_COMMIT_HASH` to start fresh
+training from a selected model's weights. Explicitly uploading again to the same
+repository creates a new commit; earlier revisions can still be selected while
+retained. This is weights-only restart, not restoration of optimizer or progress.
+
+## Should model and artifact repositories be public?
+
+The current runner enforces private repositories; public model uploads are not
+implemented. Public release may suit selected useful models with model cards,
+while raw operational evidence and training state can remain private. Your account
+dashboard showed more public than private storage, but public capacity should not
+be treated as unrestricted backup space. Storage is shared across repositories;
+creating more repositories does not increase the account allowance. Check current
+usage and the [Hub storage policy](https://huggingface.co/docs/hub/storage-limits)
+before retaining many versions. Default artifact uploads exclude full checkpoints.

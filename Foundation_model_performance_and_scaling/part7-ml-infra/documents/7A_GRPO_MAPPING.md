@@ -1,8 +1,10 @@
 # 7A step 2 — MATH adapters and GRPO mapping
 
-Updated: 2026-10-04. Adapters, data conversion and bounded CPU equation checks
-are implemented. No models were loaded or GPU work performed. Step 3 completed
-configuration composition; the cloud agent import remains a cloud check.
+Updated: 2026-10-05. Adapters, data conversion and bounded CPU equation checks
+are implemented and exercised in the completed two-GPU cloud smoke. The agent
+registration, grading, training/evaluation, export and pinned model-weight reload
+worked on cloud. No Part 5 training loop was ported; wider numerical/tokenizer
+equivalence and exact training-state recovery remain unverified.
 
 Reference: corrected Part 5 `tight_pilot_FRqpow9W` GRPO run, using
 Qwen2.5-Math-1.5B, MATH and `r1_zero.prompt`. Upstream references below are fixed
@@ -30,14 +32,14 @@ The initial Parquet prompt is a single user message whose content is the exact
 rendered raw Part 5 prompt. Load `raw_prompt.jinja` as the **string** value of
 `actor_rollout_ref.model.custom_chat_template`, for both trainer and rollout
 tokenizers. It adds no role wrappers or generation suffix. CPU rendered-text
-equality passed; token-ID equality, special tokens and response masks still need
-cloud validation. Larger models can replace this template/configuration without
+equality passed, and cloud generation/grading exercised this template. Full
+token-ID, special-token and response-mask equivalence to Part 5 is not established. Larger models can replace this template/configuration without
 changing Ray orchestration.
 
 [r1_agent.py](../workloads/r1_agent.py) subclasses verl's single-turn loop and
 delegates all generation to it. Its only change is sampling parameters: stop at
 `</answer>` while retaining that string, training minimum 4 tokens, and separate
-evaluation request seeds. Step 3 must register the Hydra agent list entry:
+evaluation request seeds. The implemented Hydra agent list registers:
 
 ```yaml
 - name: r1_single_turn
@@ -53,10 +55,10 @@ Sources: [RL dataset](https://github.com/verl-project/verl/blob/bec9ef74768dd201
 
 ## Explicit estimator and optimizer mapping
 
-| Part 5 reference | Proposed verl configuration / interpretation |
+| Part 5 reference | Implemented verl configuration / interpretation |
 | --- | --- |
 | Mean group baseline, sample std + 1e-6 | `algorithm.adv_estimator=grpo`, `algorithm.norm_adv_by_std_in_grpo=true`. Pinned function uses sample std and epsilon 1e-6; require group size >=2. Mixed and zero-variance groups passed CPU comparison. |
-| Token importance ratio, clipping 0.2/0.2 | `actor.policy_loss.loss_mode=vanilla`, `actor.clip_ratio=0.2`, `actor.clip_ratio_low=0.2`, `actor.clip_ratio_high=0.2`, under `actor_rollout_ref`. |
+| Token importance ratio, clipping 0.2/0.2 | `actor.policy_loss.loss_mode=part7_grpo` (diagnostic wrapper delegating to `vanilla`), `actor.clip_ratio=0.2`, `actor.clip_ratio_low=0.2`, `actor.clip_ratio_high=0.2`, under `actor_rollout_ref`. |
 | No dual clipping | Set `actor.clip_ratio_c=1e10`. verl clamps log ratios to [-20,20], so this bound exceeds its maximum ratio and makes the extra negative-advantage cap inactive. Default 3.0 changes the objective. Log-ratio clamping remains a documented difference. |
 | Mean of per-response token means | `actor.loss_agg_mode=seq-mean-token-mean`; use the new worker's global response count and rank scaling. Unequal-length loss/gradient and simulated two-rank accumulation checks passed. |
 | No KL or entropy objective | `actor.use_kl_loss=false`, `actor.entropy_coeff=0`, `algorithm.use_kl_in_reward=false`; no reference model, learned reward model or critic for GRPO. |
@@ -79,14 +81,17 @@ responses **per GPU**, not prompts or a global accumulation count.
 
 | Configuration | Prompts / iteration | Responses / iteration | Global responses / optimizer update | PPO epochs | Updates / iteration |
 | --- | --- | --- | --- | --- | --- |
-| First smoke proposal | 4 | 16 (`n=4`) | 16 (`ppo_mini_batch_size=4`) | 2 | 2 |
+| Verified smoke configuration | 4 | 16 (`n=4`) | 16 (`ppo_mini_batch_size=4`) | 2 | 2 |
 | Part 5 exploratory pilot mapping | 16 | 64 (`n=4`) | 32 (`ppo_mini_batch_size=8`) | 4 | 8 |
 
 With two training ranks and microbatch size 2, smoke updates process 8 responses
 per rank through four microbatches. Three smoke rollout iterations therefore
 mean six global optimizer updates, not six per-rank updates added together.
-These counts assume complete, divisible batches; step 3 must check actual counts
-and scheduler stepping in the framework. No pilot rerun is required.
+These counts assume complete, divisible batches. Both reviewed cloud runs
+recorded six optimizer calls per rank, representing six global updates rather
+than twelve. Optimizer calls can have zero gradients when group rewards are
+identical; the upload run had nonzero gradients on steps 2/3. Scheduler state
+restoration has not been tested. No pilot rerun is required.
 Source: [trainer update dispatch](https://github.com/verl-project/verl/blob/bec9ef74768dd201881cd4e54cd0385e87caae27/verl/trainer/ppo/ray_trainer.py),
 [worker minibatching](https://github.com/verl-project/verl/blob/bec9ef74768dd201881cd4e54cd0385e87caae27/verl/workers/engine_workers.py).
 
@@ -128,11 +133,18 @@ VERL_SOURCE=/path/to/pinned/verl python -m unittest discover -s tests -v
 isolated `/tmp` CPU dependencies (PyArrow 19.0.1, math-verify 0.7.0,
 latex2sympy2_extended 1.10.1, pylatexenc 2.10, SymPy 1.14.0, Jinja2 3.1.6).
 Step 3 subsequently resolved the full dependency lock and reran reward checks
-with Hydra-compatible ANTLR 4.9.3. Cloud Python 3.12 remains unverified. Equation
+with Hydra-compatible ANTLR 4.9.3. The selected cloud Python 3.12 environment
+subsequently installed and ran successfully. Equation
 tests hash-check and AST-extract exact pinned functions to avoid importing
 verl/Ray/CUDA; they do not establish distributed integration correctness.
 Step 3 configuration, environment preparation, cloud runner and diagnostics are
 implemented; see [runbook](7A_RUNBOOK.md). The thin diagnostic objective delegates
 to upstream `vanilla`; it adds a frozen-policy gate without changing the loss.
-Eighteen CPU checks passed overall. Numerical/sharding evidence collection on
-GPU and paid provisioning remain pending hardware and budget agreement.
+Eighteen CPU checks passed at step 3; subsequent dependency/artifact changes
+passed 26 CPU tests, followed by five targeted authentication/naming checks.
+Reviewed cloud diagnostics show two ranks, 338 sharded parameter tensors per
+rank, sampled sharded gradients/Adam moments and finite frozen-policy checks.
+The upload run evaluated at 5/32 before and 8/32 after training; the weights-reload
+run evaluated at 9/32 before and 6/32 after, with zero training rewards in the
+reload run. These are infrastructure smoke observations, not reliable model-quality
+gains or regressions. Full-state recovery and broader parity checks remain open.

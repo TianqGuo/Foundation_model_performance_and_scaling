@@ -1,9 +1,14 @@
-# 7A cloud smoke preparation
+# 7A cloud smoke runbook
 
-Step 3 prepares configuration and commands. GPU execution has not been verified.
-Hardware/spending approval is required before renting or running paid resources.
-The proposal remains one node with 2×A100 40 GB, at most two hours, at most
-$5/hour for the whole instance, and at most $15 total including storage.
+Status: bounded two-A100 40 GB cloud execution, actual FSDP2 sharding, checkpoint
+export, private Hub uploads and a new smoke from the uploaded model commit are
+verified. Logs/receipts are retained locally and the instance was released.
+Exact training-state recovery remains 7B work.
+
+Agree hardware and spending before any new paid provisioning. The original
+proposal was one node with 2×A100 40 GB, at most two hours, at most $5/hour for
+the whole instance and at most $15 total including storage; actual spend was
+not recorded. Recheck the offer before each rental.
 
 ## Cloud prerequisites
 
@@ -27,18 +32,19 @@ changes system links. An explicitly set `CUDA_HOME` must point to CUDA 13.
 The pinned wheels target CUDA 13.0; later 13.x toolkit versions are accepted but
 are not separately GPU-validated. Require a host driver compatible with CUDA 13.
 
-This revised stack is metadata-resolved and CPU-checked; cloud imports, kernels,
-GPU memory and distributed integration remain pending validation. If an earlier
+This revised stack installed and executed on the reviewed two-A100 cloud
+instance. That validates the bounded workload, not every image/GPU combination
+or per-phase peak memory behavior. If an earlier
 attempt created `.venv-7a`, preserve it under a different name before retrying.
-An interrupted/stale environment is not silently reused. A successful GPU run
-is still required before calling this a validated environment.
+An interrupted/stale environment is not silently reused. Retain setup records and
+recheck imports/hardware on each new instance.
 
 ### CuTe import compatibility fix
 
 The first CUDA 13 cloud attempt exposed `cutlass.cute.core.ThrMma` missing with
 CUTLASS DSL 4.8.0. The lock now pins **4.2.1**, which retains that API and meets
-FlashInfer 0.5.3's minimum. This fixes the identified version mismatch; the full
-cloud import/run remains to be verified. Sources: [CUTLASS 4.2.1 API](https://github.com/NVIDIA/cutlass/blob/v4.2.1/python/CuTeDSL/cutlass/cute/core.py),
+FlashInfer 0.5.3's minimum. Deep cloud imports and the subsequent training runs
+passed with this corrected stack. Sources: [CUTLASS 4.2.1 API](https://github.com/NVIDIA/cutlass/blob/v4.2.1/python/CuTeDSL/cutlass/cute/core.py),
 [FlashInfer requirements](https://github.com/flashinfer-ai/flashinfer/blob/v0.5.3/requirements.txt).
 Setup now checks the deeper CuTe and verl/vLLM imports before declaring success.
 After updating source, repair only Part 7's installed environment and run with:
@@ -47,7 +53,7 @@ After updating source, repair only Part 7's installed environment and run with:
 bash infrastructure/7a_verl/part7A.sh --sync-env
 ```
 
-Put `--sync-env` first. It explicitly reconciles `.venv-7a` to the new lock,
+`--sync-env` can be combined with `--upload-hf`. It explicitly reconciles `.venv-7a` to the new lock,
 reusing unchanged packages and the existing model cache. It leaves Parts 1–6's
 environments alone; do not run it alongside another active Part 7 job.
 
@@ -62,7 +68,7 @@ On a new cloud instance, clone the repository (with Git access configured):
 ```bash
 git clone git@github.com:TianqGuo/Foundation_model_performance_and_scaling.git /workspace/foundation
 cd /workspace/foundation/Foundation_model_performance_and_scaling/part7-ml-infra
-bash infrastructure/7a_verl/part7A.sh
+bash infrastructure/7a_verl/part7A.sh --upload-hf
 ```
 
 For an existing checkout, update the intended branch and run again:
@@ -71,12 +77,15 @@ For an existing checkout, update the intended branch and run again:
 cd /workspace/foundation
 git pull --ff-only
 cd Foundation_model_performance_and_scaling/part7-ml-infra
-bash infrastructure/7a_verl/part7A.sh
+bash infrastructure/7a_verl/part7A.sh --upload-hf
 ```
 
 Clone/check out the intended branch if it differs from the repository default.
 No separate environment installation, activation, model download, configuration
-check or Python launch is required. The shell runner handles those steps.
+check or Python launch is required. `--upload-hf` also reuses Hub authentication
+or prompts once for a write token and chooses private repositories automatically.
+Omit `--upload-hf` for a disposable smoke without retention, unless explicit
+upload destination variables are set. The shell runner handles those steps.
 
 Make MATH data available before running: either restore the Part 5 raw files to
 the sibling `part5-alignment/data/math/` or `/data/a5-alignment/MATH/`, or transfer
@@ -105,7 +114,7 @@ On cloud, run the single entry point:
 
 ```bash
 cd /workspace/part7
-bash infrastructure/7a_verl/part7A.sh
+bash infrastructure/7a_verl/part7A.sh --upload-hf
 ```
 
 ## What the shell runner does
@@ -118,7 +127,11 @@ then runs the smoke, including automatic model download. If the bundle is missin
 it attempts preparation from discovered Part 5 references and raw MATH data; those
 must be present on cloud. Transferring the prepared bundle avoids that dependency.
 Console output is retained under `results/7a/execution_TIMESTAMP_SUFFIX/`.
-Setup and smoke have 30-minute and 60-minute timeouts respectively.
+With `--upload-hf`, destination access is checked before training; successful
+training is followed by BF16 export and direct uploads. The run directory also
+receives environment records and a pre-upload console copy. The execution
+console contains final upload messages and should be retained too. Setup and
+smoke have 30-minute and 60-minute timeouts respectively; export/upload is separate.
 
 The setup selects Python 3.12.14 and the exact verl commit, installs the resolved
 lock with GPU packages restricted to wheels, checks dependencies/imports and
@@ -126,7 +139,7 @@ records installed versions. It verifies Torch's CUDA 13.0 build and C++11 ABI
 before importing the selected FlashAttention binary. Setup intentionally fails
 on an existing environment/source directory rather than silently changing it.
 Console output is retained by the wrapper. The lock is metadata-resolved; it is
-not a tested GPU environment.
+tested for the bounded two-A100 workload, not certified for every GPU/image.
 
 The launcher automatically calls Hugging Face `snapshot_download` **on cloud**
 when the default model snapshot is missing, as Part 5 did. It downloads the snapshot
@@ -251,13 +264,14 @@ into creating/uploading those repositories when you execute the runner:
 ```bash
 export HF_MODEL_REPO=YOUR_ACCOUNT/part7-7a-smoke-001
 export HF_ARTIFACT_REPO=YOUR_ACCOUNT/part7-7a-smoke-001-artifacts
-bash infrastructure/7a_verl/part7A.sh
+bash infrastructure/7a_verl/part7A.sh --upload-hf
 ```
 
 The runner trains, copies console/environment evidence into the run directory,
 then exports the latest actor checkpoint using the pinned verl FSDP merger and
 uploads the model/tokenizer directly from cloud. The exporter converts weights
-to BF16 (approximately 3 GB for this 1.5B model); this is a weights-only export.
+to BF16 (the reviewed model/tokenizer upload was approximately 3.6 GB); this
+is a weights-only export.
 The private dataset repository receives run evidence, excluding checkpoints and
 the duplicate exported model. Either destination can be selected independently.
 With neither variable set, execution remains a smoke without uploads.
@@ -299,11 +313,50 @@ another upload is intended. Starting from the original Qwen model needs only
 Full-state restoration through verl's `resume_path` remains a 7B implementation
 and verification task. No full-state restore flag is exposed by this runner yet.
 
-For this earlier smoke, the user retained logs locally and chose to discard the
-instance/checkpoint and rerun. Logs remain review evidence; discarded checkpoints
+For the first pre-upload smoke, the user retained logs locally and chose to
+discard the instance/checkpoint and rerun. Later runs verified Hub retention
+and loading the exported model at a pinned commit; their logs and receipts were
+reviewed locally before the instance was destroyed. Logs remain review evidence; discarded checkpoints
 cannot be recovered or used to verify reload. Future runs can retain their output
 without copying model files through a laptop. Keep an instance until any artifacts
 you intend to preserve are uploaded and checked; intentionally disposable smoke
 checkpoints need not be backed up.
 
 Hub upload behavior follows the [official upload guide](https://huggingface.co/docs/huggingface_hub/guides/upload).
+
+## Retain logs locally and check uploaded-weight reload
+
+The reviewed upload run was `smoke_execution_20261005T045405Z_dwaxLH`; its model
+commit is `40c33b6ad0a7a2879e7b5a8f5f6a52baaa94a584`. The new smoke
+`smoke_execution_20261005T052347Z_utvjK2` selected that commit, completed evaluation
+and checkpoint save, and reported success. Both runs' logs, identities and
+rank/sharding diagnostics are local. No full-state restoration was performed.
+
+For future runs, copy small evidence and receipts from your **local Part 7 directory**.
+Substitute the instance's port/host and actual checkout path:
+
+```bash
+rsync -az --partial --info=progress2 \
+  --exclude='checkpoints/' --exclude='hf_model/' --exclude='.cache/' \
+  -e "ssh -p SSH_PORT" \
+  root@CLOUD_HOST:/workspace/foundation/Foundation_model_performance_and_scaling/part7-ml-infra/results/7a/ \
+  ./results/7a/
+```
+
+This retains both the run evidence and the full execution console without model
+weights or optimizer state. The exclusions apply to nested directories too.
+If you need exact training continuation, request full-state Hub retention before
+cleanup; this log-copy command is not a checkpoint backup.
+
+On cloud, use the model repository/revision from `hf_upload.json` to run the
+pinned weights-only smoke shown above. Unset upload destination variables and
+omit `--upload-hf` to avoid publishing another result. After it finishes, repeat
+the small-artifact copy. Confirm the job status, requested model revision,
+rank/sharding diagnostics and evaluation files locally before releasing resources.
+
+The merger printed a Mistral-regex warning for the Qwen tokenizer. Similar warnings
+for non-Mistral tokenizers are reported in the
+[Transformers tracker](https://github.com/huggingface/transformers/issues/42591).
+The uploaded model loaded and executed successfully; full token-ID equivalence
+is still unverified. Do not apply `fix_mistral_regex=True` to Qwen solely because
+that warning appeared.
