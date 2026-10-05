@@ -206,7 +206,104 @@ checkpoint contents. Nonzero exit, missing either training rank, unsharded state
 missing checkpoint or missing evaluation leaves 7A incomplete. Training-state
 recovery is a later 7B acceptance item; this smoke disables automatic resume.
 
-Copy the complete output directory, console log, environment records and relevant
-Ray worker logs to durable storage and verify readability before stopping/deleting
-the rental. Do not delete resources until artifacts are retained. Record actual
+Retain the evidence and any checkpoint you intend to reuse in durable storage
+before deleting the rental. Direct Hugging Face retention is described below;
+copying full checkpoints through a laptop is optional. A disposable smoke can
+retain only logs, with the checkpoint explicitly discarded. Record actual
 hardware, elapsed time and spend. Summarize measured results only after review.
+
+## Direct cloud-to-Hugging-Face retention
+
+Recommended single command after cloning/pulling Part 7 source:
+
+```bash
+bash infrastructure/7a_verl/part7A.sh --upload-hf
+```
+
+This follows Part 6's saved Hugging Face login approach. After environment setup,
+the runner reuses `HF_TOKEN` or the saved Hub token. If neither exists, it prompts
+once using the Hub login helper (the same authentication as CLI login), without
+adding Git credentials. It verifies the token account with `whoami` and creates
+private model/artifact repositories named for this run under that account. For
+`sclion`, the names begin `sclion/part7-7a-`. Credentials are not written to run
+logs. The login helper saves the token in the standard Hugging Face cache for
+reuse on this instance. A new disposable instance needs authentication again
+unless a token is supplied through instance secrets. Noninteractive execution
+requires `HF_TOKEN` or a saved login; it does not wait for token input.
+
+`--upload-hf` opts into repository creation/upload. Authentication, token account
+and destination access are checked before training. Existing repository variables
+below override automatic names; no manual naming/export commands are needed for
+the recommended command. The token needs write access. Use a replacement for
+any token previously exposed in conversation.
+
+
+Use Hugging Face authentication as in Parts 5/6: log in on the cloud host with
+`.venv-7a/bin/hf auth login`, or supply `HF_TOKEN` through the instance's secret
+configuration. Use a write token; do not put credentials in Git or commands saved
+in documentation. The existing environment includes `huggingface_hub`; no new
+GPU dependencies are needed. On a first instance, the runner creates the environment
+before uploading, so a secret-provided `HF_TOKEN` also works for the first run.
+
+Choose private destinations dedicated to this run. Setting these variables opts
+into creating/uploading those repositories when you execute the runner:
+
+```bash
+export HF_MODEL_REPO=YOUR_ACCOUNT/part7-7a-smoke-001
+export HF_ARTIFACT_REPO=YOUR_ACCOUNT/part7-7a-smoke-001-artifacts
+bash infrastructure/7a_verl/part7A.sh
+```
+
+The runner trains, copies console/environment evidence into the run directory,
+then exports the latest actor checkpoint using the pinned verl FSDP merger and
+uploads the model/tokenizer directly from cloud. The exporter converts weights
+to BF16 (approximately 3 GB for this 1.5B model); this is a weights-only export.
+The private dataset repository receives run evidence, excluding checkpoints and
+the duplicate exported model. Either destination can be selected independently.
+With neither variable set, execution remains a smoke without uploads.
+
+For durable **full training state**, additionally set
+`export HF_UPLOAD_CHECKPOINT=1`. This uploads the entire checkpoints directory,
+including optimizer/extra state and data progress files when saved by verl.
+It is still large, but travels directly from the GPU instance to the Hub;
+your laptop is optional. Large-folder uploads retain retry progress on the
+instance. Use a distinct artifact repository per run to avoid mixing checkpoints.
+
+If export/upload fails after training, rerun only retention rather than training:
+
+```bash
+.venv-7a/bin/python infrastructure/7a_verl/hf_artifacts.py --cloud \
+  --run results/7a/YOUR_RUN \
+  --model-repo YOUR_ACCOUNT/part7-7a-smoke-001 \
+  --artifact-repo YOUR_ACCOUNT/part7-7a-smoke-001-artifacts
+```
+
+Add `--include-checkpoint` to retain full state. Successful retention writes
+`hf_upload.json` with repository IDs and commit revisions, and checks that uploaded
+files are listed at those revisions. Copy that small receipt locally. File listings
+verify upload presence; they do not prove model reload or training recovery.
+The local receipt includes the final artifact revision; the remotely uploaded
+receipt, if present, records the model revision before artifact upload completes.
+
+On a new cloud instance, start a new smoke from exported weights with:
+
+```bash
+bash infrastructure/7a_verl/part7A.sh \
+  --model-id YOUR_ACCOUNT/part7-7a-smoke-001 --model-revision MODEL_COMMIT
+```
+
+This automatically downloads the exported model and starts fresh training;
+optimizer/step state is not resumed. Unset upload destination variables unless
+another upload is intended. Starting from the original Qwen model needs only
+`bash infrastructure/7a_verl/part7A.sh`; no earlier checkpoint is required.
+Full-state restoration through verl's `resume_path` remains a 7B implementation
+and verification task. No full-state restore flag is exposed by this runner yet.
+
+For this earlier smoke, the user retained logs locally and chose to discard the
+instance/checkpoint and rerun. Logs remain review evidence; discarded checkpoints
+cannot be recovered or used to verify reload. Future runs can retain their output
+without copying model files through a laptop. Keep an instance until any artifacts
+you intend to preserve are uploaded and checked; intentionally disposable smoke
+checkpoints need not be backed up.
+
+Hub upload behavior follows the [official upload guide](https://huggingface.co/docs/huggingface_hub/guides/upload).

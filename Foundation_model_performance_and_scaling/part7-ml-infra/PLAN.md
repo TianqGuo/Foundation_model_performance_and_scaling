@@ -10,7 +10,10 @@ and FlashAttention 2.8.3 binaries, superseding the separate-toolkit workaround.
 There is no toolkit download or FlashAttention compilation; cloud validation remains pending.
 The first CUDA 13 attempt exposed a CUTLASS 4.8/CuTe import mismatch; pinned
 CUTLASS DSL 4.2.1 and added deep import checks plus explicit `--sync-env` repair.
-The corrected cloud import/training path remains unverified.
+User-provided logs subsequently show a three-step cloud smoke reaching checkpoint
+save and the final completion message. The shown first two steps have zero rewards,
+advantages and gradients; retained evidence still needs review before accepting 7A.
+The user copied logs locally and chose to discard that checkpoint and rerun.
 The cloud launcher now automatically downloads a missing model snapshot and
 reuses existing snapshots; local configuration checks remain download-free.
 `infrastructure/7a_verl/part7A.sh` is the single cloud entry point: setup/reuse, optional data preparation,
@@ -117,6 +120,43 @@ Steps 4–5 remain proposed for review.
    from artifacts; summarize mapping and limitations. Update this plan and add a
    concise results-focused README. Reassess before 7B or a bounded comparison;
    no historical experiment suite retraining is required.
+
+## Retained first cloud smoke evidence
+
+Local evidence from `smoke_20261005T035949450979Z` was inspected: job status
+reports success; diagnostics record ranks 0/1 on distinct visible GPUs, world
+size 2, 338 sharded parameter tensors on each rank, sampled sharded gradients
+and Adam moments, and six optimizer calls per rank. Both fixed validation dumps
+contain 32 rows. Training rollouts 1/2 have zero scores; rollout 3 contains one
+positive score among 16 responses. This supports actual distributed execution
+but does not establish a reliable improvement in model quality. Full checkpoint
+reload/export was not verified before the user chose to discard the instance.
+The new Hub authentication/export/upload and pinned-revision reload path still
+require cloud verification; 7A is not yet marked complete.
+
+## Hugging Face artifact retention
+
+User authorized direct cloud-to-Hub retention on 2026-10-05. The 7A shell runner
+now accepts `HF_MODEL_REPO` for a private BF16 model/tokenizer export and
+`HF_ARTIFACT_REPO` for a private dataset repository dedicated to the run's evidence.
+Full training-state upload is opt-in through `HF_UPLOAD_CHECKPOINT=1`; the default
+evidence upload excludes checkpoint weights and optimizer state. Neither repository
+is required for disposable smoke runs. `--upload-hf` provides a single-command flow: reuse cached/environment credentials
+or prompt once, verify the token account, choose run-specific private destinations
+and check access before training. Explicit destinations remain optional overrides.
+Authentication uses existing Hub tooling,
+with no added GPU dependencies. No repository was created or uploaded by the agent.
+
+The thin `hf_artifacts.py` helper delegates merging to pinned verl and transfers
+artifacts directly from cloud. It records commit revisions and verifies remote file
+listings. Export correctness, actual Hub upload and model reload remain cloud checks;
+file presence is not verified training-state restoration. All 26 CPU tests passed,
+including artifact selection, numeric checkpoint selection and private-repository
+enforcement; shell syntax checks passed. The subsequent authentication/name
+simplification passed five targeted CPU tests and shell syntax/help checks. A new cloud smoke can use
+`--model-id` / `--model-revision` to download exported weights automatically and
+start fresh. Full-state recovery remains a 7B requirement, with no resume interface
+claimed by 7A. See the runbook for commands, retrying retention and artifact policy.
 
 ## Boundaries and progress
 

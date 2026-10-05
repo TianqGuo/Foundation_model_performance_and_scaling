@@ -11,7 +11,7 @@
   Use them as references; do not adapt Part 5 training to the new framework.
 - 7A steps 1–3 were authorized on 2026-10-04. Consult
   `documents/7A_ENVIRONMENT.md`, `documents/7A_GRPO_MAPPING.md` and
-  `documents/7A_RUNBOOK.md`. Cloud execution remains pending. Agree hardware and
+  `documents/7A_RUNBOOK.md`. User-run cloud smoke evidence awaits review. Agree hardware and
   a spending cap before paid provisioning.
 - Do not stage, commit or push without explicit user approval.
 

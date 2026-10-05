@@ -113,3 +113,19 @@ No custom Part 5 algorithm port is currently requested or implemented.
 This separation keeps installation choices, experiment settings and launch logic
 independently reviewable. The runner delegates training to verl rather than
 implementing another training loop.
+
+## Do checkpoints have to pass through my laptop?
+
+No. A fresh smoke downloads the original base model automatically and needs no
+previous checkpoint. To reuse trained weights, the cloud runner can export/upload
+a private Hugging Face model and a later instance can download it by repository
+ID and commit revision. Full optimizer/training state is needed only for exact
+continuation; its upload is optional and goes directly from cloud to the Hub.
+Logs/configuration can be stored independently in a private artifact repository.
+The runbook documents these options. Hub file presence, model reload and verified
+training recovery are distinct checks; recovery remains part of 7B.
+
+For the fewest manual steps, use `bash infrastructure/7a_verl/part7A.sh --upload-hf`.
+It reuses Part 6-style saved Hub authentication or prompts once for a write token,
+verifies its account and chooses private repository names automatically. A token
+provided through instance secrets makes the flow noninteractive.
