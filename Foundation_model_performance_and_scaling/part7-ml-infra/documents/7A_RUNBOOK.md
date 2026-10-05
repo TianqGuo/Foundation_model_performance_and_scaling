@@ -13,21 +13,43 @@ storage. Confirm the provider image and driver support before rental. Capture it
 image identity/digest in `results/7a/environment/image_identity.txt`; a digest-pinned
 deployment image is still pending. Do not reuse Part 5's environment.
 
-From the local Part 7 directory, transfer uncommitted source and the prepared
-bundle without a Git push. Substitute the approved SSH host and destination:
+Git push/pull is a valid source-transfer workflow: after the intended changes are
+committed and pushed with approval, clone/pull that revision on cloud and run from
+its `part7-ml-infra/` directory. A clone/pull does not include uncommitted changes.
+Our convention requires approval before staging, committing or pushing; it does
+not prohibit using Git for cloud deployment.
+
+For the current uncommitted changes, rsync is an alternative that does not require
+a commit/push. From the local Part 7 directory, substitute the approved SSH host
+and destination below. Create destination directories first:
 
 ```bash
+ssh CLOUD_HOST 'mkdir -p /workspace/part7/results/7a'
 rsync -az --exclude=.git --exclude='.venv*' --exclude=__pycache__ \
-  AGENTS.md PLAN.md README.md environment workloads tests documents CLOUD_HOST:/workspace/part7/
+  AGENTS.md PLAN.md README.md infrastructure workloads tests documents CLOUD_HOST:/workspace/part7/
 rsync -az results/7a/step2_math_final CLOUD_HOST:/workspace/part7/results/7a/
 ```
 
-On cloud, install into the new environment:
+The prepared bundle under `results/` is ignored by Git. Transfer it separately
+even when source is delivered through Git; adjust its destination to the cloud
+checkout's Part 7 directory. Model weights and environments also stay out of Git.
+
+On cloud, run the single entry point:
 
 ```bash
 cd /workspace/part7
-timeout --signal=INT --kill-after=60s 30m bash environment/setup_7a.sh --cloud
+bash infrastructure/7a_verl/part7A.sh
 ```
+
+`part7A.sh` calls `infrastructure/7a_verl/environment/setup_7a.sh` when the environment is absent. Later
+runs reuse a successfully installed environment after checking setup-input hashes
+and imports. An incomplete or stale environment fails explicitly and is preserved.
+The wrapper checks the prepared bundle, saves a resolved configuration preview,
+then runs the smoke, including automatic model download. If the bundle is missing,
+it attempts preparation from discovered Part 5 references and raw MATH data; those
+must be present on cloud. Transferring the prepared bundle avoids that dependency.
+Console output is retained under `results/7a/execution_TIMESTAMP_SUFFIX/`.
+Setup and smoke have 30-minute and 60-minute timeouts respectively.
 
 The setup selects Python 3.12.14 and the exact verl commit, installs the resolved
 dependency lock, builds FlashAttention after Torch, checks dependency consistency
@@ -37,32 +59,51 @@ cannot accommodate setup and the smoke. Setup intentionally fails on an existing
 environment/source directory rather than silently changing it. Save setup console
 output too. The lock is metadata-resolved; it is not a tested GPU environment.
 
-Place a complete Qwen2.5-Math-1.5B Hugging Face snapshot at
-`assets/models/Qwen2.5-Math-1.5B` **on cloud**, recording the repository revision.
+The launcher automatically calls Hugging Face `snapshot_download` **on cloud**
+when the default model snapshot is missing, as Part 5 did. It downloads the snapshot
+into `assets/models/Qwen2.5-Math-1.5B`; no manual download command is needed.
+Subsequent runs reuse the local snapshot. Automatic preparation occurs only after
+the cloud GPU and verl-commit checks; `--check-config` never downloads models.
+For a reproducible download, supply `--model-revision COMMIT`; the Hugging Face
+cache supports reusing downloads. Record the repository revision; model-file
+hashes capture the actual files used. Allow download time within the smoke timeout.
 The runner also discovers Part 7's `assets/Qwen2.5-Math-1.5B` and the established
 cloud path `/data/a5-alignment/models/Qwen2.5-Math-1.5B`. An existing cloud snapshot
-can be supplied with `--model-path`. No local model
+can be supplied with `--model-path`; an invalid explicit path fails rather than
+downloading the default model into it. No local model
 download/loading is needed. Changing the model requires prompt/tokenizer and
 memory validation; the smoke's batch/resource settings are intentionally explicit.
 
-## Check and run
+## Optional direct commands
+
+The wrapper performs configuration checking and execution automatically. These
+lower-level commands are available for troubleshooting; they are not required
+steps when using `bash infrastructure/7a_verl/part7A.sh`.
 
 Configuration composition reads YAML and bundle hashes; it does not import verl,
 load a tokenizer or perform a model forward:
 
 ```bash
-.venv-7a/bin/python workloads/run_7a.py --check-config > resolved_preview.yaml
+.venv-7a/bin/python infrastructure/7a_verl/run_7a.py --check-config > resolved_preview.yaml
 ```
 
 Run on the approved cloud host, using a fresh output directory:
 
 ```bash
 set -o pipefail
-timeout --signal=INT --kill-after=60s 60m .venv-7a/bin/python -u workloads/run_7a.py --cloud \
+timeout --signal=INT --kill-after=60s 60m .venv-7a/bin/python -u infrastructure/7a_verl/run_7a.py --cloud \
   --output results/7a/cloud_smoke_01 2>&1 | tee results/7a/cloud_smoke_01_console.log
 ```
 
-Optional overrides: `--model-path`, `--data`, `--verl-source`, `--output`.
+Optional overrides: `--model-path`, `--model-id`, `--model-revision`, `--data`,
+`--verl-source`, `--output`. `--model-id` selects another repository for automatic
+cloud download. `--model-revision` applies to automatic preparation; do not combine
+it with an explicit existing `--model-path`.
+Pass these options to the shell entry point, for example:
+
+```bash
+bash infrastructure/7a_verl/part7A.sh --model-path /data/a5-alignment/models/Qwen2.5-Math-1.5B
+```
 The launcher starts an isolated local Ray cluster through verl and shuts it down
 on exit. It delegates rollout, reward, GRPO, synchronization and checkpointing to
 verl. Four prompts × four responses form each rollout; two PPO epochs and three

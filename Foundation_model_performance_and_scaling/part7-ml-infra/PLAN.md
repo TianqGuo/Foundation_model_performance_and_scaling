@@ -4,6 +4,10 @@ Updated: 2026-10-04
 
 Status: 7A steps 1–3 complete within source review, adapters, dependency resolution
 and CPU preparation; cloud installation, framework execution and provisioning unstarted.
+The cloud launcher now automatically downloads a missing model snapshot and
+reuses existing snapshots; local configuration checks remain download-free.
+`infrastructure/7a_verl/part7A.sh` is the single cloud entry point: setup/reuse, optional data preparation,
+configuration checks, model preparation, smoke execution and retained console logs.
 This project uses `part7-ml-infra/`, the existing workspace name;
 the Part 5 plan calls it `part7-ml-infrastructure/`.
 
@@ -17,6 +21,11 @@ Supporting documents live in `documents/`. The local
 [Part 5 plan copy](documents/PART5_MODERNIZATION_PLAN.md) is historical reference;
 its paths describe the original Part 5 context. Keep `PLAN.md` and `AGENTS.md`
 at the project root for ongoing planning and working conventions.
+
+Group infrastructure code by milestone. `infrastructure/7a_verl/` contains the
+7A shell/Python runners, diagnostics, configuration and environment files.
+`workloads/` holds reusable MATH and generation adapters. Add 7B–7E directories
+when their implementation starts; tests and results remain at the project root.
 
 Start with Qwen2.5-Math-1.5B and MATH. The corrected Part 5 GRPO-Clip reference is
 `tight_pilot_FRqpow9W`: clipping 0.2/0.2, FP32 log-softmax, stable microbatches,
@@ -60,7 +69,7 @@ first, then complete RayService deployment later; this fallback does not finish 
 
 Step 1 was authorized on 2026-10-04 and completed at source-review scope; see
 [environment/topology decision](documents/7A_ENVIRONMENT.md) and
-[core pins](environment/requirements.txt). Full dependency resolution and GPU
+[core pins](infrastructure/7a_verl/environment/requirements.txt). Full dependency resolution and GPU
 validation remain pending. Step 2 was subsequently authorized and completed;
 see [adapters and GRPO mapping](documents/7A_GRPO_MAPPING.md). Thirteen CPU tests
 passed; real Parquet preparation produced 1,023 training/32 evaluation prompts,

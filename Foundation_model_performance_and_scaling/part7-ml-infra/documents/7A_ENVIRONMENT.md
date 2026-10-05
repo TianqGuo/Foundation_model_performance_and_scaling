@@ -7,7 +7,7 @@ Runnable setup is in the [step 3 runbook](7A_RUNBOOK.md).
 ## Selected starting stack
 
 Use an isolated Part 7 cloud environment, Linux x86_64 and Python 3.12.
-[Core package pins](../environment/requirements.txt) select:
+[Core package pins](../infrastructure/7a_verl/environment/requirements.txt) select:
 
 | Component | Selection | Basis |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ that recipe with these pins or copy a `*.latest` image. This discrepancy makes
 cloud validation necessary; no claim of an already tested environment is made.
 [Tagged Dockerfile](https://github.com/verl-project/verl/blob/bec9ef74768dd201881cd4e54cd0385e87caae27/docker/Dockerfile.stable.vllm).
 
-Step 3 resolved the [dependency lock](../environment/requirements.lock) for
+Step 3 resolved the [dependency lock](../infrastructure/7a_verl/environment/requirements.lock) for
 Python 3.12/Linux x86_64 and selected Python 3.12.14 for cloud setup. CUDA wheels
 use explicit official URLs because resolver CUDA-index routing did not expose
 the pinned torchdata version. Resolution inputs and FlashAttention metadata

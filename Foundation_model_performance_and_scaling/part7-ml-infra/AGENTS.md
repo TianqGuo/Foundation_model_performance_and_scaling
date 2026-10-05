@@ -30,6 +30,9 @@
   reference grader on cloud; do not silently swap reward or chat-template semantics.
 - Prefer thin adapters, framework configuration and existing helpers over copied
   training loops. Add cohesive modules only when their responsibility is needed.
+- Keep milestone runners/configuration/environments under `infrastructure/`;
+  7A lives in `infrastructure/7a_verl/`. Keep reusable dataset/reward/generation
+  adapters in `workloads/`; add future milestone directories when needed.
 - Use descriptive names, `argparse` for custom CLIs, project-root-derived paths,
   LF endings and runners beside their implementation with usage in headers.
   Discover usual model/data locations; path overrides should be optional.

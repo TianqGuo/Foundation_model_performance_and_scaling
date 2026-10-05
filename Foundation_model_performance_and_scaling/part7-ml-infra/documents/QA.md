@@ -101,24 +101,16 @@ No custom Part 5 algorithm port is currently requested or implemented.
 
 | Files | Purpose |
 | --- | --- |
-| `environment/requirements.txt` | Deliberately selected direct library versions and exact verl commit. |
-| `environment/requirements-cu128.in` | Official CUDA wheel URLs used during resolution. |
-| `environment/requirements.lock` | Resolved direct and indirect application dependency versions. |
-| `environment/uv.toml` | FlashAttention metadata for resolution without a local CUDA build. |
-| `environment/setup_7a.sh` | Isolated cloud installation, FlashAttention build and import checks. |
-| `workloads/config/grpo_smoke.yaml` | Algorithm, batching, FSDP2/vLLM resources, evaluation and checkpoint settings. |
-| `workloads/config/r1_agents.yaml` | Registration of our generation adapter with verl. |
-| `workloads/run_7a.py` | Configuration/path assembly, bundle checks, evidence capture and framework launch. |
-| `workloads/verl_diagnostics.py` | Numerical checks and actual rank/sharding evidence during cloud execution. |
+| `infrastructure/7a_verl/environment/requirements.txt` | Deliberately selected direct library versions and exact verl commit. |
+| `infrastructure/7a_verl/environment/requirements-cu128.in` | Official CUDA wheel URLs used during resolution. |
+| `infrastructure/7a_verl/environment/requirements.lock` | Resolved direct and indirect application dependency versions. |
+| `infrastructure/7a_verl/environment/uv.toml` | FlashAttention metadata for resolution without a local CUDA build. |
+| `infrastructure/7a_verl/environment/setup_7a.sh` | Isolated cloud installation, FlashAttention build and import checks. |
+| `infrastructure/7a_verl/config/grpo_smoke.yaml` | Algorithm, batching, FSDP2/vLLM resources, evaluation and checkpoint settings. |
+| `infrastructure/7a_verl/config/r1_agents.yaml` | Registration of our generation adapter with verl. |
+| `infrastructure/7a_verl/run_7a.py` | Configuration/path assembly, bundle checks, evidence capture and framework launch. |
+| `infrastructure/7a_verl/verl_diagnostics.py` | Numerical checks and actual rank/sharding evidence during cloud execution. |
 
 This separation keeps installation choices, experiment settings and launch logic
 independently reviewable. The runner delegates training to verl rather than
 implementing another training loop.
-
-## How different might results be from Part 5?
-
-We do not know yet. Matching equations and workload semantics helps interpret
-differences, but does not guarantee matching GPU behavior or accuracy. The first
-cloud smoke checks generation, finite updates, evaluation, checkpointing and real
-two-rank sharding. A meaningful quality or throughput comparison is separate work
-with aligned protocols and clearly recorded hardware and execution differences.
