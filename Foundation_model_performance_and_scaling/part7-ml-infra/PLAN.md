@@ -2,22 +2,19 @@
 
 Updated: 2026-10-05
 
-Status: 7A steps 1–3 complete within source review, adapters, dependency resolution
-and CPU preparation. User-provided cloud logs show the first setup attempt stopped
-at the image's CUDA 13.0 toolkit check, before Python installation/training.
-Setup now uses the image CUDA 13 toolkit with official Torch 2.9.0, vLLM 0.12.0
-and FlashAttention 2.8.3 binaries, superseding the separate-toolkit workaround.
-There is no toolkit download or FlashAttention compilation; cloud validation remains pending.
-The first CUDA 13 attempt exposed a CUTLASS 4.8/CuTe import mismatch; pinned
-CUTLASS DSL 4.2.1 and added deep import checks plus explicit `--sync-env` repair.
-User-provided logs subsequently show a three-step cloud smoke reaching checkpoint
-save and the final completion message. The shown first two steps have zero rewards,
-advantages and gradients; retained evidence still needs review before accepting 7A.
-The user copied logs locally and chose to discard that checkpoint and rerun.
-The cloud launcher now automatically downloads a missing model snapshot and
-reuses existing snapshots; local configuration checks remain download-free.
-`infrastructure/7a_verl/part7A.sh` is the single cloud entry point: setup/reuse, optional data preparation,
-configuration checks, model preparation, smoke execution and retained console logs.
+Status: 7A bounded infrastructure smoke and artifact review are complete.
+Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
+parameter/gradient/Adam sharding, six optimizer calls per rank, fixed evaluation,
+checkpoint save, BF16 export, direct private Hub uploads and a successful new
+smoke from the uploaded model's pinned commit. Full training-state restoration
+and broader numerical/tokenizer parity remain unverified; those are not implied
+by a weights-only reload. 7B has not started.
+
+`infrastructure/7a_verl/part7A.sh --upload-hf` is the single cloud entry point:
+setup/reuse, automatic authentication/destination naming, data/model preparation,
+smoke execution, export and direct artifact retention. Public uploads are not
+implemented. No commits or pushes were performed by the agent.
+
 This project uses `part7-ml-infra/`, the existing workspace name;
 the Part 5 plan calls it `part7-ml-infrastructure/`.
 
@@ -90,7 +87,8 @@ numerical/sharding diagnostics and [runbook](documents/7A_RUNBOOK.md).
 Eighteen CPU tests passed, including composition against pinned upstream YAML,
 portable bundle integrity and the frozen-policy gate. GPU hooks and the complete
 installed stack remain unverified; image digest selection is pending before rental.
-Steps 4–5 remain proposed for review.
+Steps 4–5 subsequently completed through user-run cloud execution and retained
+artifact review, with the limits recorded below.
 
 1. **Compatibility and topology decision.** Inspect official documentation and
    source for candidate release versions; select and pin a compatible isolated
@@ -134,6 +132,34 @@ reload/export was not verified before the user chose to discard the instance.
 The new Hub authentication/export/upload and pinned-revision reload path still
 require cloud verification; 7A is not yet marked complete.
 
+## First Hub upload and reload verification
+
+The locally retained `smoke_execution_20261005T045405Z_dwaxLH` reports success
+and has its upload receipt, identities, full console, per-rank diagnostics and
+rollout/evaluation dumps. Hardware was two A100-SXM4-40GB GPUs. Both ranks record
+six optimizer calls and 338 sharded parameter tensors. The model export and Hub
+file-listing checks completed; the receipt records model commit
+`40c33b6ad0a7a2879e7b5a8f5f6a52baaa94a584` and artifact commit
+`e137c5dba237c8fe539152b31aed42bd09e681c5`. Full state was intentionally excluded.
+Fixed evaluation scores were 5/32 before training and 8/32 afterward, which are
+smoke observations, not evidence of reliable improvement. Training rollout scores
+were 0/16, 1/16 and 1/16. Local weights/checkpoints were not downloaded.
+
+The reload run `smoke_execution_20261005T052347Z_utvjK2` and its full console
+are now retained locally. Its identities select the uploaded model repository
+and exact model commit above, and job status reports success. Both ranks again
+record six optimizer calls, 338 sharded tensors, sampled sharded gradients/Adam
+moments and finite frozen-policy gates with maximum observed delta zero.
+Checkpoint save, initial/final fixed evaluation and completion are recorded,
+with no traceback in the execution console. Reload training scores were zero
+for all three 16-response rollouts; evaluation was 9/32 before and 6/32 afterward.
+These small, stochastic/mixed-precision smoke results do not establish quality
+improvement or regression. The earlier upload run logged nonzero gradients on
+steps 2/3. This completes bounded 7A execution/export/reload evidence, not exact
+training-state recovery. The user may release the instance after this retention
+review; weights are on the Hub and logs/receipts are local. Full checkpoints from
+these runs were intentionally not backed up.
+
 ## Hugging Face artifact retention
 
 User authorized direct cloud-to-Hub retention on 2026-10-05. The 7A shell runner
@@ -149,7 +175,7 @@ with no added GPU dependencies. No repository was created or uploaded by the age
 
 The thin `hf_artifacts.py` helper delegates merging to pinned verl and transfers
 artifacts directly from cloud. It records commit revisions and verifies remote file
-listings. Export correctness, actual Hub upload and model reload remain cloud checks;
+listings. Cloud export, actual Hub upload and pinned-revision workload reload are now verified;
 file presence is not verified training-state restoration. All 26 CPU tests passed,
 including artifact selection, numeric checkpoint selection and private-repository
 enforcement; shell syntax checks passed. The subsequent authentication/name
@@ -164,7 +190,7 @@ claimed by 7A. See the runbook for commands, retrying retention and artifact pol
 - [x] Obtain authorization and complete 7A step 1 source review and core pins.
 - [x] Complete step 2 adapters, semantic mapping and bounded CPU verification.
 - [x] Complete step 3 environment/configuration/runner CPU preparation.
-- [ ] Complete 7A and review retained cloud evidence.
+- [x] Complete bounded 7A and review retained cloud evidence.
 - [ ] Complete 7B, then reassess scope and Kubernetes access/cost.
 - [ ] Complete 7C and 7D. 7E requires a separate decision to continue.
 
@@ -173,8 +199,8 @@ Resolved dependency pins, configuration, thin MATH adapters and a cloud launcher
 are implemented. Hydra and CPU data/grader dependencies were installed into `/tmp`
 for validation; no Part 5
 environment was changed. No GPU stack was installed, resources provisioned or
-model/GPU execution performed. Numerical, tokenizer and FSDP2 integration checks
-remain pending; source-level equation agreement is not GPU verification.
+model/GPU execution performed. Broader numerical/tokenizer equivalence checks remain pending; FSDP2
+sharding and frozen-policy checks are verified in the bounded cloud smoke; source-level equation agreement is not GPU verification.
 No staging, commits or pushes without approval; agree hardware/budget before
 rentals. Keep reusable code minimal and README content focused on measured
 results; runbooks hold operational detail.

@@ -3,9 +3,10 @@
 Distributed post-training and model serving on a shared Ray platform, carrying
 forward Qwen2.5-Math-1.5B and MATH from Part 5.
 
-**Status:** MATH adapters, pinned dependencies, smoke configuration and cloud
-launcher are prepared with CPU checks. Distributed training, serving and cloud
-validation remain pending. See [PLAN.md](PLAN.md) for implementation details.
+**Status:** 7A cloud smoke verified on two A100 40 GB GPUs: FSDP2 sharding,
+training/evaluation, checkpoint export, private Hugging Face uploads and loading
+a pinned uploaded model revision. Exact training recovery and serving remain
+future milestones. See [PLAN.md](PLAN.md) for implementation details.
 
 ## Roadmap
 
@@ -21,6 +22,15 @@ The shared platform is **Kubernetes → KubeRay → Ray**. Training runs as batc
 RayJobs; serving runs as a long-lived RayService. verl manages the RL workload;
 Ray Train is reserved for optional SFT. Training and serving may use separate
 pinned environments and run sequentially on a small GPU allocation.
+
+## Measured 7A smoke
+
+Qwen2.5-Math-1.5B / MATH: three rollout steps, six optimizer calls per rank,
+338 sharded parameter tensors per rank, and 32 fixed evaluation prompts.
+The upload run scored 5/32 before and 8/32 afterward; the weights-reload run
+scored 9/32 before and 6/32 afterward. These capped, small smoke measurements
+verify infrastructure and do not demonstrate reliable model-quality improvement.
+Model weights are retained on Hugging Face; full optimizer state was not uploaded.
 
 ## Reference and validation
 
