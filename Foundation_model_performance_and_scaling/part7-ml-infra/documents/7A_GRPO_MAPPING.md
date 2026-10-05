@@ -1,8 +1,8 @@
 # 7A step 2 — MATH adapters and GRPO mapping
 
 Updated: 2026-10-04. Adapters, data conversion and bounded CPU equation checks
-are implemented. No models were loaded or GPU work performed. Full configuration
-composition and the cloud agent import remain step 3/cloud checks.
+are implemented. No models were loaded or GPU work performed. Step 3 completed
+configuration composition; the cloud agent import remains a cloud check.
 
 Reference: corrected Part 5 `tight_pilot_FRqpow9W` GRPO run, using
 Qwen2.5-Math-1.5B, MATH and `r1_zero.prompt`. Upstream references below are fixed
@@ -127,9 +127,12 @@ VERL_SOURCE=/path/to/pinned/verl python -m unittest discover -s tests -v
 13 CPU tests passed using Python 3.13, Torch already available locally, and
 isolated `/tmp` CPU dependencies (PyArrow 19.0.1, math-verify 0.7.0,
 latex2sympy2_extended 1.10.1, pylatexenc 2.10, SymPy 1.14.0, Jinja2 3.1.6).
-Cloud Python 3.12 and full dependency resolution remain unverified. Equation
+Step 3 subsequently resolved the full dependency lock and reran reward checks
+with Hydra-compatible ANTLR 4.9.3. Cloud Python 3.12 remains unverified. Equation
 tests hash-check and AST-extract exact pinned functions to avoid importing
 verl/Ray/CUDA; they do not establish distributed integration correctness.
-Next: step 3 configuration, isolated environment preparation, cloud runner,
-numerical/sharding evidence collection and runbook. Paid provisioning remains
-pending hardware and budget agreement.
+Step 3 configuration, environment preparation, cloud runner and diagnostics are
+implemented; see [runbook](7A_RUNBOOK.md). The thin diagnostic objective delegates
+to upstream `vanilla`; it adds a frozen-policy gate without changing the loss.
+Eighteen CPU checks passed overall. Numerical/sharding evidence collection on
+GPU and paid provisioning remain pending hardware and budget agreement.

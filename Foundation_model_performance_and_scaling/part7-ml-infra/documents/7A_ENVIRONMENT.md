@@ -1,9 +1,8 @@
 # 7A step 1 — Environment and topology decision
 
-Reviewed: 2026-10-04. Decision complete at source-review scope; installation,
-full dependency resolution and cloud execution remain pending. No resources
-were provisioned. This note is the setup design; runnable setup belongs in the
-step 3 runbook once adapters and configuration are ready.
+Reviewed: 2026-10-04. Steps 1–3 source review and CPU preparation are complete;
+cloud installation and execution remain pending. No resources were provisioned.
+Runnable setup is in the [step 3 runbook](7A_RUNBOOK.md).
 
 ## Selected starting stack
 
@@ -31,11 +30,18 @@ that recipe with these pins or copy a `*.latest` image. This discrepancy makes
 cloud validation necessary; no claim of an already tested environment is made.
 [Tagged Dockerfile](https://github.com/verl-project/verl/blob/bec9ef74768dd201881cd4e54cd0385e87caae27/docker/Dockerfile.stable.vllm).
 
-Step 3 will resolve and lock all transitive dependencies, pin the Python patch
-version and image digest, and verify package imports on cloud before loading the
-model. The current requirements file is a version decision, not a reproducible
-full lock or a one-command installation recipe. Obtain an ABI-matched FlashAttention
-wheel or build it inside the cloud image; never reuse Part 5's legacy wheel.
+Step 3 resolved the [dependency lock](../environment/requirements.lock) for
+Python 3.12/Linux x86_64 and selected Python 3.12.14 for cloud setup. CUDA wheels
+use explicit official URLs because resolver CUDA-index routing did not expose
+the pinned torchdata version. Resolution inputs and FlashAttention metadata
+override are checked in alongside the lock. Hydra requires ANTLR 4.9.3, so
+math-verify uses its supported `antlr4-9-3` extra; reward tests passed with it.
+Pin datasets 3.6.0/pandas 2.2.3/accelerate 1.10.1 to avoid old datasets/PyArrow APIs
+and constrain the data layer. The version lock has not been installed/tested on
+GPU; it is not an artifact-hash lock. Provider image identity/digest selection is
+pending before rental, and a digest-pinned deployment image remains future work.
+Verify package imports on cloud before loading the model. Build FlashAttention
+inside the cloud environment; never reuse Part 5's legacy wheel.
 Do not install Megatron, DeepEP, Apex or TransformerEngine for this FSDP workload.
 
 ## Training and rollout topology
@@ -126,8 +132,10 @@ by this note.
 
 - Completed: exact verl tag-to-commit lookup, downloaded-source review, vLLM
   package-metadata checks, topology/checkpoint inspection and core version pins.
-- Pending: full dependency lock, image digest/build, resolved Hydra configuration,
-  model/data revision fingerprints, CPU adapters/loss checks and every GPU check.
+- Completed subsequently: dependency resolution, upstream Hydra composition,
+  data fingerprints, CPU adapters/loss checks and cloud runner preparation.
+- Pending: image identity/digest, cloud installation/imports, model revision
+  fingerprints, tokenizer checks and every GPU check.
 - Step 2 is now implemented; see [adapters and GRPO mapping](7A_GRPO_MAPPING.md)
   for CPU validation and outstanding numerical checks. No reward or training
   code was implemented during step 1 itself.
