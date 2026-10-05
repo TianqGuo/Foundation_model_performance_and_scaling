@@ -5,8 +5,13 @@
 # Transfer source and either the prepared bundle or Part 5 references/data first.
 set -euo pipefail
 if [[ "${1:-}" == "--help" ]]; then
-  echo 'Cloud usage: bash infrastructure/7a_verl/part7A.sh [--model-path PATH] [--model-id REPO] [--model-revision REV] [--data PATH] [--output PATH]'
+  echo 'Cloud usage: bash infrastructure/7a_verl/part7A.sh [--sync-env] [--model-path PATH] [--model-id REPO] [--model-revision REV] [--data PATH] [--output PATH]'
   exit 0
+fi
+sync_environment=0
+if [[ "${1:-}" == --sync-env ]]; then
+  sync_environment=1
+  shift
 fi
 part7_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$part7_root"
@@ -16,7 +21,9 @@ exec > >(tee "$execution_logs/console.log") 2>&1
 echo "Execution logs: $execution_logs"
 
 python_path="$part7_root/.venv-7a/bin/python"
-if [[ ! -d .venv-7a ]]; then
+if [[ "$sync_environment" == 1 && -d .venv-7a ]]; then
+  timeout --signal=INT --kill-after=60s 30m bash infrastructure/7a_verl/environment/setup_7a.sh --cloud --sync-existing
+elif [[ ! -d .venv-7a ]]; then
   timeout --signal=INT --kill-after=60s 30m bash infrastructure/7a_verl/environment/setup_7a.sh --cloud
 elif [[ ! -f .venv-7a/setup_inputs.sha256 ]]; then
   echo 'Existing environment has no successful setup record. Preserve it and use a fresh environment directory.' >&2

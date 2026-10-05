@@ -8,6 +8,9 @@ at the image's CUDA 13.0 toolkit check, before Python installation/training.
 Setup now uses the image CUDA 13 toolkit with official Torch 2.9.0, vLLM 0.12.0
 and FlashAttention 2.8.3 binaries, superseding the separate-toolkit workaround.
 There is no toolkit download or FlashAttention compilation; cloud validation remains pending.
+The first CUDA 13 attempt exposed a CUTLASS 4.8/CuTe import mismatch; pinned
+CUTLASS DSL 4.2.1 and added deep import checks plus explicit `--sync-env` repair.
+The corrected cloud import/training path remains unverified.
 The cloud launcher now automatically downloads a missing model snapshot and
 reuses existing snapshots; local configuration checks remain download-free.
 `infrastructure/7a_verl/part7A.sh` is the single cloud entry point: setup/reuse, optional data preparation,

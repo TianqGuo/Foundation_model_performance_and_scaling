@@ -33,6 +33,24 @@ attempt created `.venv-7a`, preserve it under a different name before retrying.
 An interrupted/stale environment is not silently reused. A successful GPU run
 is still required before calling this a validated environment.
 
+### CuTe import compatibility fix
+
+The first CUDA 13 cloud attempt exposed `cutlass.cute.core.ThrMma` missing with
+CUTLASS DSL 4.8.0. The lock now pins **4.2.1**, which retains that API and meets
+FlashInfer 0.5.3's minimum. This fixes the identified version mismatch; the full
+cloud import/run remains to be verified. Sources: [CUTLASS 4.2.1 API](https://github.com/NVIDIA/cutlass/blob/v4.2.1/python/CuTeDSL/cutlass/cute/core.py),
+[FlashInfer requirements](https://github.com/flashinfer-ai/flashinfer/blob/v0.5.3/requirements.txt).
+Setup now checks the deeper CuTe and verl/vLLM imports before declaring success.
+After updating source, repair only Part 7's installed environment and run with:
+
+```bash
+bash infrastructure/7a_verl/part7A.sh --sync-env
+```
+
+Put `--sync-env` first. It explicitly reconciles `.venv-7a` to the new lock,
+reusing unchanged packages and the existing model cache. It leaves Parts 1–6's
+environments alone; do not run it alongside another active Part 7 job.
+
 ## Main workflow — Git and one cloud command
 
 Commit and push the reviewed Part 7 changes from your local checkout to the branch

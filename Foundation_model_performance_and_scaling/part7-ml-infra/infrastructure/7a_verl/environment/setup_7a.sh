@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cloud only: bash infrastructure/7a_verl/environment/setup_7a.sh --cloud
+# Cloud only: bash infrastructure/7a_verl/environment/setup_7a.sh --cloud [--sync-existing]
 # Requires uv, git, the image CUDA 13 toolkit, and two cloud GPUs. Uses GPU wheels.
 set -euo pipefail
 if [[ "${1:-}" != "--cloud" ]]; then
@@ -7,7 +7,7 @@ if [[ "${1:-}" != "--cloud" ]]; then
   exit 2
 fi
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
-if [[ -e "$root/.venv-7a" ]]; then
+if [[ -e "$root/.venv-7a" && "${2:-}" != --sync-existing ]]; then
   echo 'Use a fresh .venv-7a directory; existing environments are preserved.' >&2
   exit 2
 fi
@@ -22,12 +22,18 @@ if [[ "$cuda_toolkit_version" != *"release 13."* ]]; then
   echo 'This setup requires the image CUDA 13 development toolkit.' >&2
   exit 2
 fi
-uv python install 3.12.14
-uv venv --python 3.12.14 "$root/.venv-7a"
+if [[ ! -e "$root/.venv-7a" ]]; then
+  uv python install 3.12.14
+  uv venv --python 3.12.14 "$root/.venv-7a"
+fi
 python_path="$root/.venv-7a/bin/python"
+test -x "$python_path"
 mkdir -p "$root/.venv-7a/src"
-git clone https://github.com/verl-project/verl.git "$root/.venv-7a/src/verl"
-git -C "$root/.venv-7a/src/verl" checkout --detach bec9ef74768dd201881cd4e54cd0385e87caae27
+if [[ ! -d "$root/.venv-7a/src/verl" ]]; then
+  git clone https://github.com/verl-project/verl.git "$root/.venv-7a/src/verl"
+  git -C "$root/.venv-7a/src/verl" checkout --detach bec9ef74768dd201881cd4e54cd0385e87caae27
+fi
+[[ "$(git -C "$root/.venv-7a/src/verl" rev-parse HEAD)" == bec9ef74768dd201881cd4e54cd0385e87caae27 ]]
 # Official GPU wheels: no separate toolkit download or CUDA compilation.
 uv pip sync --python "$python_path" "$root/infrastructure/7a_verl/environment/requirements.lock" \
   --index-url https://pypi.org/simple --only-binary torch,vllm,flash-attn,torchvision,torchaudio
@@ -35,6 +41,10 @@ uv pip check --python "$python_path"
 uv pip freeze --python "$python_path" > "$root/results/7a/environment/installed.txt"
 "$python_path" -c 'import torch; assert torch.version.cuda == "13.0"; assert torch._C._GLIBCXX_USE_CXX11_ABI; import vllm, verl, flash_attn, ray; assert torch.cuda.device_count() == 2; print(torch.__version__, torch.version.cuda, vllm.__version__, ray.__version__)' \
   > "$root/results/7a/environment/import_check.txt"
+# Top-level package imports miss optional CuTe modules loaded by verl/vLLM.
+PYTHONPATH="$root/.venv-7a/src/verl:$root" "$python_path" -c \
+  'from cutlass.cute.core import ThrMma; from flash_attn.cute import interface; from verl.workers.rollout.vllm_rollout import ServerAdapter; print("verl/vLLM/CuTe imports passed")' \
+  >> "$root/results/7a/environment/import_check.txt"
 cd "$root"
 sha256sum infrastructure/7a_verl/environment/requirements.txt infrastructure/7a_verl/environment/requirements-cu130.in \
   infrastructure/7a_verl/environment/requirements.lock infrastructure/7a_verl/environment/setup_7a.sh \

@@ -44,9 +44,7 @@ anyio==4.15.1
     #   starlette
     #   watchfiles
 apache-tvm-ffi==0.1.14.post1
-    # via
-    #   flashinfer-python
-    #   nvidia-cudnn-frontend
+    # via flashinfer-python
 astor==0.8.1
     # via depyf
 attrs==26.1.0
@@ -90,13 +88,16 @@ compressed-tensors==0.12.2
 cryptography==50.0.2
     # via google-auth
 cuda-bindings==13.4.3
-    # via
-    #   nvidia-cutlass-dsl-libs-base
-    #   nvidia-cutlass-dsl-libs-core
-    #   nvidia-cutlass-dsl-libs-cu12
-    #   nvidia-cutlass-dsl-libs-cu13
+    # via cuda-python
+cuda-core==1.2.1
+    # via cuda-python
 cuda-pathfinder==1.8.3
-    # via cuda-bindings
+    # via
+    #   cuda-bindings
+    #   cuda-core
+    #   cuda-python
+cuda-python==13.4.1
+    # via nvidia-cutlass-dsl
 cupy-cuda12x==13.6.0
     # via ray
 datasets==3.6.0
@@ -305,12 +306,14 @@ numpy==1.26.4
     # via
     #   -r infrastructure/7a_verl/environment/requirements.txt
     #   accelerate
+    #   cuda-core
     #   cupy-cuda12x
     #   datasets
     #   flashinfer-python
     #   gguf
     #   mistral-common
     #   numba
+    #   nvidia-cutlass-dsl
     #   opencv-python-headless
     #   pandas
     #   peft
@@ -335,7 +338,7 @@ nvidia-cuda-runtime==13.0.48
     # via torch
 nvidia-cudnn-cu13==9.13.0.50
     # via torch
-nvidia-cudnn-frontend==1.30.0
+nvidia-cudnn-frontend==1.28.0
     # via flashinfer-python
 nvidia-cufft==12.0.0.15
     # via torch
@@ -351,21 +354,10 @@ nvidia-cusparse==12.6.2.49
     #   torch
 nvidia-cusparselt-cu13==0.8.0
     # via torch
-nvidia-cutlass-dsl==4.8.0
+nvidia-cutlass-dsl==4.2.1
     # via
+    #   -r infrastructure/7a_verl/environment/requirements.txt
     #   flashinfer-python
-    #   nvidia-cudnn-frontend
-nvidia-cutlass-dsl-libs-base==4.8.0
-    # via
-    #   nvidia-cutlass-dsl
-    #   nvidia-cutlass-dsl-libs-cu12
-    #   nvidia-cutlass-dsl-libs-cu13
-nvidia-cutlass-dsl-libs-core==4.8.0
-    # via nvidia-cutlass-dsl-libs-base
-nvidia-cutlass-dsl-libs-cu12==4.8.0
-    # via nvidia-cutlass-dsl
-nvidia-cutlass-dsl-libs-cu13==4.8.0
-    # via nvidia-cutlass-dsl
 nvidia-ml-py==13.615.71
     # via flashinfer-python
 nvidia-nccl-cu13==2.27.7
@@ -489,10 +481,6 @@ protobuf==6.33.6
     # via
     #   google-api-core
     #   googleapis-common-protos
-    #   nvidia-cutlass-dsl-libs-base
-    #   nvidia-cutlass-dsl-libs-core
-    #   nvidia-cutlass-dsl-libs-cu12
-    #   nvidia-cutlass-dsl-libs-cu13
     #   opentelemetry-proto
     #   proto-plus
     #   ray
@@ -766,10 +754,7 @@ typing-extensions==4.16.0
     #   httpx2
     #   huggingface-hub
     #   mistral-common
-    #   nvidia-cutlass-dsl-libs-base
-    #   nvidia-cutlass-dsl-libs-core
-    #   nvidia-cutlass-dsl-libs-cu12
-    #   nvidia-cutlass-dsl-libs-cu13
+    #   nvidia-cutlass-dsl
     #   openai
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-http

@@ -11,6 +11,8 @@ torchaudio==2.9.0
 ray[default,cgraph]==2.49.2
 transformers==4.57.6
 flash-attn==2.8.3
+# Retains core.ThrMma required by FlashAttention; meets FlashInfer >=4.2.1.
+nvidia-cutlass-dsl==4.2.1
 tensordict==0.10.0
 torchdata==0.11.0
 numpy==1.26.4
