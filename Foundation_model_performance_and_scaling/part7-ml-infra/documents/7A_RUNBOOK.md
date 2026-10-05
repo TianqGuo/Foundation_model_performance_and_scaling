@@ -5,7 +5,7 @@ Hardware/spending approval is required before renting or running paid resources.
 The proposal remains one node with 2×A100 40 GB, at most two hours, at most
 $5/hour for the whole instance, and at most $15 total including storage.
 
-## Transfer and environment
+## Cloud prerequisites
 
 Use a fresh cloud CUDA 12.8 development environment with `nvcc`, `git`, `uv`,
 two visible GPUs, sufficient shared memory (proposed 16 GB), and durable artifact
@@ -13,11 +13,40 @@ storage. Confirm the provider image and driver support before rental. Capture it
 image identity/digest in `results/7a/environment/image_identity.txt`; a digest-pinned
 deployment image is still pending. Do not reuse Part 5's environment.
 
-Git push/pull is a valid source-transfer workflow: after the intended changes are
-committed and pushed with approval, clone/pull that revision on cloud and run from
-its `part7-ml-infra/` directory. A clone/pull does not include uncommitted changes.
-Our convention requires approval before staging, committing or pushing; it does
-not prohibit using Git for cloud deployment.
+## Main workflow — Git and one cloud command
+
+Commit and push the reviewed Part 7 changes from your local checkout to the branch
+you intend to run. Git is the preferred source-transfer method. The agent still
+needs explicit approval before staging/committing/pushing on your behalf.
+
+On a new cloud instance, clone the repository (with Git access configured):
+
+```bash
+git clone git@github.com:TianqGuo/Foundation_model_performance_and_scaling.git /workspace/foundation
+cd /workspace/foundation/Foundation_model_performance_and_scaling/part7-ml-infra
+bash infrastructure/7a_verl/part7A.sh
+```
+
+For an existing checkout, update the intended branch and run again:
+
+```bash
+cd /workspace/foundation
+git pull --ff-only
+cd Foundation_model_performance_and_scaling/part7-ml-infra
+bash infrastructure/7a_verl/part7A.sh
+```
+
+Clone/check out the intended branch if it differs from the repository default.
+No separate environment installation, activation, model download, configuration
+check or Python launch is required. The shell runner handles those steps.
+
+Make MATH data available before running: either restore the Part 5 raw files to
+the sibling `part5-alignment/data/math/` or `/data/a5-alignment/MATH/`, or transfer
+the prepared bundle into Part 7's `results/7a/step2_math_final/`. The script prepares
+the bundle automatically when raw data and Part 5 references are available. Git
+does not deliver ignored datasets/results, model weights or virtual environments.
+
+## Alternative — transfer uncommitted files
 
 For the current uncommitted changes, rsync is an alternative that does not require
 a commit/push. From the local Part 7 directory, substitute the approved SSH host
@@ -30,9 +59,9 @@ rsync -az --exclude=.git --exclude='.venv*' --exclude=__pycache__ \
 rsync -az results/7a/step2_math_final CLOUD_HOST:/workspace/part7/results/7a/
 ```
 
-The prepared bundle under `results/` is ignored by Git. Transfer it separately
-even when source is delivered through Git; adjust its destination to the cloud
-checkout's Part 7 directory. Model weights and environments also stay out of Git.
+For a Git checkout, use rsync only for a missing data bundle if needed, adjusting
+the destination to the checkout's Part 7 directory. Do not overlay source files
+unless you intentionally want to test uncommitted changes.
 
 On cloud, run the single entry point:
 
@@ -40,6 +69,8 @@ On cloud, run the single entry point:
 cd /workspace/part7
 bash infrastructure/7a_verl/part7A.sh
 ```
+
+## What the shell runner does
 
 `part7A.sh` calls `infrastructure/7a_verl/environment/setup_7a.sh` when the environment is absent. Later
 runs reuse a successfully installed environment after checking setup-input hashes

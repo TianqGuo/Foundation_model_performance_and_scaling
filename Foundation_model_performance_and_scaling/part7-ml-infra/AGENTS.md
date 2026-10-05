@@ -45,6 +45,9 @@
 - Work in roughly one-hour, reviewable increments; reassess after 7A and 7B.
 - Run relevant CPU checks before cloud execution. Supply runnable cloud commands
   and explain how uncommitted code reaches the instance without requiring a push.
+- Prefer Git push/clone/pull for source delivery and the milestone shell runner
+  for cloud execution. Rsync is an alternative for uncommitted source or ignored
+  data/artifacts; commits and pushes still require explicit approval.
 - Record resolved configuration, dependency/model/data identities, placement,
   metrics, logs and limitations. Mark GPU verification pending until reviewed.
 - Prove two actual training ranks and sharded state; flags alone are insufficient.
