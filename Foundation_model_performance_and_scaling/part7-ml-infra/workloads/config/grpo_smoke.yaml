@@ -1,0 +1,119 @@
+# Compose against the exact upstream checkout; run_7a.py supplies its search path.
+defaults:
+  - ppo_trainer
+  - _self_
+
+data:
+  train_batch_size: 4
+  max_prompt_length: 3840
+  max_response_length: 256
+  dataloader_num_workers: 0
+  seed: 42
+  shuffle: true
+  validation_shuffle: false
+  filter_overlong_prompts: false
+  truncation: error
+
+actor_rollout_ref:
+  model:
+    trust_remote_code: false
+    use_remove_padding: true
+    use_fused_kernels: false
+    enable_gradient_checkpointing: true
+    external_lib: workloads.verl_diagnostics
+  actor:
+    strategy: fsdp2
+    ppo_mini_batch_size: 4
+    ppo_micro_batch_size_per_gpu: 2
+    ppo_epochs: 2
+    shuffle: false
+    use_dynamic_bsz: false
+    loss_agg_mode: seq-mean-token-mean
+    policy_loss:
+      loss_mode: part7_grpo
+    clip_ratio: 0.2
+    clip_ratio_low: 0.2
+    clip_ratio_high: 0.2
+    clip_ratio_c: 10000000000.0
+    entropy_coeff: 0.0
+    use_kl_loss: false
+    optim:
+      lr: 0.00001
+      betas: [0.9, 0.95]
+      weight_decay: 0.0
+      clip_grad: 1.0
+    fsdp_config:
+      strategy: fsdp2
+      fsdp_size: 2
+      ulysses_sequence_parallel_size: 1
+      model_dtype: fp32
+      mixed_precision:
+        param_dtype: bf16
+        reduce_dtype: fp32
+        buffer_dtype: fp32
+      param_offload: true
+      optimizer_offload: true
+      use_torch_compile: false
+    checkpoint:
+      save_contents: [model, optimizer, extra]
+      load_contents: [model, optimizer, extra]
+  rollout:
+    name: vllm
+    mode: async
+    n: 4
+    temperature: 1.0
+    top_p: 1.0
+    top_k: -1
+    tensor_model_parallel_size: 1
+    data_parallel_size: 1
+    pipeline_model_parallel_size: 1
+    gpu_memory_utilization: 0.35
+    enforce_eager: true
+    free_cache_engine: true
+    max_model_len: 4096
+    max_num_batched_tokens: 4096
+    max_num_seqs: 16
+    log_prob_micro_batch_size_per_gpu: 2
+    log_prob_use_dynamic_bsz: false
+    val_kwargs:
+      n: 1
+      temperature: 0.0
+      do_sample: false
+      top_p: 1.0
+      top_k: -1
+    agent:
+      num_workers: 2
+      default_agent_loop: r1_single_turn
+
+algorithm:
+  adv_estimator: grpo
+  norm_adv_by_std_in_grpo: true
+  use_kl_in_reward: false
+  rollout_correction:
+    bypass_mode: false
+    rollout_is: null
+    rollout_rs: null
+
+reward:
+  num_workers: 2
+  reward_model:
+    enable: false
+
+trainer:
+  nnodes: 1
+  n_gpus_per_node: 2
+  total_epochs: 1
+  total_training_steps: 3
+  use_legacy_worker_impl: disable
+  balance_batch: false
+  logger: [console]
+  project_name: part7_7a
+  experiment_name: grpo_smoke
+  val_before_train: true
+  test_freq: 3
+  save_freq: 3
+  resume_mode: disable
+
+ray_kwargs:
+  ray_init:
+    address: local
