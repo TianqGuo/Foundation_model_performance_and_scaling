@@ -33,6 +33,9 @@
 - Keep milestone runners/configuration/environments under `infrastructure/`;
   7A lives in `infrastructure/7a_verl/`. Keep reusable dataset/reward/generation
   adapters in `workloads/`; add future milestone directories when needed.
+- Document each new or modified function with its purpose, how it works, inputs
+  and outputs. Use concise docstrings; include side effects and failure conditions
+  where relevant, and comments for non-obvious implementation choices.
 - Use descriptive names, `argparse` for custom CLIs, project-root-derived paths,
   LF endings and runners beside their implementation with usage in headers.
   Discover usual model/data locations; path overrides should be optional.

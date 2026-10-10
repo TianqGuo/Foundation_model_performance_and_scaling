@@ -1,6 +1,6 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-05
+Updated: 2026-10-09
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
@@ -8,7 +8,8 @@ parameter/gradient/Adam sharding, six optimizer calls per rank, fixed evaluation
 checkpoint save, BF16 export, direct private Hub uploads and a successful new
 smoke from the uploaded model's pinned commit. Full training-state restoration
 and broader numerical/tokenizer parity remain unverified; those are not implied
-by a weights-only reload. 7B has not started.
+by a weights-only reload. 7B design/source review has started; checkpoint integrity/transfer helpers and resume preview are prepared; runtime
+recovery audits and cloud verification remain pending.
 
 `infrastructure/7a_verl/part7A.sh --upload-hf` is the single cloud entry point:
 setup/reuse, automatic authentication/destination naming, data/model preparation,
@@ -183,6 +184,20 @@ simplification passed five targeted CPU tests and shell syntax/help checks. A ne
 `--model-id` / `--model-revision` to download exported weights automatically and
 start fresh. Full-state recovery remains a 7B requirement, with no resume interface
 claimed by 7A. See the runbook for commands, retrying retention and artifact policy.
+
+## 7B implementation sequence
+
+User authorized continuing to 7B on 2026-10-09. The first increment establishes
+[the recovery design and acceptance plan](documents/7B_PLAN.md): same-node
+two-rank Ray placement/metrics, complete checkpoint manifests, private direct Hub
+retention, controlled interruption and native verl full-state resume in a fresh
+Ray runtime. Audit model/Adam, scheduler, step/data progress and saved RNG;
+disclose unsupported rollout-server state. Checkpoint manifests/integrity validation, private Hub transfer helpers and native
+resume preview are implemented under `infrastructure/7b_ray/`; see
+[the 7B runbook](documents/7B_RUNBOOK.md). Runtime state audits, interruption,
+observability and a single cloud runner remain pending. No model loads or cloud
+provisioning occurred.
+Preserve 7A and its environment; no Kubernetes or backend change is introduced.
 
 ## Boundaries and progress
 

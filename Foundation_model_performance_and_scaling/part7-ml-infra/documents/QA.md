@@ -3,7 +3,10 @@
 High-level notes from our discussions. Implementation details are in
 [PLAN.md](../PLAN.md), [GRPO mapping](7A_GRPO_MAPPING.md) and the
 [cloud runbook](7A_RUNBOOK.md). Current status: the bounded 7A cloud smoke,
-artifact uploads and pinned model-weight reload are verified. 7B has not started.
+artifact uploads and pinned model-weight reload are verified. 7B design has
+started; checkpoint integrity and resume-preview helpers are prepared, while
+runtime recovery audits and cloud verification remain pending. See
+[the 7B plan](7B_PLAN.md).
 
 ## What did 7A verify, and what remains for 7B?
 
