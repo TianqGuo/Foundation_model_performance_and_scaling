@@ -206,6 +206,32 @@ subsequently verified by the user-run experiment reviewed below. The agent did
 not load models or provision cloud resources.
 Preserve 7A and its environment; no Kubernetes or backend change is introduced.
 
+## Optional milestone and deferred follow-ups
+
+Core completion remains 7A–7D. These items do not block 7C/7D and do not authorize
+implementation or paid resources. Reassess after the core stages before choosing
+additional experiments.
+
+- **7E — Optional SFT:** Ray Train/FSDP2, with two-rank sharding and recovery, as
+  already accepted in the roadmap. Continuing requires a separate decision.
+- **Larger-model practice:** reuse configurable workload/model/resource settings;
+  select model, hardware and budget and validate compatibility/memory first.
+- **Training TP/PP:** explore a compatible verl training backend, such as Megatron,
+  after the current stages. Ray schedules workers; the training backend implements
+  tensor/pipeline parallelism. This is exploratory, not a backend migration plan.
+- **Shared-cluster scheduling:** evaluate Kueue integration with KubeRay RayJob
+  when queues, quotas or admission control are needed. Discuss JobSet only if the
+  chosen job architecture requires it; it is not a prerequisite for RayJob.
+  Resource requests/limits and placement remain required within core 7C.
+- **Broader recovery:** consider replacement-host/node-failure recovery and
+  multi-node experiments separately. Reviewed 7B proves same-host fresh-runtime
+  recovery only; future claims need their own retained evidence.
+- **Additional monitoring:** add Prometheus/Grafana where useful, or optional W&B,
+  beyond the built-in Ray logs/placement/metrics used initially.
+
+Other previously named frameworks remain deferred, as listed below. These are
+recorded interests, not extra committed Part 7 milestones.
+
 ## Boundaries and progress
 
 - [x] Create Part 7 working guidance and proposed implementation sequence.
