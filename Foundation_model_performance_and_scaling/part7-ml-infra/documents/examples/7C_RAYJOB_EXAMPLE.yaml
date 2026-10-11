@@ -1,0 +1,196 @@
+# GENERATED READING EXAMPLE — NOT READY TO DEPLOY.
+# Image registry/digest and node name are placeholders, not real infrastructure.
+# Generated from infrastructure/7c_kuberay/render.py (phase=baseline).
+# Namespace, PVC and Hub Secret must already exist; this document references them.
+# Submit a real RayJob to the Kubernetes API; installed KubeRay manages its pods.
+# spec.rayClusterSpec.*.template.spec contains ordinary Kubernetes pod settings.
+# spec.entrypoint selects our native verl launcher; GRPO settings are composed separately.
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: example-7c-baseline
+  namespace: part7
+  labels:
+    part7-milestone: 7c
+  annotations:
+    part7/kuberay-version: 1.4.2
+    part7/scope: training-baseline
+spec:
+  entrypoint: python -u /opt/part7/infrastructure/7c_kuberay/run_7c.py --cloud --output
+    /workspace/runs/example-7c-baseline --phase baseline
+  entrypointNumCpus: 0
+  entrypointNumGpus: 0
+  submissionMode: K8sJobMode
+  backoffLimit: 0
+  shutdownAfterJobFinishes: true
+  ttlSecondsAfterFinished: 600
+  activeDeadlineSeconds: 2700
+  rayClusterSpec:
+    rayVersion: 2.49.2
+    enableInTreeAutoscaling: false
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: 0.0.0.0
+        num-cpus: '2'
+        num-gpus: '0'
+        object-store-memory: '536870912'
+      template:
+        metadata:
+          labels:
+            part7-milestone: 7c
+            part7-run: example-7c-baseline
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+          nodeSelector:
+            kubernetes.io/hostname: example-gpu-node
+          containers:
+          - name: ray-head
+            image: registry.example/part7-training@sha256:0000000000000000000000000000000000000000000000000000000000000000
+            imagePullPolicy: IfNotPresent
+            workingDir: /opt/part7
+            resources:
+              requests:
+                cpu: '2'
+                memory: 8Gi
+              limits:
+                cpu: '2'
+                memory: 8Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+            env:
+            - name: PART7_IMAGE
+              value: registry.example/part7-training@sha256:0000000000000000000000000000000000000000000000000000000000000000
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: dshm
+              mountPath: /dev/shm
+            - name: hub-token
+              mountPath: /run/secrets/huggingface
+              readOnly: true
+            ports:
+            - name: gcs
+              containerPort: 6379
+            - name: dashboard
+              containerPort: 8265
+            - name: client
+              containerPort: 10001
+            - name: metrics
+              containerPort: 8080
+          volumes:
+          - name: workspace
+            persistentVolumeClaim:
+              claimName: part7-workspace
+          - name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 2Gi
+          - name: hub-token
+            secret:
+              secretName: part7-huggingface
+              defaultMode: 288
+              items:
+              - key: token
+                path: token
+    workerGroupSpecs:
+    - groupName: training
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 1
+      rayStartParams:
+        num-cpus: '24'
+        num-gpus: '2'
+        object-store-memory: '4294967296'
+      template:
+        metadata:
+          labels:
+            part7-milestone: 7c
+            part7-run: example-7c-baseline
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+          nodeSelector:
+            kubernetes.io/hostname: example-gpu-node
+          containers:
+          - name: ray-worker
+            image: registry.example/part7-training@sha256:0000000000000000000000000000000000000000000000000000000000000000
+            imagePullPolicy: IfNotPresent
+            workingDir: /opt/part7
+            resources:
+              requests:
+                cpu: '24'
+                memory: 96Gi
+                nvidia.com/gpu: 2
+              limits:
+                cpu: '24'
+                memory: 96Gi
+                nvidia.com/gpu: 2
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+            env:
+            - name: PART7_IMAGE
+              value: registry.example/part7-training@sha256:0000000000000000000000000000000000000000000000000000000000000000
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: dshm
+              mountPath: /dev/shm
+            - name: hub-token
+              mountPath: /run/secrets/huggingface
+              readOnly: true
+          volumes:
+          - name: workspace
+            persistentVolumeClaim:
+              claimName: part7-workspace
+          - name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 16Gi
+          - name: hub-token
+            secret:
+              secretName: part7-huggingface
+              defaultMode: 288
+              items:
+              - key: token
+                path: token

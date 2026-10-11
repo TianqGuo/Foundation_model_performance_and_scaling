@@ -219,3 +219,95 @@ configuration file. YAML controls verl/Ray execution, while the manifest verifie
 the resume payload. The reviewed two-A100-80GB experiment now proves exact
 restoration of the audited training state and successful step-3 continuation in
 a fresh Ray runtime. Driver/vLLM RNG and replacement-host recovery are not claimed.
+
+## How do 7C's manifests, Docker image, Kubernetes, KubeRay, RayJob and verl fit together?
+
+The **7C RayJob manifest contains both Kubernetes pod configuration and Ray
+cluster configuration**. It is submitted to the Kubernetes API. The installed
+KubeRay operator watches the RayJob and creates/manages the requested Ray cluster;
+Kubernetes schedules its pods, Ray schedules actors inside them, and verl
+coordinates training through those actors.
+
+```text
+7C RayJob manifest
+  Contains:
+  • Kubernetes settings: image, resources, ports, storage, Secrets
+  • Ray settings: head/worker groups, Ray startup parameters
+  • Job settings: execution command, deadline, cleanup
+                │
+                ▼
+         Kubernetes API
+         Stores the RayJob
+                │
+                ▼
+         KubeRay operator
+         Reads the RayJob and manages its Ray cluster
+                │
+                ▼
+         Kubernetes schedules the pods
+                │
+                ├── CPU head pod
+                └── Worker pod with two GPUs
+                           │
+                           ▼
+                    Ray runtime
+                    Schedules actors
+                           │
+                           ▼
+                    verl framework
+                    Coordinates GRPO
+                           │
+                           ├── FSDP2 / PyTorch: training
+                           └── vLLM: rollout generation
+```
+
+The earlier configuration and verification files remain part of the workload:
+
+```text
+7A training configuration ─────────────► verl
+   Model, data, GRPO, FSDP2, vLLM settings
+
+7A data manifest ───────► Our launcher verifies data hashes
+                                      │
+                                      ▼
+                                     verl
+
+7B checkpoint manifest ► Our recovery code verifies saved state
+                                      │
+                                      ▼
+                            verl restores and resumes
+```
+
+The word *manifest* therefore has different uses. The 7A data manifest describes
+prepared files/provenance/hashes; the 7B checkpoint manifest describes saved
+training state, topology and integrity; our code verifies both. The 7C RayJob
+manifest declares a deployment and execution command; Kubernetes and KubeRay
+consume it. A RayJob is a Kubernetes resource, not the operator or runtime itself.
+KubeRay is the operator; Ray is the runtime; verl is the training framework.
+
+The Dockerfile builds the image containing our code and pinned dependencies.
+`render.py` normally runs outside that image, after image publication, to generate
+a manifest with its registry digest. `preflight.py` runs inside deployed containers
+to verify GPU placement, CUDA computation, imports and Hub Secret authentication;
+it loads no model. `run_7c.py` then connects to the existing Ray cluster for native
+verl training/interruption/resume. Neither renderer nor preflight runs during the
+image build. The intended sequence is build/publish → render → submit → preflight
+→ training/interruption → fresh-RayJob resume → evidence retention and cleanup.
+
+Worker groups describe groups of Ray worker pods, not automatic training/inference
+roles. Our `training` group supplies both FSDP2 training and vLLM rollout generation.
+The separately deployed inference service is planned for 7D.
+
+The RayJob's pod templates already define image, resource requests/limits, ports,
+node selection, shared memory, volume mounts and Secret mounts. Separate cluster
+prerequisites—Kubernetes nodes, NVIDIA device plugin, storage classes, KubeRay
+installation and creation of the referenced namespace/PVC/Secrets—are not supplied
+by the renderer. A Helm chart packages templates/values to generate manifests and
+manage releases; our Python renderer directly generates a RayJob. Helm can install
+KubeRay separately from submission of these workload manifests.
+
+See the [generated RayJob example](examples/7C_RAYJOB_EXAMPLE.yaml),
+[manifest comparison guide](MANIFEST_GUIDE.md), [7C plan](7C_PLAN.md) and
+[runbook](7C_RUNBOOK.md). The example uses placeholder image/node values and is
+for reading. The implementation has CPU checks; image build/publication, live
+Kubernetes execution, fresh-cluster recovery and cleanup remain unverified.

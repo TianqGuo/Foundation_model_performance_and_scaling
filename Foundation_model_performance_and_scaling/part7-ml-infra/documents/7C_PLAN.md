@@ -101,3 +101,6 @@ the same surviving runtime does not establish fresh-runtime recovery. No
 apply/watch/cleanup controller or direct Hub checkpoint transfer is integrated
 into 7C yet. PVC manifests can be resumed, but durable external backup and
 Kubernetes lifecycle/evidence review remain required before 7C completion.
+
+For a concrete generated deployment document and comparison with 7A/7B, see
+[the manifest guide](MANIFEST_GUIDE.md) and [RayJob example](examples/7C_RAYJOB_EXAMPLE.yaml).
