@@ -2,6 +2,9 @@
 from copy import deepcopy
 from importlib import import_module
 import json
+import os
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 import shutil
 import tempfile
@@ -112,6 +115,33 @@ class CheckpointTests(unittest.TestCase):
         config["trainer"]["nnodes"] = 2
         with self.assertRaisesRegex(ValueError, "topology"):
             runner.apply_recovery_config(config, manifest, self.root, 4)
+
+    @unittest.skipUnless(os.environ.get("VERL_SOURCE"), "requires pinned upstream YAML")
+    def test_real_resume_and_interruption_preview(self):
+        """Compose actual pinned YAML for both phases without starting Ray/model code."""
+        from omegaconf import OmegaConf
+        data = Path(self.directory.name) / "data"
+        data.mkdir()
+        (data / "raw_prompt.jinja").write_text("{{ messages[0]['content'] }}")
+        self.identity["data_manifest"] = {"outputs": {"raw_prompt.jinja": {
+            "sha256": bundle.digest(data / "raw_prompt.jinja")}}}
+        (data / "manifest.json").write_text(json.dumps(self.identity["data_manifest"]))
+        self.create()
+        for phase in ("resume", "interrupt", "baseline"):
+            argv = ["run_7b", "--check-config", "--phase", phase, "--data", str(data),
+                    "--verl-source", os.environ["VERL_SOURCE"], "--total-steps", "3"]
+            if phase == "resume":
+                argv += ["--checkpoint", str(self.root)]
+            stream = io.StringIO()
+            with patch("sys.argv", argv), redirect_stdout(stream), patch.object(runner, "execute_phase") as launch:
+                runner.main()
+                launch.assert_not_called()
+            config = OmegaConf.create(stream.getvalue())
+            self.assertFalse(config.trainer.val_before_train)
+            self.assertEqual(config.actor_rollout_ref.model.external_lib, "infrastructure.7b_ray.worker_extension")
+            self.assertEqual(config.ray_kwargs.ray_init.runtime_env.env_vars.PART7_7B_AUDIT, "1")
+            self.assertEqual(config.trainer.resume_mode, "resume_path" if phase == "resume" else "disable")
+            self.assertEqual(config.trainer.save_freq, 2 if phase == "interrupt" else (1 if phase == "resume" else 3))
 
     def test_wrong_verl_identity_rejected(self):
         self.identity["verl_commit"] = "bad"
