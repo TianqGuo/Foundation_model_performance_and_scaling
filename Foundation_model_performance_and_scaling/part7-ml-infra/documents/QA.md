@@ -4,8 +4,9 @@ High-level notes from our discussions. Implementation details are in
 [PLAN.md](../PLAN.md), [GRPO mapping](7A_GRPO_MAPPING.md) and the
 [cloud runbook](7A_RUNBOOK.md). Current status: the bounded 7A cloud smoke,
 artifact uploads and pinned model-weight reload are verified. 7B design has
-started; checkpoint integrity and resume-preview helpers are prepared, while
-runtime recovery audits and cloud verification remain pending. See
+started; checkpoint integrity, cloud-only recovery hooks and the single-command
+experiment runner are prepared and CPU-checked. Actual cloud recovery remains
+unverified. See
 [the 7B plan](7B_PLAN.md).
 
 ## What did 7A verify, and what remains for 7B?
@@ -206,3 +207,13 @@ be treated as unrestricted backup space. Storage is shared across repositories;
 creating more repositories does not increase the account allowance. Check current
 usage and the [Hub storage policy](https://huggingface.co/docs/hub/storage-limits)
 before retaining many versions. Default artifact uploads exclude full checkpoints.
+
+## What does the 7B runner add to the Ray already used in 7A?
+
+7A already runs verl's Ray workers. 7B adds a baseline/controlled-interruption/
+pinned-Hub-restore experiment, explicit placement records and comparisons of
+restored model/Adam/scheduler/worker RNG and trainer data/step state before further
+training. Its manifest inventories checkpoint files and hashes; it is not a Ray
+configuration file. YAML controls verl/Ray execution, while the manifest verifies
+the resume payload. The prepared code still needs cloud execution and evidence
+review; it does not claim recovery merely because the resume settings exist.

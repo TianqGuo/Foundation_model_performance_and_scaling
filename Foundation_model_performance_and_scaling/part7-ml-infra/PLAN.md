@@ -8,8 +8,8 @@ parameter/gradient/Adam sharding, six optimizer calls per rank, fixed evaluation
 checkpoint save, BF16 export, direct private Hub uploads and a successful new
 smoke from the uploaded model's pinned commit. Full training-state restoration
 and broader numerical/tokenizer parity remain unverified; those are not implied
-by a weights-only reload. 7B design/source review has started; checkpoint integrity/transfer helpers and resume preview are prepared; runtime
-recovery audits and cloud verification remain pending.
+by a weights-only reload. 7B design/source review has started; checkpoint integrity/transfer helpers, native-load audits and a single cloud
+experiment runner are prepared and CPU-checked; actual cloud recovery remains pending.
 
 `infrastructure/7a_verl/part7A.sh --upload-hf` is the single cloud entry point:
 setup/reuse, automatic authentication/destination naming, data/model preparation,
@@ -194,8 +194,13 @@ retention, controlled interruption and native verl full-state resume in a fresh
 Ray runtime. Audit model/Adam, scheduler, step/data progress and saved RNG;
 disclose unsupported rollout-server state. Checkpoint manifests/integrity validation, private Hub transfer helpers and native
 resume preview are implemented under `infrastructure/7b_ray/`; see
-[the 7B runbook](documents/7B_RUNBOOK.md). Runtime state audits, interruption,
-observability and a single cloud runner remain pending. No model loads or cloud
+[the 7B runbook](documents/7B_RUNBOOK.md). Cloud-only state audits, checkpoint-boundary interruption, Ray placement capture
+and the single `part7B.sh` experiment runner are now prepared. Targeted CPU checks
+include pinned upstream configuration composition. Validation: 31 targeted configuration/diagnostic/checkpoint/recovery CPU tests
+passed against the pinned upstream YAML, plus five existing Hub helper tests;
+CLI, shell syntax, Python syntax/docstrings and whitespace checks passed.
+Actual GPU hooks, direct
+full-checkpoint transfers and fresh-runtime recovery remain unverified. No model loads or cloud
 provisioning occurred.
 Preserve 7A and its environment; no Kubernetes or backend change is introduced.
 

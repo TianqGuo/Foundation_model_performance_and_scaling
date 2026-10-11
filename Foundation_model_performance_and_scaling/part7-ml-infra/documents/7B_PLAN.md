@@ -1,9 +1,9 @@
 # 7B — Ray operations and training-state recovery
 
 Started: 2026-10-09. User authorized continuing to 7B. This first increment defines
-implementation and acceptance. Checkpoint integrity/transfer helpers and native
-resume preview are now prepared; runtime audits and cloud verification remain
-pending. See [the runbook](7B_RUNBOOK.md).
+implementation and acceptance. Checkpoint integrity/transfer helpers, cloud-only native-load audits and the
+single-command baseline/interruption/Hub-restore/resume experiment are prepared
+and CPU-checked. Actual cloud state restoration remains unverified. See [the runbook](7B_RUNBOOK.md).
 
 ## Initial topology
 
@@ -11,8 +11,8 @@ Reuse the verified Qwen2.5-Math-1.5B/MATH workload, pinned 7A environment and
 single cloud node with two training ranks. Record Ray nodes, actor/placement-group
 placement, logical resources, physical GPU identities and actual sharding.
 Use built-in Ray metrics and worker logs first. No Kubernetes, Kueue, JobSet,
-TP/PP or training-backend change is introduced. The future shell runner and
-implementation belong under `infrastructure/7b_ray/`; do not copy the training loop.
+TP/PP or training-backend change is introduced. The shell runner and
+implementation live under `infrastructure/7b_ray/`; do not copy the training loop.
 
 ## Checkpoint contract
 
@@ -65,11 +65,31 @@ Measure checkpoint/upload, download/integrity, startup, state-load completion an
 first resumed update separately. State timing boundaries and cache conditions.
 Durable artifacts must remain readable after producer exit.
 
+## Prepared implementation
+
+`part7B.sh` reuses the 7A stack and delegates phases to `run_7b.py` through verl's
+TaskRunner extension point. Thin hooks compare all rank-local model/Adam bytes,
+scheduler and saved worker RNG after native load, then trainer step/data state
+before generation. A planned stop requires native checkpoint completion; the
+experiment restores from a fresh, hash-verified pinned Hub download. Review also
+requires actual sharded updates and matching next source indices. Ray nodes,
+resources, actors/placement groups, logs and separate timing scopes are recorded.
+Checkpoint and lightweight evidence are retained directly in a private Hub repo.
+
+CPU validation covers integrity, hook delegation/error handling, RNG preservation,
+evidence gates and real composition against the exact pinned upstream YAML.
+Validation: 31 targeted CPU tests and five Hub helper tests passed; shell/CLI,
+syntax/docstrings and whitespace checks passed.
+Tensor deserialization, GPU hook behavior, actual Ray actor inspection, Hub
+transfers and recovery remain cloud-verification requirements. Driver-process
+RNG and vLLM server state are explicitly outside the supported restoration claim.
+The initial runner requires 100 GiB free disk and retains its intermediate copies.
+
 ## Implementation sequence
 
 1. **Design/source review:** complete at planning scope in this increment.
 2. **CPU preparation:** thin runner/configuration, manifest/restore validation and
-   minimum cloud-only state-audit hooks around native save/load. Check synthetic
+   minimum cloud-only state-audit hooks around native save/load (prepared). Check synthetic
    missing shards/data, hash changes, topology mismatch and resume configuration.
    Never load model checkpoint tensors locally; preserve the 7A runner.
 3. **Cloud verification:** one shell entry point for environment reuse/setup,

@@ -5,8 +5,8 @@ forward Qwen2.5-Math-1.5B and MATH from Part 5.
 
 **Status:** 7A cloud smoke verified on two A100 40 GB GPUs: FSDP2 sharding,
 training/evaluation, checkpoint export, private Hugging Face uploads and loading
-a pinned uploaded model revision. Exact training recovery and serving remain
-future milestones. See [PLAN.md](PLAN.md) for implementation details.
+a pinned uploaded model revision. The 7B recovery runner is CPU-checked; cloud recovery verification and serving
+remain pending. See [PLAN.md](PLAN.md) for implementation details.
 
 ## Roadmap
 
