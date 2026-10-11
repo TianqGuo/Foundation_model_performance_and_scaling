@@ -1,8 +1,8 @@
 # 7C runbook — preparation increment
 
-This runner currently prepares an image or a GPU-preflight manifest. It does not
-install Kubernetes/KubeRay, create storage or Secrets, deploy training, or perform
-recovery. [7C_PLAN.md](7C_PLAN.md) records the remaining implementation and evidence.
+This runner builds an image, renders preflight/training/recovery manifests, or
+executes a native training phase inside a prepared pod. It does not install
+Kubernetes/KubeRay, create storage or Secrets, or submit jobs. [7C_PLAN.md](7C_PLAN.md) records the remaining implementation and evidence.
 Do not rent another ordinary GPU container solely to run this stage: first confirm
 access to Kubernetes with NVIDIA GPU resources and a compatible storage class.
 
@@ -75,4 +75,44 @@ requested after completion. A 10-minute finished-job TTL is configured. These
 are intended settings, not verified cleanup behavior; retain pod/operator logs
 and Kubernetes status before automatic cleanup, and verify actual lifecycle.
 The external PVC and Secret must remain available for later jobs. The full
-apply/watch/evidence-retention/training/recovery shell workflow is still pending.
+apply/watch/evidence-retention/cleanup shell workflow is still pending. Native
+training/recovery phases are now prepared as described below; cloud verification
+remains pending.
+
+## Existing-cluster training/recovery increment
+
+`infrastructure/7c_kuberay/run_7c.py` now composes the unchanged 7A workload,
+connects with `ray.init(address="auto")`, prepares the model on a two-GPU worker
+actor and runs native verl's TaskRunner on that worker without reserving a GPU
+for the coordinator. The preparation actor is released before training starts.
+The launcher explicitly merges verl runtime defaults when attaching to Ray.
+Existing 7B trainer/worker audits implement checkpoint-boundary interruption,
+manifest creation and native full-state resume; model/data/source/environment
+identities must match. Separate phase RayJobs are required for fresh-runtime
+recovery. This code is CPU-checked, not cloud-verified. Fifteen 7C CPU tests pass,
+including all four phase manifests against the pinned CRD. Cloud paths must stay
+on the PVC under `/workspace`; recovery also requires the same recorded image digest.
+
+The renderer now accepts `--phase preflight|baseline|interrupt|resume` and
+`--checkpoint /workspace/.../global_step_2` for resume. Use a unique `--name`
+for each job/output. Training phases have a 45-minute active deadline. The
+prepared data bundle must exist at `/workspace/data/step2_math_final`; automatic
+model downloads use the mounted Hub Secret and shared `/workspace/models`.
+No token is passed in Ray runtime environment or generated manifests.
+
+Inside a prepared pod, the milestone runner can invoke a phase directly:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase interrupt \
+  --output /workspace/runs/7c-interrupt
+bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase resume \
+  --checkpoint /workspace/runs/7c-interrupt/checkpoints/global_step_2 \
+  --output /workspace/runs/7c-resume
+```
+
+Normally Kubernetes invokes these phases through rendered RayJobs. End the
+interrupted RayJob/cluster before starting the resume RayJob; invoking both in
+the same surviving runtime does not establish fresh-runtime recovery. No
+apply/watch/cleanup controller or direct Hub checkpoint transfer is integrated
+into 7C yet. PVC manifests can be resumed, but durable external backup and
+Kubernetes lifecycle/evidence review remain required before 7C completion.

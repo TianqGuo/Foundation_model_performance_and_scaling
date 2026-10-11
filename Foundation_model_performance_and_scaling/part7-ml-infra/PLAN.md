@@ -219,7 +219,7 @@ registry publication, cluster contact, provisioning or GPU run has occurred.
 The initial manifest has a CPU head and one two-GPU worker on a selected node,
 with a durable shared PVC, explicit shared memory and file-mounted Hub Secret.
 Actual cluster access, base/registry digests, device-plugin/storage compatibility
-and a budget remain to be agreed. Training needs a thin launcher connecting verl
+and a budget remain to be agreed. A thin launcher now connects verl
 to KubeRay's existing Ray runtime; 7B's local driver GPU guards/startup cannot be
 used unchanged. Training, interruption/recovery and cleanup remain pending;
 this preparation does not complete 7C or justify renting another GPU container.
@@ -321,3 +321,17 @@ parity or model-quality improvement. Cloud artifacts are uploaded and local smal
 evidence is reviewed; the user may release the instance. No commits or pushes
 were performed. The foreground-authentication fix was not exercised by this run,
 which used a saved-login workaround; it remains CPU-checked.
+
+## Second 7C increment — native phases
+
+Added `run_7c.py`: existing-Ray connection, worker-side model preparation, native
+verl TaskRunner on the GPU worker, and reused 7B interruption/restore audits.
+The renderer supports baseline/interruption/resume jobs; resumed state must match
+model/data/source/package identities and the recorded image digest. Cloud paths
+must stay under the persistent `/workspace` mount. Fifteen CPU tests pass,
+including all four phase manifests against the pinned CRD; shell syntax, CLI,
+Python syntax/function docstrings and scoped whitespace checks pass.
+
+Live image/build/operator compatibility, fresh-RayJob recovery, direct Hub backup,
+job submission/evidence capture and cleanup remain pending. This does not complete
+7C; see the updated plan/runbook for supported commands and limitations.
