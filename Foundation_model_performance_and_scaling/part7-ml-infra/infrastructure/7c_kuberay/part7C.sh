@@ -8,6 +8,10 @@ case "${1:---help}" in
     shift
     exec python "$part7_root/infrastructure/7c_kuberay/render.py" "$@"
     ;;
+  phase)
+    shift
+    exec python "$part7_root/infrastructure/7c_kuberay/run_7c.py" "$@"
+    ;;
   build)
     shift
     exec bash "$part7_root/infrastructure/7c_kuberay/build_image.sh" "$@"
@@ -15,7 +19,7 @@ case "${1:---help}" in
   --help)
     echo 'part7C.sh render --image REGISTRY/IMAGE@sha256:DIGEST --node-name NODE [--namespace part7] [--pvc part7-workspace] [--secret part7-huggingface] [--output PATH]'
     echo 'part7C.sh build --cloud BASE_IMAGE@sha256:DIGEST LOCAL_TAG'
-    echo 'Preparation only: no cluster apply, operator installation or provisioning is automated yet.'
+    echo 'Render/build/phase preparation: no cluster apply, operator installation or provisioning is automated yet.'
     ;;
   *) echo 'Unknown action; use --help.' >&2; exit 2 ;;
 esac

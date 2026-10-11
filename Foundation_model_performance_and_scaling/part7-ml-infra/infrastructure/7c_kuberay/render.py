@@ -1,12 +1,13 @@
 """Render a digest-pinned CPU-head/two-GPU-worker RayJob preflight, without API calls.
 
-JSON output is also valid Kubernetes YAML. This first increment does not launch
-training; completing the GPU preflight does not complete milestone 7C.
+JSON output is also valid Kubernetes YAML. Select preflight or one native verl
+training/recovery phase; manifest preparation does not complete milestone 7C.
 """
 import argparse
 import json
 from pathlib import Path
 import re
+import shlex
 
 RAY_VERSION = "2.49.2"
 KUBERAY_VERSION = "1.4.2"
@@ -34,11 +35,11 @@ def pinned_image(value):
     return value
 
 
-def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None):
-    """Return a RayJob document for CPU-head/GPU-worker cloud access validation.
+def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None, phase="preflight", checkpoint=None):
+    """Return a RayJob document for cloud preflight or native training/recovery.
 
     Inputs: immutable image, namespace/job/PVC/Secret names and chosen GPU node;
-    optional image pull Secret name. Output: Kubernetes object dictionary. No
+    optional image pull Secret name, phase and shared checkpoint path. Output: Kubernetes object dictionary. No
     Secrets/PVCs are created. Both pods share the selected node and existing PVC,
     enabling initial single-node RWO storage. Requests reserve two whole GPUs;
     shared-memory limits count against pod RAM. All labels/digest are validated.
@@ -58,7 +59,7 @@ def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None)
         container = dict(name="ray-" + role, image=image, imagePullPolicy="IfNotPresent",
                          workingDir="/opt/part7", resources=dict(requests=dict(resources), limits=dict(resources)),
                          securityContext=dict(allowPrivilegeEscalation=False, capabilities=dict(drop=["ALL"])),
-                         env=[dict(name="POD_NAME", valueFrom=dict(fieldRef=dict(fieldPath="metadata.name"))),
+                         env=[dict(name="PART7_IMAGE", value=image),dict(name="POD_NAME", valueFrom=dict(fieldRef=dict(fieldPath="metadata.name"))),
                               dict(name="POD_UID", valueFrom=dict(fieldRef=dict(fieldPath="metadata.uid"))),
                               dict(name="NODE_NAME", valueFrom=dict(fieldRef=dict(fieldPath="spec.nodeName")))],
                          volumeMounts=[dict(name="workspace", mountPath="/workspace"),
@@ -80,15 +81,29 @@ def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None)
             spec["imagePullSecrets"] = [dict(name=pull_secret)]
         return dict(metadata=dict(labels={"part7-milestone": "7c", "part7-run": name}), spec=spec)
 
+    if phase not in {"preflight", "baseline", "interrupt", "resume"}:
+        raise ValueError("Unknown workload phase")
+    if phase == "resume" and not checkpoint:
+        raise ValueError("Resume manifest requires a checkpoint path")
+    if checkpoint and (not isinstance(checkpoint, str) or not checkpoint.startswith("/workspace/")
+                       or ".." in Path(checkpoint).parts or "\\" in checkpoint):
+        raise ValueError("Checkpoint must be an absolute path under /workspace")
+    command = ["python", "-u", "/opt/part7/infrastructure/7c_kuberay/" +
+               ("preflight.py" if phase == "preflight" else "run_7c.py"),
+               "--cloud", "--output", f"/workspace/runs/{name}"]
+    if phase != "preflight":
+        command += ["--phase", phase]
+    if phase == "resume":
+        command += ["--checkpoint", checkpoint]
     return dict(apiVersion="ray.io/v1", kind="RayJob",
                 metadata=dict(name=name, namespace=namespace, labels={"part7-milestone": "7c"},
                               annotations={"part7/kuberay-version": KUBERAY_VERSION,
-                                           "part7/scope": "gpu-preflight-only"}),
-                spec=dict(entrypoint=f"python -u /opt/part7/infrastructure/7c_kuberay/preflight.py --cloud --output /workspace/runs/{name}",
+                                           "part7/scope": "gpu-preflight-only" if phase == "preflight" else "training-" + phase}),
+                spec=dict(entrypoint=shlex.join(command),
                           entrypointNumCpus=0, entrypointNumGpus=0,
                           submissionMode="K8sJobMode", backoffLimit=0,
                           shutdownAfterJobFinishes=True, ttlSecondsAfterFinished=600,
-                          activeDeadlineSeconds=900,
+                          activeDeadlineSeconds=900 if phase == "preflight" else 2700,
                           rayClusterSpec=dict(rayVersion=RAY_VERSION, enableInTreeAutoscaling=False,
                               headGroupSpec=dict(rayStartParams={"dashboard-host": "0.0.0.0", "num-cpus": "2", "num-gpus": "0",
                                                                  "object-store-memory": "536870912"},
@@ -112,9 +127,11 @@ def main():
     parser.add_argument("--secret", default="part7-huggingface")
     parser.add_argument("--node-name", required=True)
     parser.add_argument("--pull-secret")
+    parser.add_argument("--phase", choices=["preflight", "baseline", "interrupt", "resume"], default="preflight")
+    parser.add_argument("--checkpoint")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    result = render_job(args.image, args.namespace, args.name, args.pvc, args.secret, args.node_name, args.pull_secret)
+    result = render_job(args.image, args.namespace, args.name, args.pvc, args.secret, args.node_name, args.pull_secret, args.phase, args.checkpoint)
     content = json.dumps(result, indent=2) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
