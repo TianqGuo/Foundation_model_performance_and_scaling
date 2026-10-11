@@ -1,0 +1,13 @@
+# Only source/configuration enters the build; datasets, credentials and caches do not.
+**
+!infrastructure/
+!infrastructure/**
+!workloads/
+!workloads/**
+**/__pycache__/**
+**/.venv*/**
+**/.cache/**
+**/.env*
+**/*.pem
+**/*.key
+**/.git/**
