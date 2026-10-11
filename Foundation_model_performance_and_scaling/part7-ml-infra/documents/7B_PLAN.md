@@ -3,7 +3,8 @@
 Started: 2026-10-09. User authorized continuing to 7B. This first increment defines
 implementation and acceptance. Checkpoint integrity/transfer helpers, cloud-only native-load audits and the
 single-command baseline/interruption/Hub-restore/resume experiment are prepared
-and CPU-checked. Actual cloud state restoration remains unverified. See [the runbook](7B_RUNBOOK.md).
+and CPU-checked. The user-run same-host recovery experiment and retained-evidence
+review now pass; 7B is complete at the bounded scope described below. See [the runbook](7B_RUNBOOK.md).
 
 ## Initial topology
 
@@ -81,7 +82,7 @@ evidence gates and real composition against the exact pinned upstream YAML.
 Validation: 31 targeted CPU tests and five Hub helper tests passed; shell/CLI,
 syntax/docstrings and whitespace checks passed.
 Tensor deserialization, GPU hook behavior, actual Ray actor inspection, Hub
-transfers and recovery remain cloud-verification requirements. Driver-process
+transfers and recovery passed the reviewed two-A100-80GB cloud experiment. Driver-process
 RNG and vLLM server state are explicitly outside the supported restoration claim.
 The initial runner requires 100 GiB free disk and retains its intermediate copies.
 
@@ -103,3 +104,15 @@ The initial runner requires 100 GiB free disk and retains its intermediate copie
 or file listing alone is insufficient. Capture image/model/data/artifact identity,
 exceptions and limitations. No resources are provisioned and no commits/pushes
 are authorized by this document.
+
+## Reviewed outcome
+
+The retained `recovery_execution_20261011T022932Z_Ponp8Z` has successful baseline,
+planned step-2 interruption and fresh-runtime step-3 continuation. Two rank-local
+model/Adam/scheduler/saved worker RNG audits and trainer step/data fingerprints
+match exactly. The next source batch matches the baseline. Actual sharding,
+resumed optimizer calls, final evaluation/checkpoint and private Hub receipts are
+retained; see [PLAN.md](../PLAN.md#reviewed-7b-cloud-recovery) for identities/timing.
+Local evidence excludes full tensor payloads, which remain on the Hub. This
+completes the bounded same-host experiment; driver/vLLM RNG and replacement-node
+recovery remain outside its supported claims.

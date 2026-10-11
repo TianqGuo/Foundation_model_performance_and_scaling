@@ -124,7 +124,8 @@ def evidence_files(root):
 def main():
     """Authenticate once and run baseline/interruption/Hub restore/resume/review.
 
-    Input: CLI paths/model settings; --cloud is mandatory. Returns None and writes
+    Input: CLI paths/model settings; --cloud is mandatory. --authenticate-only
+    prepares saved login and returns without creating a repo or launching phases. Returns None and writes
     timings, immutable upload receipt and review report. Uses existing HF_TOKEN
     or login; prompts securely only if neither exists. Requires a fresh output,
     sufficient free disk and an already provisioned two-GPU cloud host. Partial
@@ -132,6 +133,8 @@ def main():
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cloud", action="store_true", required=True)
+    parser.add_argument("--authenticate-only", action="store_true",
+                        help="prepare saved Hub login in the terminal before timeout")
     parser.add_argument("--data", type=Path, default=ROOT / "results/7a/step2_math_final")
     parser.add_argument("--output", type=Path, default=ROOT / "results/7b" /
                         datetime.now(timezone.utc).strftime("recovery_%Y%m%dT%H%M%S%fZ"))
@@ -159,6 +162,9 @@ def main():
         login(token=getpass.getpass("Hugging Face write token: "), add_to_git_credential=False)
     api = HfApi()
     account = api.whoami()["name"]
+    if args.authenticate_only:
+        print(f"Hugging Face account verified: {account}", flush=True)
+        return
     repo = args.repo or f"{account}/part7-7b-{args.output.name.replace('_', '-')}"
     import_module("infrastructure.7a_verl.hf_artifacts").private_repo(api, repo, "dataset")
     args.output.mkdir()

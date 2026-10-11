@@ -3,13 +3,11 @@
 High-level notes from our discussions. Implementation details are in
 [PLAN.md](../PLAN.md), [GRPO mapping](7A_GRPO_MAPPING.md) and the
 [cloud runbook](7A_RUNBOOK.md). Current status: the bounded 7A cloud smoke,
-artifact uploads and pinned model-weight reload are verified. 7B design has
-started; checkpoint integrity, cloud-only recovery hooks and the single-command
-experiment runner are prepared and CPU-checked. Actual cloud recovery remains
-unverified. See
+artifact uploads and pinned model-weight reload are verified. 7B same-host training-state recovery is also cloud-verified and reviewed.
+Driver/vLLM RNG and replacement-node recovery remain outside its scope. See
 [the 7B plan](7B_PLAN.md).
 
-## What did 7A verify, and what remains for 7B?
+## What did 7A and 7B verify?
 
 Two A100 40 GB GPUs ran the verl workload with two training ranks, 338 sharded
 parameter tensors per rank, sampled sharded gradients/Adam moments, six optimizer
@@ -20,9 +18,11 @@ Logs and receipts are retained locally; the instance has been released.
 
 This is bounded infrastructure verification, not a reliable model-quality gain.
 The reload smoke had zero training rewards; 32-prompt evaluation scores varied
-between runs. Full-state restore, interruption recovery and Ray operations remain
-7B work. Multi-node execution and broader numerical/tokenizer equivalence remain
-unverified. Full training checkpoints were intentionally not backed up.
+between runs. 7B subsequently verified same-host interruption/recovery, Ray
+placement and exact restoration of audited state on two A100 80 GB GPUs.
+Multi-node execution and broader numerical/tokenizer equivalence remain
+unverified. The original 7A full checkpoints were discarded; the reviewed 7B
+full checkpoint and small evidence are retained privately on the Hub.
 
 ## Which model and dataset are we starting with? Can we switch later?
 
@@ -206,7 +206,8 @@ dashboard showed more public than private storage, but public capacity should no
 be treated as unrestricted backup space. Storage is shared across repositories;
 creating more repositories does not increase the account allowance. Check current
 usage and the [Hub storage policy](https://huggingface.co/docs/hub/storage-limits)
-before retaining many versions. Default artifact uploads exclude full checkpoints.
+before retaining many versions. Default 7A artifact uploads exclude full checkpoints; the 7B recovery
+experiment retains one complete checkpoint directly on the Hub.
 
 ## What does the 7B runner add to the Ray already used in 7A?
 
@@ -215,5 +216,6 @@ pinned-Hub-restore experiment, explicit placement records and comparisons of
 restored model/Adam/scheduler/worker RNG and trainer data/step state before further
 training. Its manifest inventories checkpoint files and hashes; it is not a Ray
 configuration file. YAML controls verl/Ray execution, while the manifest verifies
-the resume payload. The prepared code still needs cloud execution and evidence
-review; it does not claim recovery merely because the resume settings exist.
+the resume payload. The reviewed two-A100-80GB experiment now proves exact
+restoration of the audited training state and successful step-3 continuation in
+a fresh Ray runtime. Driver/vLLM RNG and replacement-host recovery are not claimed.

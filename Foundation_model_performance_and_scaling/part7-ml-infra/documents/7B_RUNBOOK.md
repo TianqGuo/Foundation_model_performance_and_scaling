@@ -1,7 +1,8 @@
 # 7B — Ray recovery runbook
 
-The cloud runner and recovery hooks are prepared and CPU-checked. **Cloud
-verification is pending; 7B is not complete.** Reuse the pinned 7A environment.
+The bounded same-host recovery experiment has passed user-run cloud verification
+and retained-evidence review on two A100 80 GB GPUs. **7B is complete at this
+scope.** Reuse the pinned 7A environment for future runs.
 No GPU dependency/backend change or VM provisioning is introduced.
 
 ## New cloud instance
@@ -35,7 +36,9 @@ bash infrastructure/7b_ray/part7B.sh
 The shell creates/reuses `.venv-7a`, verifies setup inputs/imports and two GPUs,
 selects the image's CUDA 13 toolkit and prepares missing data. `--sync-env` requests
 an explicit environment refresh. Existing Hugging Face login or `HF_TOKEN` is reused;
-otherwise the experiment prompts once for a write token without printing it.
+otherwise the runner prompts once for a write token without printing it.
+Authentication runs in the foreground before the timed experiment, allowing
+terminal input inside tmux.
 No separate login/setup command is needed. Optional `--data`, `--output`,
 `--model-id`, `--model-revision`, `--model-path` and `--repo` overrides remain
 available. Use a fresh output directory; a failed run is preserved for inspection. Setup
@@ -127,3 +130,13 @@ Checkpoint helpers remain available for inspection/retrying transfers. Use
 full immutable Hub commit and a new `global_step_N` destination. Inspect failed
 partial directories rather than automatically reusing them. See [7B_PLAN.md](7B_PLAN.md)
 for acceptance requirements.
+
+## Stopped process before baseline starts
+
+A Python `STAT T` with idle GPUs may indicate terminal-input job control, rather
+than slow initialization. The original runner placed the hidden Hub token prompt
+inside `timeout`, which starts a separate process group. On first login this could
+stop Python with SIGTTIN. The runner now prepares/verifies cached authentication
+in the foreground before starting the timed experiment; its process-group timeout
+remains intact. Stop the old run and update the runner before retrying. Existing
+environments and prepared data are reused.

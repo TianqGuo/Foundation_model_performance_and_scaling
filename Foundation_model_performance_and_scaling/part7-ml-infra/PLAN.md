@@ -1,15 +1,17 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-09
+Updated: 2026-10-10
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
 parameter/gradient/Adam sharding, six optimizer calls per rank, fixed evaluation,
-checkpoint save, BF16 export, direct private Hub uploads and a successful new
-smoke from the uploaded model's pinned commit. Full training-state restoration
-and broader numerical/tokenizer parity remain unverified; those are not implied
-by a weights-only reload. 7B design/source review has started; checkpoint integrity/transfer helpers, native-load audits and a single cloud
-experiment runner are prepared and CPU-checked; actual cloud recovery remains pending.
+checkpoint save, BF16 export, direct private Hub uploads and weights reload.
+7B bounded same-host recovery is now complete: reviewed user-run evidence on two
+A100-SXM4-80GB GPUs proves controlled checkpoint-boundary interruption, pinned
+Hub download into a fresh path, a new Ray runtime, exact model/Adam/scheduler/saved
+worker RNG fingerprints and trainer step/data restoration, followed by sharded
+updates/evaluation/checkpointing. Driver RNG, vLLM server state and replacement-node
+recovery are outside this claim; broader numerical/tokenizer parity remains unverified.
 
 `infrastructure/7a_verl/part7A.sh --upload-hf` is the single cloud entry point:
 setup/reuse, automatic authentication/destination naming, data/model preparation,
@@ -199,9 +201,9 @@ and the single `part7B.sh` experiment runner are now prepared. Targeted CPU chec
 include pinned upstream configuration composition. Validation: 31 targeted configuration/diagnostic/checkpoint/recovery CPU tests
 passed against the pinned upstream YAML, plus five existing Hub helper tests;
 CLI, shell syntax, Python syntax/docstrings and whitespace checks passed.
-Actual GPU hooks, direct
-full-checkpoint transfers and fresh-runtime recovery remain unverified. No model loads or cloud
-provisioning occurred.
+These hooks, direct full-checkpoint transfers and fresh-runtime recovery were
+subsequently verified by the user-run experiment reviewed below. The agent did
+not load models or provision cloud resources.
 Preserve 7A and its environment; no Kubernetes or backend change is introduced.
 
 ## Boundaries and progress
@@ -211,7 +213,8 @@ Preserve 7A and its environment; no Kubernetes or backend change is introduced.
 - [x] Complete step 2 adapters, semantic mapping and bounded CPU verification.
 - [x] Complete step 3 environment/configuration/runner CPU preparation.
 - [x] Complete bounded 7A and review retained cloud evidence.
-- [ ] Complete 7B, then reassess scope and Kubernetes access/cost.
+- [x] Complete bounded 7B recovery and review retained evidence.
+- [ ] Reassess Kubernetes access/cost before 7C.
 - [ ] Complete 7C and 7D. 7E requires a separate decision to continue.
 
 All model execution is cloud-only. Local work is static/lightweight CPU checks.
@@ -229,3 +232,47 @@ Core completion is 7A–7D with evidence-backed resume and monitoring claims.
 Multi-node scalability, RDMA/InfiniBand, autoscaling and production reliability
 remain unclaimed. Megatron, DeepSpeed, SGLang, continued pretraining, Kubeflow,
 Airflow, MLflow and OpenRLHF remain deferred; do not expand the roadmap.
+
+7B cloud startup follow-up: user logs show two idle A100-SXM4-80GB GPUs,
+492 GB free disk and a stopped Python process (`STAT T`) before baseline config
+creation. Likely terminal-input job control at first Hub login under `timeout`.
+Authentication is now performed in the foreground before the timed experiment.
+This startup fix still requires user-run cloud confirmation; no recovery is claimed.
+
+## Reviewed 7B cloud recovery
+
+Run `recovery_execution_20261011T022932Z_Ponp8Z` (2026-10-11 UTC) is retained
+locally, with all three phase statuses successful and the interruption explicitly
+planned after complete step 2. The full console has no traceback. Baseline,
+interrupted and resumed phases have distinct Ray node IDs/worker PIDs on the same
+physical host. Placement records bind two WorkerDict actors to two logical GPUs;
+rank diagnostics use distinct visible devices 0/1 and record 338 sharded parameter
+tensors each. Optimizer calls per rank are 6 baseline, 4 before interruption and
+2 after restoration. The interrupted phase stops before its step-2 rollout dump;
+this expected absence does not invalidate its completed checkpoint.
+
+Both rank audits exactly match all local model/Adam state, scheduler and saved
+worker RNG fingerprints. Trainer step/data fingerprints match step 2; resumed
+step 3 consumes source indices `[78, 536, 279, 461]`, matching the baseline.
+The restored path is `restored/global_step_2`, not the producer checkpoint.
+The resumed phase completes a 16-response rollout, 32-prompt final evaluation
+and step-3 checkpoint. Saved/current Python, package, source, data and model
+identities match. The local copy has 1,290 evidence files (~5.8 MiB), without
+checkpoint tensor files; full state is retained directly on the private Hub.
+
+Private dataset: `sclion/part7-7b-recovery-execution-20261011T022932Z-Ponp8Z`.
+Checkpoint commit: `f270b988649abdd9d461baad8e654ecd2eb44dfd`.
+Evidence commit: `e1df90574ae7acf70cfef67ee0b282b1a92878e9`.
+Receipt and review are retained locally. Upload took 82.0 s; download plus
+integrity 35.4 s. Native per-rank load took 7.55–7.59 s; audit overhead
+20.58–20.60 s; completed audit to first optimizer update 22.87–22.88 s.
+These scopes include this host's cache/network conditions, not cold-start or
+production benchmarks. Total recorded phase/transfer durations are about
+11 minutes, excluding initial environment setup/authentication.
+
+This completes 7B at its accepted bounded scope. It does not establish vLLM/server
+or driver RNG recovery, replacement-host recovery, exact sampled-output/final-weight
+parity or model-quality improvement. Cloud artifacts are uploaded and local small
+evidence is reviewed; the user may release the instance. No commits or pushes
+were performed. The foreground-authentication fix was not exercised by this run,
+which used a saved-login workaround; it remains CPU-checked.

@@ -5,8 +5,8 @@ forward Qwen2.5-Math-1.5B and MATH from Part 5.
 
 **Status:** 7A cloud smoke verified on two A100 40 GB GPUs: FSDP2 sharding,
 training/evaluation, checkpoint export, private Hugging Face uploads and loading
-a pinned uploaded model revision. The 7B recovery runner is CPU-checked; cloud recovery verification and serving
-remain pending. See [PLAN.md](PLAN.md) for implementation details.
+a pinned uploaded model revision. 7B same-host training-state recovery is also verified; Kubernetes deployment
+and serving remain pending. See [PLAN.md](PLAN.md) for implementation details.
 
 ## Roadmap
 
@@ -31,6 +31,16 @@ The upload run scored 5/32 before and 8/32 afterward; the weights-reload run
 scored 9/32 before and 6/32 afterward. These capped, small smoke measurements
 verify infrastructure and do not demonstrate reliable model-quality improvement.
 Model weights are retained on Hugging Face; full optimizer state was not uploaded.
+
+## Measured 7B recovery
+
+Two A100 80 GB GPUs: controlled interruption after step 2, direct private Hub
+retention and pinned download, then step-3 continuation in a fresh Ray runtime.
+Both ranks exactly match restored model/Adam/scheduler/saved worker RNG state;
+trainer step/data state and the next batch also match. Each rank records 338
+sharded parameter tensors and two resumed optimizer calls. Native load took about
+7.6 s per rank, with about 20.6 s of audit overhead. Driver/vLLM RNG and
+replacement-node recovery are outside this bounded verification.
 
 ## Reference and validation
 

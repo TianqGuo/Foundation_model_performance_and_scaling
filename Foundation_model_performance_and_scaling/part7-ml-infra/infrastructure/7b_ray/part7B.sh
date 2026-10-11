@@ -50,6 +50,9 @@ fi
 if [[ ! -f "$data_bundle/manifest.json" ]]; then
   "$python_path" workloads/math_workload.py --output "$data_bundle" --drop-empty-solutions
 fi
+# Authenticate in the foreground: timeout creates a process group that cannot
+# read the terminal, so a first-time hidden-token prompt would receive SIGTTIN.
+"$python_path" -u infrastructure/7b_ray/experiment.py --cloud --authenticate-only "${runner_args[@]}"
 timeout --signal=INT --kill-after=60s 60m "$python_path" -u infrastructure/7b_ray/experiment.py --cloud "${runner_args[@]}"
 mkdir -p "$run_output/execution" "$run_output/environment"
 cp "$execution_logs/console.log" "$run_output/execution/"
