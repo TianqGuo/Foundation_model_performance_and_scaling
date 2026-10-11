@@ -1,6 +1,6 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-10
+Updated: 2026-10-11
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
@@ -206,6 +206,24 @@ subsequently verified by the user-run experiment reviewed below. The agent did
 not load models or provision cloud resources.
 Preserve 7A and its environment; no Kubernetes or backend change is introduced.
 
+## 7C implementation sequence
+
+User authorized 7C implementation on 2026-10-11. The first increment prepares a
+CUDA 13 image using the existing isolated lock, a digest-only RayJob renderer,
+and an existing-cluster GPU preflight under `infrastructure/7c_kuberay/`.
+See [7C plan](documents/7C_PLAN.md) and [preparation runbook](documents/7C_RUNBOOK.md).
+Ten CPU tests pass, including the actual pinned KubeRay v1.4.2 RayJob schema,
+resource/storage/Secret settings and GPU-placement validation. No image build,
+registry publication, cluster contact, provisioning or GPU run has occurred.
+
+The initial manifest has a CPU head and one two-GPU worker on a selected node,
+with a durable shared PVC, explicit shared memory and file-mounted Hub Secret.
+Actual cluster access, base/registry digests, device-plugin/storage compatibility
+and a budget remain to be agreed. Training needs a thin launcher connecting verl
+to KubeRay's existing Ray runtime; 7B's local driver GPU guards/startup cannot be
+used unchanged. Training, interruption/recovery and cleanup remain pending;
+this preparation does not complete 7C or justify renting another GPU container.
+
 ## Optional milestone and deferred follow-ups
 
 Core completion remains 7A–7D. These items do not block 7C/7D and do not authorize
@@ -240,7 +258,8 @@ recorded interests, not extra committed Part 7 milestones.
 - [x] Complete step 3 environment/configuration/runner CPU preparation.
 - [x] Complete bounded 7A and review retained cloud evidence.
 - [x] Complete bounded 7B recovery and review retained evidence.
-- [ ] Reassess Kubernetes access/cost before 7C.
+- [x] Prepare first 7C container/manifest/GPU-preflight increment with CPU checks.
+- [ ] Confirm Kubernetes access/cost before cloud 7C execution.
 - [ ] Complete 7C and 7D. 7E requires a separate decision to continue.
 
 All model execution is cloud-only. Local work is static/lightweight CPU checks.
