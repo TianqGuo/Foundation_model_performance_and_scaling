@@ -335,3 +335,18 @@ Python syntax/function docstrings and scoped whitespace checks pass.
 Live image/build/operator compatibility, fresh-RayJob recovery, direct Hub backup,
 job submission/evidence capture and cleanup remain pending. This does not complete
 7C; see the updated plan/runbook for supported commands and limitations.
+
+## Third 7C increment — job lifecycle
+
+Added `job_control.py` and `part7C.sh job`: exact generated manifest validation,
+explicit Kubernetes context, server dry-run/create, bounded monitoring, pod/driver
+logs and lightweight PVC evidence retention before optional owned-job cleanup.
+Actual submitted settings keep the cluster alive until collection. Cleanup
+verifies job UID and RayCluster/Ray-pod absence; PVC/Secrets/nodes are preserved.
+Failures retain resources for inspection. Twenty-five 7C CPU tests pass, including
+mocked API outcomes and archive exclusions. No live cluster was contacted.
+
+Cloud image/publication/access/storage compatibility and end-to-end recovery still
+need verification. Direct Hub state retention/restore, portable data staging and
+multi-phase experiment orchestration remain pending. 7C is not complete; the
+runbook documents the new single-job flow and cleanup scope.

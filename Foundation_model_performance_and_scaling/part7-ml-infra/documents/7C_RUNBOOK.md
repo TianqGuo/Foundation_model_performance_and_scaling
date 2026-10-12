@@ -2,7 +2,8 @@
 
 This runner builds an image, renders preflight/training/recovery manifests, or
 executes a native training phase inside a prepared pod. It does not install
-Kubernetes/KubeRay, create storage or Secrets, or submit jobs. [7C_PLAN.md](7C_PLAN.md) records the remaining implementation and evidence.
+Kubernetes/KubeRay or create storage or Secrets. The `job` action now submits
+and monitors one generated RayJob on an existing cluster. [7C_PLAN.md](7C_PLAN.md) records the remaining implementation and evidence.
 Do not rent another ordinary GPU container solely to run this stage: first confirm
 access to Kubernetes with NVIDIA GPU resources and a compatible storage class.
 
@@ -74,8 +75,8 @@ The job is bounded to 15 minutes, with no automatic retry and cluster shutdown
 requested after completion. A 10-minute finished-job TTL is configured. These
 are intended settings, not verified cleanup behavior; retain pod/operator logs
 and Kubernetes status before automatic cleanup, and verify actual lifecycle.
-The external PVC and Secret must remain available for later jobs. The full
-apply/watch/evidence-retention/cleanup shell workflow is still pending. Native
+The external PVC and Secret must remain available for later jobs. The submission
+controller described below retains evidence before optional cleanup. Native
 training/recovery phases are now prepared as described below; cloud verification
 remains pending.
 
@@ -112,10 +113,72 @@ bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase resume \
 
 Normally Kubernetes invokes these phases through rendered RayJobs. End the
 interrupted RayJob/cluster before starting the resume RayJob; invoking both in
-the same surviving runtime does not establish fresh-runtime recovery. No
-apply/watch/cleanup controller or direct Hub checkpoint transfer is integrated
-into 7C yet. PVC manifests can be resumed, but durable external backup and
+the same surviving runtime does not establish fresh-runtime recovery. The
+submission controller is implemented; direct Hub checkpoint transfer is not yet
+integrated into 7C. PVC manifests can be resumed, but durable external backup and
 Kubernetes lifecycle/evidence review remain required before 7C completion.
 
 For a concrete generated deployment document and comparison with 7A/7B, see
 [the manifest guide](MANIFEST_GUIDE.md) and [RayJob example](examples/7C_RAYJOB_EXAMPLE.yaml).
+
+## Submit, monitor and retain one job
+
+`job_control.py`, exposed by `part7C.sh job`, now handles one generated RayJob.
+Its CPU check makes no Kubernetes API calls:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh job --check \
+  --manifest results/7c/preflight.json
+```
+
+Once cluster access, image, PVC/Secret, workload data and the hardware/budget are
+ready, submit from a machine with configured `kubectl` access. All GPU execution
+remains on the cloud cluster; the controller itself only runs Kubernetes commands:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh job --cloud \
+  --manifest results/7c/preflight.json \
+  --context ACTUAL_KUBECTL_CONTEXT \
+  --output results/7c/preflight_deployment \
+  --cleanup-on-success
+```
+
+The context placeholder must identify the intended cluster. Use unique manifest
+job names and fresh evidence directories. The controller accepts the exact JSON
+output from the renderer, not edited manifests or the reading-example YAML.
+It performs server-side dry-run validation, refuses an existing RayJob of that
+name, creates the job and monitors its RayJob status. Polling has the configured
+job deadline plus five minutes; Kubernetes commands have individual timeouts.
+
+The submitted copy changes `shutdownAfterJobFinishes` to `false`, so pods stay
+available during evidence collection. It records this actual submitted manifest,
+job UID, Kubernetes status, pod placement/images/resources and available pod logs.
+At success it retrieves the full Ray driver log using the head's local dashboard
+and saves `workspace_evidence.tar.gz`. The archive includes run configuration,
+identities, metrics/diagnostics, rollouts, audits and checkpoint manifests; tensor
+files, checkpoint payloads, model exports and caches are excluded. No archive is
+extracted automatically, and no Secret contents or pod environment values are
+queried for evidence.
+
+`--cleanup-on-success` deletes only the newly created RayJob after required logs,
+workspace evidence and successful phase status are retained. It verifies that
+its UID still matches and waits for the associated RayCluster and Ray pods to
+vanish. The receipt preserves the PVC/Secret scope. This is lifecycle checking,
+not a claim of checkpoint backup or a check that rented nodes have been released.
+
+On failure, timeout or retention error, resources remain for inspection. Without
+`--cleanup-on-success`, even a successful job leaves its cluster available; inspect
+`submission.json` and use the recorded context/namespace/name for later cleanup.
+Retained GPU pods continue occupying resources until removed. Cluster/node rental
+cleanup is separate from RayJob deletion.
+
+Run preflight, baseline, interruption and resume as separate jobs. For recovery,
+clean up the interrupted job/cluster first, then render a new resume job pointing
+to the checkpoint still on the same PVC. A new pod/runtime is intended, not a
+verified replacement physical node. Direct Hub backup/restore, automatic bundle
+staging, registry publication and an end-to-end multi-phase experiment wrapper
+remain pending. Do not treat these prepared commands as cloud-verified.
+
+Validation: 25 CPU tests pass, including controller success/failure, evidence-before-
+cleanup, UID mismatch, lightweight archive exclusions and pinned schema checks.
+No live Kubernetes API was contacted during development.

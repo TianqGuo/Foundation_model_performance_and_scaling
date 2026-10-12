@@ -29,7 +29,8 @@ See [the runbook](7C_RUNBOOK.md) for prepared commands and access requirements.
   on the same worker pod. It checks pinned imports and Secret authentication,
   and retains status, identities and placement on the PVC. It loads no model.
 - `part7C.sh` exposes render/build actions. `build_image.sh` builds on cloud;
-  publishing and deployment are not automated in this increment. The `phase`
+  publishing is not automated. The `job` action submits/monitors a generated
+  RayJob with evidence capture and optional cleanup. The `phase`
   action invokes the existing-cluster launcher inside a prepared pod.
 
 Candidate operator pin: KubeRay v1.4.2; Ray remains the verified 2.49.2.
@@ -97,10 +98,25 @@ bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase resume \
 
 Normally Kubernetes invokes these phases through rendered RayJobs. End the
 interrupted RayJob/cluster before starting the resume RayJob; invoking both in
-the same surviving runtime does not establish fresh-runtime recovery. No
-apply/watch/cleanup controller or direct Hub checkpoint transfer is integrated
-into 7C yet. PVC manifests can be resumed, but durable external backup and
+the same surviving runtime does not establish fresh-runtime recovery. The
+submission/monitoring/evidence/cleanup controller is now implemented; direct Hub
+checkpoint transfer is not yet integrated into 7C. PVC manifests can be resumed, but durable external backup and
 Kubernetes lifecycle/evidence review remain required before 7C completion.
 
 For a concrete generated deployment document and comparison with 7A/7B, see
 [the manifest guide](MANIFEST_GUIDE.md) and [RayJob example](examples/7C_RAYJOB_EXAMPLE.yaml).
+
+## Job lifecycle increment
+
+`job_control.py` submits an exact renderer-produced JSON manifest to an explicit
+Kubernetes context. It retains the cluster during log/PVC evidence collection,
+records the actual manifest/status/UID/placement, and optionally deletes only the
+owned RayJob after evidence succeeds. Cleanup checks RayCluster/Ray-pod absence;
+PVCs, Secrets and rented nodes are outside deletion scope. Failures retain resources.
+Ray driver's full logs are fetched through the pinned public Ray Jobs SDK on the
+head. No dashboard endpoint is exposed externally by this helper.
+
+Twenty-five CPU tests pass, including all phase CRD checks and mocked Kubernetes
+success/failure/retention/cleanup paths. Full-state Hub integration, data staging,
+registry publication and multi-phase orchestration remain pending, along with
+all image/live GPU Kubernetes/recovery/cleanup verification. No cluster contacted.
