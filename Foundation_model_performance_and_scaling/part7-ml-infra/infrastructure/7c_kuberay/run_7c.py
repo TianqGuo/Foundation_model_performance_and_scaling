@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT))
 reference = import_module("infrastructure.7a_verl.run_7a")
 recovery = import_module("infrastructure.7b_ray.run_7b")
 bundle = import_module("infrastructure.7b_ray.checkpoint_bundle")
+transfer = import_module("infrastructure.7c_kuberay.checkpoint_transfer")
 
 
 def configure_phase(config, phase, output, total_steps=3, interrupt_step=2, checkpoint=None, manifest=None):
@@ -112,7 +113,8 @@ def execute(args, config, data, model, manifest):
 
     Inputs: CLI/config/data/model/verified manifest. Returns None; writes config,
     identities, status and a completed interruption manifest on shared storage.
-    Does not provision, initialize a local Ray runtime or upload to the Hub.
+    Does not provision or initialize a local Ray runtime; optional Hub retention
+    uploads verified state before reporting phase success.
     Only a completed receipt plus PlannedInterruption counts as expected success.
     """
     import importlib.metadata
@@ -189,6 +191,13 @@ def execute(args, config, data, model, manifest):
                 raise
             bundle.create_manifest(Path(receipt["checkpoint"]), identity)
             status["planned_interruption"] = True
+        if args.upload_checkpoint_repo:
+            checkpoint = output / "checkpoints" / f"global_step_{args.interrupt_step if args.phase == 'interrupt' else args.total_steps}"
+            if not (checkpoint / bundle.MANIFEST).exists():
+                bundle.create_manifest(checkpoint, identity)
+            receipt = transfer.upload(checkpoint, args.upload_checkpoint_repo, output.name)
+            (output / "hf_checkpoint.json").write_text(json.dumps(receipt, indent=2))
+            status["checkpoint_uploaded"] = True
         status["success"] = True
     except Exception as error:
         status["error_type"] = type(error).__name__
@@ -215,6 +224,9 @@ def main():
     modes.add_argument("--cloud", action="store_true")
     parser.add_argument("--phase", choices=["baseline", "interrupt", "resume"], default="baseline")
     parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--upload-checkpoint-repo")
+    parser.add_argument("--restore-repo")
+    parser.add_argument("--restore-revision")
     parser.add_argument("--data", type=Path, default=Path("/workspace/data/step2_math_final"))
     parser.add_argument("--model-id", default=reference.DEFAULT_MODEL_ID)
     parser.add_argument("--model-revision")
@@ -228,6 +240,13 @@ def main():
         parser.error("Cloud mode requires Kubernetes pod identity")
     if args.phase == "resume" and args.checkpoint is None:
         parser.error("Resume requires --checkpoint")
+    transfer.validate_options(args.upload_checkpoint_repo, args.restore_repo, args.restore_revision)
+    if args.restore_repo:
+        if args.phase != "resume" or not args.cloud:
+            parser.error("Hub restore requires --cloud --phase resume")
+        if args.output.exists():
+            raise FileExistsError("Use a fresh output directory before downloading")
+        transfer.restore(args.restore_repo, args.restore_revision, args.checkpoint)
     manifest = bundle.verify_manifest(args.checkpoint) if args.phase == "resume" else None
     data = reference.verify_bundle(args.data)
     model = (args.model_path or Path("/workspace/models") / args.model_id.replace("/", "--")).resolve()

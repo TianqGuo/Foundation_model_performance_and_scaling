@@ -8,6 +8,9 @@ import json
 from pathlib import Path
 import re
 import shlex
+import sys
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 
 RAY_VERSION = "2.49.2"
 KUBERAY_VERSION = "1.4.2"
@@ -35,7 +38,7 @@ def pinned_image(value):
     return value
 
 
-def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None, phase="preflight", checkpoint=None):
+def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None, phase="preflight", checkpoint=None, upload_checkpoint_repo=None, restore_repo=None, restore_revision=None):
     """Return a RayJob document for cloud preflight or native training/recovery.
 
     Inputs: immutable image, namespace/job/PVC/Secret names and chosen GPU node;
@@ -81,6 +84,13 @@ def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None,
             spec["imagePullSecrets"] = [dict(name=pull_secret)]
         return dict(metadata=dict(labels={"part7-milestone": "7c", "part7-run": name}), spec=spec)
 
+    from importlib import import_module
+    import_module("infrastructure.7c_kuberay.checkpoint_transfer").validate_options(
+        upload_checkpoint_repo, restore_repo, restore_revision)
+    if phase == "preflight" and (upload_checkpoint_repo or restore_repo):
+        raise ValueError("Preflight has no training checkpoint to transfer")
+    if restore_repo and phase != "resume":
+        raise ValueError("Hub restore requires resume phase")
     if phase not in {"preflight", "baseline", "interrupt", "resume"}:
         raise ValueError("Unknown workload phase")
     if phase == "resume" and not checkpoint:
@@ -95,6 +105,10 @@ def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None,
         command += ["--phase", phase]
     if phase == "resume":
         command += ["--checkpoint", checkpoint]
+    for flag, value in (("--upload-checkpoint-repo", upload_checkpoint_repo),
+                        ("--restore-repo", restore_repo), ("--restore-revision", restore_revision)):
+        if value:
+            command += [flag, value]
     return dict(apiVersion="ray.io/v1", kind="RayJob",
                 metadata=dict(name=name, namespace=namespace, labels={"part7-milestone": "7c"},
                               annotations={"part7/kuberay-version": KUBERAY_VERSION,
@@ -129,9 +143,13 @@ def main():
     parser.add_argument("--pull-secret")
     parser.add_argument("--phase", choices=["preflight", "baseline", "interrupt", "resume"], default="preflight")
     parser.add_argument("--checkpoint")
+    parser.add_argument("--upload-checkpoint-repo")
+    parser.add_argument("--restore-repo")
+    parser.add_argument("--restore-revision")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    result = render_job(args.image, args.namespace, args.name, args.pvc, args.secret, args.node_name, args.pull_secret, args.phase, args.checkpoint)
+    result = render_job(args.image, args.namespace, args.name, args.pvc, args.secret, args.node_name, args.pull_secret, args.phase, args.checkpoint,
+                               args.upload_checkpoint_repo, args.restore_repo, args.restore_revision)
     content = json.dumps(result, indent=2) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

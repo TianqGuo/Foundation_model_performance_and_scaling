@@ -30,10 +30,13 @@ def validate_manifest(document):
     volumes = {v["name"]: v for v in head["volumes"]}
     command = shlex.split(spec["entrypoint"])
     checkpoint = command[command.index("--checkpoint") + 1] if "--checkpoint" in command else None
+    transfers = {flag: command[command.index(flag) + 1] if flag in command else None
+                 for flag in ("--upload-checkpoint-repo", "--restore-repo", "--restore-revision")}
     expected = renderer.render_job(head["containers"][0]["image"], metadata["namespace"], metadata["name"],
         volumes["workspace"]["persistentVolumeClaim"]["claimName"], volumes["hub-token"]["secret"]["secretName"],
         head["nodeSelector"]["kubernetes.io/hostname"],
-        head.get("imagePullSecrets", [{}])[0].get("name"), phase, checkpoint)
+        head.get("imagePullSecrets", [{}])[0].get("name"), phase, checkpoint,
+        transfers["--upload-checkpoint-repo"], transfers["--restore-repo"], transfers["--restore-revision"])
     if document != expected:
         raise ValueError("Use an unmodified manifest from part7C.sh render")
     return metadata["namespace"], metadata["name"], phase
