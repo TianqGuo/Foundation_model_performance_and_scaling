@@ -14,7 +14,7 @@ ENV VIRTUAL_ENV=/opt/part7/.venv-7a \
     TOKENIZERS_PARALLELISM=false
 COPY infrastructure/7a_verl/environment/ /opt/part7/infrastructure/7a_verl/environment/
 # Build-time dependency installation has no GPU detection, model loading or compilation.
-RUN command -v uv && command -v git && nvcc --version | grep -q 'release 13\.' \
+RUN command -v uv && command -v git && command -v tar && nvcc --version | grep -q 'release 13\.' \
     && uv python install 3.12.14 \
     && uv venv --managed-python --python 3.12.14 /opt/part7/.venv-7a \
     && mkdir -p /opt/part7/.venv-7a/src \

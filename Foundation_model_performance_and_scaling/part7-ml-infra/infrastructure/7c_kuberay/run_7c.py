@@ -133,6 +133,10 @@ def execute(args, config, data, model, manifest):
     status = dict(success=False, phase=args.phase, planned_interruption=False)
     preparer = None
     try:
+        if args.restore_repo:
+            (output / "hf_restore.json").write_text(json.dumps(dict(repo_id=args.restore_repo,
+                revision=args.restore_revision, destination=str(args.checkpoint.resolve()),
+                saved_step=manifest["step"], file_hashes_verified=True), indent=2))
         # Supply verl's defaults explicitly: native run_ppo skips initialization
         # (including its default environment merge) once Ray is already attached.
         runtime = OmegaConf.to_container(OmegaConf.merge(get_ppo_ray_runtime_env(),
