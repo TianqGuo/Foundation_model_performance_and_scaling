@@ -174,9 +174,8 @@ cleanup is separate from RayJob deletion.
 Run preflight, baseline, interruption and resume as separate jobs. For recovery,
 clean up the interrupted job/cluster first, then render a new resume job pointing
 to the checkpoint still on the same PVC. A new pod/runtime is intended, not a
-verified replacement physical node. Direct Hub backup/restore is prepared as described below. Automatic bundle
-staging, registry publication and an end-to-end multi-phase experiment wrapper
-remain pending. Do not treat these prepared commands as cloud-verified.
+verified replacement physical node. Direct Hub backup/restore is prepared as described below. Portable bundle staging and an end-to-end multi-phase experiment wrapper are
+now prepared as described below; registry publication remains external. Do not treat these prepared commands as cloud-verified.
 
 Validation: 25 CPU tests pass, including controller success/failure, evidence-before-
 cleanup, UID mismatch, lightweight archive exclusions and pinned schema checks.
@@ -238,3 +237,73 @@ Actual 7C Hub transfers, image and GPU Kubernetes execution remain unverified.
 
 Reference: [Hub downloads](https://huggingface.co/docs/huggingface_hub/guides/download)
 and [Hub uploads](https://huggingface.co/docs/huggingface_hub/guides/upload).
+
+## End-to-end bounded experiment
+
+`part7C.sh experiment` now coordinates portable data staging, preflight, baseline,
+controlled interruption with direct Hub upload, a fresh pinned Hub download/resume,
+evidence review and successful-job cleanup. The image must already be built and
+published; Kubernetes, KubeRay, GPU nodes, namespace, PVC and Hub Secret must
+already be available. This workflow is CPU-tested, not cloud-verified.
+
+From the Part 7 root, check the existing prepared data bundle and initial manifest
+without Kubernetes contacts (replace the placeholders with actual values):
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh experiment --check \
+  --image REGISTRY/PART7_IMAGE@sha256:ACTUAL_64_HEX_DIGEST \
+  --node-name ACTUAL_KUBERNETES_GPU_NODE
+```
+
+After hardware/budget and cluster prerequisites are confirmed, one controller
+command runs the sequence:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh experiment --cloud \
+  --image REGISTRY/PART7_IMAGE@sha256:ACTUAL_64_HEX_DIGEST \
+  --node-name ACTUAL_KUBERNETES_GPU_NODE --context ACTUAL_KUBECTL_CONTEXT
+```
+
+Optional arguments are `--data PATH`, `--namespace NAME`, `--pvc NAME`,
+`--secret NAME`, `--pull-secret NAME`, `--name LOWERCASE_UNIQUE_RUN_NAME` and
+`--output FRESH_LOCAL_DIRECTORY`. Defaults discover the existing local
+`results/7a/step2_math_final` bundle and create a UTC-named directory under
+`results/7c`. No manual data copy or phase-by-phase command sequence is required.
+If the prepared bundle is absent, prepare it with the existing 7A adapter first;
+the experiment does not recreate historical dataset selections or change grading.
+
+The sequence is:
+
+1. Package only manifest-recorded data/prompt/grader files after local hash checks.
+   A temporary CPU pod on the selected node mounts the existing PVC and verifies
+   the copied bundle at `/workspace/data/step2_math_final`. Matching existing data
+   can be reused; mismatched data is never overwritten. The staging pod has no
+   GPU or Hub Secret and is removed after its UID is checked.
+2. Run GPU preflight as a RayJob, retain evidence and verify cleanup.
+3. Run a three-step baseline RayJob, retain evidence and verify cleanup.
+4. Run an interruption RayJob through completed step 2. Upload full state directly
+   to a run-specific private Hub dataset repository, retain the commit receipt,
+   then retain evidence and verify cleanup.
+5. Start a separate resume RayJob. Download that exact commit into
+   `/workspace/restored/RUN_NAME/global_step_2`, verify hashes, restore/audit state
+   and finish step 3. Retain evidence and verify cleanup.
+6. Reuse the 7B restoration review and require distinct worker pod UIDs/Ray node
+   IDs for all training phases, the same physical GPU node/image digest, matching
+   Hub transfer receipts, native fresh-path resume, verified cleanup, actual
+   two-rank sharding and 6/4/2 optimizer calls per rank. Write `recovery_review.json`
+   and per-phase controller timings.
+
+The local evidence extraction accepts only regular files, rejects tensors/path
+escapes/links, and limits expanded data to 256 MiB. It loads no checkpoint tensors.
+Full state stays on the PVC and Hub, rather than being downloaded to the controller.
+The experiment stops on any failed phase/retention/review; failed RayJobs remain
+for inspection. It does not retry automatically or restart crashed containers.
+A failed experiment needs diagnosis and a new unique run name/fresh output path.
+Partial incoming/downloaded data is preserved; PVC/Secret deletion and rented-node
+release are separate decisions after evidence review.
+
+Validation: 40 CPU tests pass, including synthetic data packaging, mocked staging,
+four-phase ordering, pinned fresh restore, safe evidence extraction and review
+requirements. No real cluster, Hub transfer, Docker build, model or GPU was used.
+The staging image requires `tar` for `kubectl cp`; the Dockerfile now checks it.
+[Official copy command reference](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_cp/).

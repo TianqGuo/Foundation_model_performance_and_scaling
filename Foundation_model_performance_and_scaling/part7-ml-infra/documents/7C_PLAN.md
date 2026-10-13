@@ -1,62 +1,76 @@
 # 7C — Kubernetes training
 
-## Status and acceptance
+Updated: 2026-10-12. Implementation authorized on 2026-10-11.
 
-Implementation authorized on 2026-10-11. The first increment prepares the image,
-RayJob renderer and cloud GPU preflight. Ten CPU tests pass, including validation
-against the pinned KubeRay v1.4.2 RayJob CRD. No image has been built or published,
-no Kubernetes cluster contacted, and no GPU preflight or training performed. The second increment adds native
-existing-cluster training/interruption/resume configuration and launcher code.
-7C remains incomplete; 7A and bounded 7B remain complete.
+## Current status
+
+The source workflow is prepared: isolated image definition, RayJob rendering,
+GPU preflight, existing-cluster verl phases, private Hub checkpoint transfer,
+portable data staging and a single multi-phase experiment command. **Forty CPU
+tests pass** (including the pinned RayJob schema and mocked cloud operations).
+No Docker image has been built/published, no Kubernetes cluster contacted, no
+real Hub transfer performed, and no model/GPU execution run for 7C. **7C is not
+complete.** Reviewed 7A and bounded same-host 7B remain complete.
 
 Accepted completion requires an immutable image and real GPU RayJob, explicit
 resources/shared memory, durable storage and Secret injection, actual two-rank
 FSDP2 training, interruption/recovery, retained placement/status/logs/metrics and
-checkpoint evidence, and verified cleanup. Manifest validity alone is insufficient.
-See [the runbook](7C_RUNBOOK.md) for prepared commands and access requirements.
+checkpoint evidence, and verified cleanup. CPU configuration checks are preparation.
+See [the runbook](7C_RUNBOOK.md), [manifest guide](MANIFEST_GUIDE.md) and
+[generated reading example](examples/7C_RAYJOB_EXAMPLE.yaml).
 
-## Prepared code
+## Prepared implementation
 
-- `infrastructure/7c_kuberay/Dockerfile` builds an isolated Part 7 environment
-  from the verified 7A lock and pinned verl source. The base must already contain
-  uv, git and CUDA 13 development tools; it is supplied by immutable digest.
-  A Dockerfile-specific allowlist excludes datasets, results, caches and keys.
-- `render.py` produces a local RayJob JSON manifest without contacting Kubernetes.
-  It requires a published image digest, an explicit GPU node, an existing PVC
-  and a Secret name. A CPU head and one two-GPU worker share that node and PVC.
-- `preflight.py` connects to KubeRay's existing Ray cluster. Two concurrent actors
-  verify distinct Ray GPU assignments, CUDA visibility and a tiny CUDA computation
-  on the same worker pod. It checks pinned imports and Secret authentication,
-  and retains status, identities and placement on the PVC. It loads no model.
-- `part7C.sh` exposes render/build actions. `build_image.sh` builds on cloud;
-  publishing is not automated. The `job` action submits/monitors a generated
-  RayJob with evidence capture and optional cleanup. The `phase`
-  action invokes the existing-cluster launcher inside a prepared pod.
+All milestone files live under `infrastructure/7c_kuberay/`.
 
-Candidate operator pin: KubeRay v1.4.2; Ray remains the verified 2.49.2.
-The CRD was checked on CPU, but operator/Ray/image compatibility must still be
-verified on the selected Kubernetes cluster. Images use UID/GID 1000 and mounted
-Secret files, rather than credential values in generated manifests.
+| File | Responsibility |
+| --- | --- |
+| `Dockerfile` / `Dockerfile.dockerignore` | Isolated 7A lock/pinned verl source; immutable compatible CUDA 13 base; source allowlist excluding datasets/results/credentials. |
+| `build_image.sh` | Cloud image build, with no model execution or registry push. |
+| `render.py` | Generate digest-pinned RayJob JSON for preflight/baseline/interruption/resume; Kubernetes pod and Ray settings, optional Hub transfer arguments. |
+| `preflight.py` | Check concurrent distinct GPU assignments, CUDA computation, imports and mounted Secret authentication; no model loaded. |
+| `run_7c.py` | Compose the existing 7A workload, attach to KubeRay's Ray runtime, prepare models on a GPU worker, run native verl and reuse 7B audits. |
+| `checkpoint_transfer.py` | Complete private Hub checkpoint upload and pinned fresh-path download, using mounted Secret and 7B byte/hash verification. |
+| `job_control.py` | Submit/monitor one exact generated manifest, retain pod/driver/PVC evidence, optionally verify owned-job cleanup. |
+| `data_staging.py` | Package only verified manifest-listed files and stage them onto PVC through a bounded CPU pod; no GPU/Secret needed. |
+| `experiment.py` / `part7C.sh` | Coordinate staging → preflight → baseline → interruption/upload → fresh Hub restore/resume → evidence review and per-job cleanup. |
 
-## Next implementation and verification
+The initial topology is one CPU head plus one two-GPU worker on an explicitly
+selected node, sharing an existing durable PVC. Pods use UID/GID 1000; the Hub
+Secret is mounted as a file, never placed in manifests/runtime environment as a
+credential value. Candidate KubeRay pin is v1.4.2; Ray remains 2.49.2. The CRD is
+CPU-validated, but actual operator/Ray/image compatibility remains unverified.
 
-1. Confirm Kubernetes access, GPU device plugin, storage class, registry access,
-   compatible base digest and resource budget before paid provisioning. A rented
-   GPU Docker container is not automatically a usable Kubernetes GPU node.
-2. Build/publish the isolated image, record its registry manifest digest and run
-   the bounded GPU preflight. Confirm placement and durable evidence after exit.
-3. Cloud-verify the prepared thin existing-cluster verl launcher: CPU-head driver, worker-side GPU/model
-   checks, shared data/model paths and native training. Do not reuse 7B's local
-   Ray startup or driver-side two-GPU guard unchanged; do not wrap verl in Ray Train.
-4. Cloud-verify reused 7B integrity/restoration audits for checkpoint-boundary interruption and
-   a fresh RayJob resume from pinned Hub state. Record changed pod/runtime IDs,
-   same topology, restored state and subsequent updates. Do not claim vLLM server
-   RNG recovery or bitwise rollout equivalence.
-5. Retain lightweight evidence outside the cluster and full state on the Hub;
-   inspect cleanup without deleting the PVC or Secret needed for recovery.
+The TaskRunner is placed on the GPU worker without reserving a GPU; preparation
+reserves/releases both GPUs before training. Ray Train does not wrap verl. Native
+7B audits verify model/Adam/scheduler/saved-worker RNG and trainer step/data before
+continuation. The experiment additionally requires distinct worker pods/Ray IDs,
+same physical node/image, matching pinned transfer receipts, fresh native resume
+path, verified cleanup and 6/4/2 sharded optimizer calls per rank.
 
-No new training backend, TP/PP, autoscaling or shared-cluster queue implementation
-is introduced. Kueue remains an optional later admission-control follow-up.
+## Remaining decisions and verification
+
+1. Confirm Kubernetes access, GPU plugin, storage class/PVC permissions/capacity,
+   registry access, base image digest, hardware and budget before provisioning.
+   An ordinary rented GPU container is not automatically a Kubernetes GPU node.
+2. Build/publish the isolated image and record its actual registry digest. Preserve
+   Parts 1–6 images/environments. Registry publication is not automated here.
+3. Run and retain real staging/preflight evidence, then the bounded experiment.
+   Review training ranks/sharding, pinned Hub download, state audits, fresh pod/Ray
+   identities, evaluation/checkpoint events and timings. Record any image/API issues.
+4. Confirm durable full checkpoint retention and lightweight external evidence,
+   verify RayJob/RayCluster/pod cleanup, then separately decide rented-node release.
+
+Successful controller cleanup deletes only its newly created RayJob after evidence
+retention, verifies RayCluster/Ray-pod absence and preserves PVC/Secrets/nodes.
+Failures retain Ray resources for diagnosis. Temporary staging pod cleanup verifies
+its UID. Full state stays cloud/PVC/Hub; local extraction rejects tensors/links/path
+escapes and bounds evidence size. Failed partial data/downloads are not overwritten.
+
+No automatic crash/reboot restart, replacement-node recovery, vLLM server RNG/cache/
+in-flight restoration, bitwise rollout equivalence, autoscaling or TP/PP claim is
+introduced. Kueue remains an optional later admission-control follow-up. No commits
+or pushes without approval. Source preparation does not authorize paid provisioning.
 
 ## Primary references
 
@@ -64,73 +78,4 @@ is introduced. Kueue remains an optional later admission-control follow-up.
 - [Pinned RayJob schema](https://github.com/ray-project/kuberay/blob/v1.4.2/ray-operator/config/crd/bases/ray.io_rayjobs.yaml)
 - [Kubernetes GPU scheduling](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/)
 - [KubeRay storage](https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/storage.html)
-
-## Existing-cluster training/recovery increment
-
-`infrastructure/7c_kuberay/run_7c.py` now composes the unchanged 7A workload,
-connects with `ray.init(address="auto")`, prepares the model on a two-GPU worker
-actor and runs native verl's TaskRunner on that worker without reserving a GPU
-for the coordinator. The preparation actor is released before training starts.
-The launcher explicitly merges verl runtime defaults when attaching to Ray.
-Existing 7B trainer/worker audits implement checkpoint-boundary interruption,
-manifest creation and native full-state resume; model/data/source/environment
-identities must match. Separate phase RayJobs are required for fresh-runtime
-recovery. This code is CPU-checked, not cloud-verified. Fifteen 7C CPU tests pass,
-including all four phase manifests against the pinned CRD. Cloud paths must stay
-on the PVC under `/workspace`; recovery also requires the same recorded image digest.
-
-The renderer now accepts `--phase preflight|baseline|interrupt|resume` and
-`--checkpoint /workspace/.../global_step_2` for resume. Use a unique `--name`
-for each job/output. Training phases have a 45-minute active deadline. The
-prepared data bundle must exist at `/workspace/data/step2_math_final`; automatic
-model downloads use the mounted Hub Secret and shared `/workspace/models`.
-No token is passed in Ray runtime environment or generated manifests.
-
-Inside a prepared pod, the milestone runner can invoke a phase directly:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase interrupt \
-  --output /workspace/runs/7c-interrupt
-bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase resume \
-  --checkpoint /workspace/runs/7c-interrupt/checkpoints/global_step_2 \
-  --output /workspace/runs/7c-resume
-```
-
-Normally Kubernetes invokes these phases through rendered RayJobs. End the
-interrupted RayJob/cluster before starting the resume RayJob; invoking both in
-the same surviving runtime does not establish fresh-runtime recovery. The
-submission/monitoring/evidence/cleanup controller is now implemented; optional direct Hub
-checkpoint transfer is now integrated into 7C. PVC manifests can be resumed, but durable external backup and
-Kubernetes lifecycle/evidence review remain required before 7C completion.
-
-For a concrete generated deployment document and comparison with 7A/7B, see
-[the manifest guide](MANIFEST_GUIDE.md) and [RayJob example](examples/7C_RAYJOB_EXAMPLE.yaml).
-
-## Job lifecycle increment
-
-`job_control.py` submits an exact renderer-produced JSON manifest to an explicit
-Kubernetes context. It retains the cluster during log/PVC evidence collection,
-records the actual manifest/status/UID/placement, and optionally deletes only the
-owned RayJob after evidence succeeds. Cleanup checks RayCluster/Ray-pod absence;
-PVCs, Secrets and rented nodes are outside deletion scope. Failures retain resources.
-Ray driver's full logs are fetched through the pinned public Ray Jobs SDK on the
-head. No dashboard endpoint is exposed externally by this helper.
-
-Twenty-five CPU tests pass, including all phase CRD checks and mocked Kubernetes
-success/failure/retention/cleanup paths. Full-state Hub transfer is prepared; data staging,
-registry publication and multi-phase orchestration remain pending, along with
-all image/live GPU Kubernetes/Hub/recovery/cleanup verification. No cluster contacted.
-
-## Hub retention increment — 2026-10-12
-
-Private complete-checkpoint upload and pinned restore are now integrated into
-`run_7c.py`, RayJob rendering and exact-manifest controller validation. The helper
-reads the mounted Secret, verifies 7B checkpoint hashes, retains complete state
-on a private dataset repository and records the Hub commit. Resume downloads
-into a fresh PVC directory and verifies bytes before native restoration/audits.
-Upload failure prevents phase success and controller success cleanup. No shared
-7A/7B environment or historical source was modified.
-
-Thirty-two CPU tests pass. Hub API calls/downloads are mocked; no real account or
-cluster was contacted. Data staging, registry publication and multi-phase experiment
-orchestration remain pending. Real Hub/cluster/recovery evidence is still required.
+- [Hub downloads](https://huggingface.co/docs/huggingface_hub/guides/download)

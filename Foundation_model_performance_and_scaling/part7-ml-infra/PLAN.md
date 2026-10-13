@@ -363,3 +363,19 @@ docstrings and scoped whitespace checks pass. No network transfer, model loading
 GPU execution, image build, cluster contact, provisioning, staging or Git commit/push
 was performed. Registry publication, portable data staging and multi-phase workflow
 remain pending; real image/Hub/GPU Kubernetes/recovery/cleanup verification is required.
+
+## Fifth 7C increment — portable data and multi-phase runner
+
+Added a bounded CPU staging pod helper and `part7C.sh experiment` coordinating
+preflight/baseline/interruption/private-Hub-restore/resume, lightweight evidence
+retention and cleanup. Review combines the verified 7B state-audit rules with fresh
+worker pod/Ray IDs, same-node/image placement, matching pinned transfer receipts,
+native fresh-path resume and expected sharded optimizer calls. Forty CPU tests
+pass; CLI, shell, syntax/docstring and scoped whitespace checks pass. No live
+Kubernetes/Hub transfer, model/GPU execution or Docker build was performed.
+
+The source workflow is now prepared; Kubernetes access, base/published image
+digests, image build and hardware/budget remain unresolved. Live preflight,
+training, pinned recovery, durable artifact review and cleanup must still be
+verified before 7C completion. Do not provision a normal GPU container assuming
+it supplies Kubernetes. No commits/pushes or changes to Parts 1–6 were made.
