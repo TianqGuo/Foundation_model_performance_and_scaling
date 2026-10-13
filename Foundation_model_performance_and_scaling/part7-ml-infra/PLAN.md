@@ -379,3 +379,12 @@ digests, image build and hardware/budget remain unresolved. Live preflight,
 training, pinned recovery, durable artifact review and cleanup must still be
 verified before 7C completion. Do not provision a normal GPU container assuming
 it supplies Kubernetes. No commits/pushes or changes to Parts 1–6 were made.
+
+## 7C cloud-readiness follow-up
+
+Added read-only `cluster_check.py` / `part7C.sh cluster` for node readiness/capacity,
+current placement constraints, shared PVC access/capacity and candidate operator/
+RayJob API availability. Forty-six 7C CPU tests pass; CLI, shell, syntax/docstrings
+and scoped whitespace checks pass. No real cluster or credentials were inspected.
+Next is confirming Kubernetes access and an agreed hardware/budget, building and
+publishing the image, then retaining live experiment evidence. 7C stays incomplete.

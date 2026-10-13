@@ -307,3 +307,34 @@ four-phase ordering, pinned fresh restore, safe evidence extraction and review
 requirements. No real cluster, Hub transfer, Docker build, model or GPU was used.
 The staging image requires `tar` for `kubectl cp`; the Dockerfile now checks it.
 [Official copy command reference](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_cp/).
+
+## Read-only cluster prerequisite inspection
+
+Before the experiment, an existing cluster can be checked without creating jobs:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh cluster \
+  --context ACTUAL_KUBECTL_CONTEXT --node-name ACTUAL_KUBERNETES_GPU_NODE \
+  --operator-namespace ACTUAL_OPERATOR_NAMESPACE \
+  --output results/7c/cluster_prerequisites.json
+```
+
+`--operator-name` defaults to `kuberay-operator`; namespace defaults to `default`.
+Override these for the actual installation. Workload namespace/PVC defaults match
+other 7C commands. This invokes only metadata `kubectl get` operations and does
+not query Secrets, create resources, load models or execute GPUs.
+
+The check requires a ready/schedulable node whose hostname label matches our
+current selector, at least 26 allocatable CPUs/104 GiB RAM/two advertised GPUs,
+a Bound PVC with at least 100 GiB capacity and RWO/RWX access, an available
+candidate v1.4.2 operator and an established served RayJob v1 API. RWOP is rejected
+because it cannot support our simultaneous head/worker mounts. Current pod templates
+have no explicit node-taint tolerations; restrictive node taints require a reviewed
+placement/toleration change before execution. Capacity is not free capacity, actual
+GPU memory, PVC free disk, registry access or a storage/network performance test.
+The live staging/GPU preflight and experiment remain necessary. This helper does
+not install missing prerequisites or prove image/operator compatibility by itself.
+
+Validation: 46 7C CPU tests pass, including fabricated capacity/storage/operator/API
+cases and proof that inspection uses only read operations. No real cluster was
+contacted; cluster access, hardware budget and image build/publication are pending.

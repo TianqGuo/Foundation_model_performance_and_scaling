@@ -6,7 +6,7 @@ Updated: 2026-10-12. Implementation authorized on 2026-10-11.
 
 The source workflow is prepared: isolated image definition, RayJob rendering,
 GPU preflight, existing-cluster verl phases, private Hub checkpoint transfer,
-portable data staging and a single multi-phase experiment command. **Forty CPU
+portable data staging and a single multi-phase experiment command. **Forty-six CPU
 tests pass** (including the pinned RayJob schema and mocked cloud operations).
 No Docker image has been built/published, no Kubernetes cluster contacted, no
 real Hub transfer performed, and no model/GPU execution run for 7C. **7C is not
@@ -32,6 +32,7 @@ All milestone files live under `infrastructure/7c_kuberay/`.
 | `run_7c.py` | Compose the existing 7A workload, attach to KubeRay's Ray runtime, prepare models on a GPU worker, run native verl and reuse 7B audits. |
 | `checkpoint_transfer.py` | Complete private Hub checkpoint upload and pinned fresh-path download, using mounted Secret and 7B byte/hash verification. |
 | `job_control.py` | Submit/monitor one exact generated manifest, retain pod/driver/PVC evidence, optionally verify owned-job cleanup. |
+| `cluster_check.py` | Read-only node capacity/placement, PVC access/capacity and operator/API prerequisites; no job creation or Secret reads. |
 | `data_staging.py` | Package only verified manifest-listed files and stage them onto PVC through a bounded CPU pod; no GPU/Secret needed. |
 | `experiment.py` / `part7C.sh` | Coordinate staging → preflight → baseline → interruption/upload → fresh Hub restore/resume → evidence review and per-job cleanup. |
 
@@ -79,3 +80,8 @@ or pushes without approval. Source preparation does not authorize paid provision
 - [Kubernetes GPU scheduling](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/)
 - [KubeRay storage](https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/storage.html)
 - [Hub downloads](https://huggingface.co/docs/huggingface_hub/guides/download)
+
+CPU preparation follow-up: added `part7C.sh cluster` to inspect prerequisites in an
+explicit Kubernetes context. It rejects single-pod-only PVC access and incompatible
+initial placement/capacity/operator/API conditions before expensive work. Forty-six
+CPU tests pass; all live verification and hardware/budget decisions remain pending.
