@@ -99,8 +99,8 @@ bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase resume \
 Normally Kubernetes invokes these phases through rendered RayJobs. End the
 interrupted RayJob/cluster before starting the resume RayJob; invoking both in
 the same surviving runtime does not establish fresh-runtime recovery. The
-submission/monitoring/evidence/cleanup controller is now implemented; direct Hub
-checkpoint transfer is not yet integrated into 7C. PVC manifests can be resumed, but durable external backup and
+submission/monitoring/evidence/cleanup controller is now implemented; optional direct Hub
+checkpoint transfer is now integrated into 7C. PVC manifests can be resumed, but durable external backup and
 Kubernetes lifecycle/evidence review remain required before 7C completion.
 
 For a concrete generated deployment document and comparison with 7A/7B, see
@@ -117,6 +117,20 @@ Ray driver's full logs are fetched through the pinned public Ray Jobs SDK on the
 head. No dashboard endpoint is exposed externally by this helper.
 
 Twenty-five CPU tests pass, including all phase CRD checks and mocked Kubernetes
-success/failure/retention/cleanup paths. Full-state Hub integration, data staging,
+success/failure/retention/cleanup paths. Full-state Hub transfer is prepared; data staging,
 registry publication and multi-phase orchestration remain pending, along with
-all image/live GPU Kubernetes/recovery/cleanup verification. No cluster contacted.
+all image/live GPU Kubernetes/Hub/recovery/cleanup verification. No cluster contacted.
+
+## Hub retention increment — 2026-10-12
+
+Private complete-checkpoint upload and pinned restore are now integrated into
+`run_7c.py`, RayJob rendering and exact-manifest controller validation. The helper
+reads the mounted Secret, verifies 7B checkpoint hashes, retains complete state
+on a private dataset repository and records the Hub commit. Resume downloads
+into a fresh PVC directory and verifies bytes before native restoration/audits.
+Upload failure prevents phase success and controller success cleanup. No shared
+7A/7B environment or historical source was modified.
+
+Thirty-two CPU tests pass. Hub API calls/downloads are mocked; no real account or
+cluster was contacted. Data staging, registry publication and multi-phase experiment
+orchestration remain pending. Real Hub/cluster/recovery evidence is still required.

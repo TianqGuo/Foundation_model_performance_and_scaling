@@ -1,6 +1,6 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-11
+Updated: 2026-10-12
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
@@ -350,3 +350,16 @@ Cloud image/publication/access/storage compatibility and end-to-end recovery sti
 need verification. Direct Hub state retention/restore, portable data staging and
 multi-phase experiment orchestration remain pending. 7C is not complete; the
 runbook documents the new single-job flow and cleanup scope.
+
+## Fourth 7C increment — direct Hub state retention
+
+Added `checkpoint_transfer.py` and optional upload/restore arguments through the
+renderer/controller/native launcher. Transfers use the mounted Secret, private
+repositories, complete 7B checkpoint manifest validation and immutable commit
+receipts. Fresh-path pinned downloads are verified before native resume; upload
+failure prevents successful phase cleanup. Thirty-two CPU tests pass, including
+mocked transfer behavior and renderer/controller option preservation. CLI, syntax,
+docstrings and scoped whitespace checks pass. No network transfer, model loading,
+GPU execution, image build, cluster contact, provisioning, staging or Git commit/push
+was performed. Registry publication, portable data staging and multi-phase workflow
+remain pending; real image/Hub/GPU Kubernetes/recovery/cleanup verification is required.
