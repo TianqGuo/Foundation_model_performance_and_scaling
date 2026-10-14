@@ -68,6 +68,9 @@ def render_job(image, namespace, name, pvc, secret, node_name, pull_secret=None,
                          volumeMounts=[dict(name="workspace", mountPath="/workspace"),
                                        dict(name="dshm", mountPath="/dev/shm"),
                                        dict(name="hub-token", mountPath="/run/secrets/huggingface", readOnly=True)])
+        if not gpus:
+            # CUDA base images may otherwise expose unallocated GPUs on NVIDIA runtime.
+            container["env"].append(dict(name="NVIDIA_VISIBLE_DEVICES", value="void"))
         if role == "head":
             container["ports"] = [dict(name=key, containerPort=number)
                                   for key, number in (("gcs", 6379), ("dashboard", 8265), ("client", 10001), ("metrics", 8080))]
