@@ -401,3 +401,11 @@ not working Kubernetes; the user destroyed it before setup. All bootstrap/image/
 GPU-pod/recovery verification remains pending. Source setup objects are retained;
 credentials are excluded. VM-backed storage survives pods but not VM deletion.
 No changes to Parts 1–6, commits or pushes.
+
+
+2026-10-13 cloud bootstrap correction: the user-run Lambda setup reached the
+kubeconfig write and exposed invalid `Path.open(opener=...)`. Corrected to builtin
+exclusive mode-0600 open; added a narrowly validated early-failure continuation
+that skips K3s reinstallation. Fifty-three CPU tests pass, including actual private
+file creation and continuation guards. Cloud completion remains pending; no
+installation success, GPU pod or 7C completion claim is made.

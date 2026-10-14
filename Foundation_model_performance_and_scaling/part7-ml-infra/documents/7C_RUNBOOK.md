@@ -60,8 +60,8 @@ Upload complete checkpoints to the Hub and retain lightweight evidence before
 releasing the VM. This is not a multi-node storage solution.
 
 Receipts and credential-free setup objects are under `results/7c/setup_*`.
-A partial installation is left for diagnosis; this initial helper deliberately
-refuses rerunning over an existing cluster. Inspect `sudo journalctl -u k3s` and
+A partial installation is left for diagnosis; this helper refuses a general rerun over an existing cluster. A verified early
+kubeconfig-write failure can use the continuation command below. Inspect `sudo journalctl -u k3s` and
 `kubectl get pods -A` on failure; do not uninstall or delete storage before retention.
 Image building/publication, the GPU preflight and recovery experiment remain
 separate steps below. No live bootstrap has been verified yet.
@@ -397,3 +397,25 @@ not install missing prerequisites or prove image/operator compatibility by itsel
 Validation: 46 7C CPU tests pass, including fabricated capacity/storage/operator/API
 cases and proof that inspection uses only read operations. No real cluster was
 contacted; cluster access, hardware budget and image build/publication are pending.
+
+## Early kubeconfig-write failure (2026-10-13)
+
+The first user-run installation reached the private kubeconfig write, then failed
+because `Path.open()` does not support `opener`. The corrected helper uses builtin
+`open()` and CPU-tests actual mode-0600/exclusive creation. K3s installation may
+already have completed; do not rerun fresh setup or uninstall it.
+
+After delivering the corrected `setup_cluster.py` to the same VM, identify the
+original failed directory with `ls -d results/7c/setup_*`, then run:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh setup --cloud --with-hf-secret \
+  --continue-after-k3s results/7c/setup_ORIGINAL_TIMESTAMP
+```
+
+Replace the placeholder with the original directory. Continuation verifies its
+failed receipt, K3s pin, original GPU identities and single `part7-gpu` node.
+It requires that kubeconfig, storage and later setup objects do not yet exist,
+skips K3s reinstallation, and saves a new receipt. Other partial failures need
+inspection; this is not a general retry mechanism. Do not print kubeconfig or
+Secret contents when sharing diagnostics. Cloud continuation is pending review.

@@ -98,3 +98,11 @@ containerd/NVIDIA, charts, storage and Secret behavior remain unverified. The ho
 CUDA 12.8 toolkit is not replaced; the training image still supplies CUDA 13.x.
 Next: review image prerequisites/destination, then cloud bootstrap/build/preflight
 and the recovery experiment within agreed hardware/budget. 7C remains incomplete.
+
+
+2026-10-13 cloud bootstrap correction: the user-run Lambda setup reached the
+kubeconfig write and exposed invalid `Path.open(opener=...)`. Corrected to builtin
+exclusive mode-0600 open; added a narrowly validated early-failure continuation
+that skips K3s reinstallation. Fifty-three CPU tests pass, including actual private
+file creation and continuation guards. Cloud completion remains pending; no
+installation success, GPU pod or 7C completion claim is made.
