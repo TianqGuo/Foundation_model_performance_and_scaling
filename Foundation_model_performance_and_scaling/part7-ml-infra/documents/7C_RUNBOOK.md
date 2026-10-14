@@ -105,13 +105,19 @@ The uppercase values are placeholders, not runnable defaults. Output is JSON,
 which Kubernetes accepts as a manifest. Existing output files are rejected to
 avoid replacing a reviewed manifest accidentally. Rendering creates no resources.
 
-For the eventual cloud image build, obtain the immutable digest of the compatible
-custom base image. It must provide uv, git and CUDA 13 development tools:
+For the eventual cloud image build, select a compatible custom base image reference. The build helper pulls it and
+resolves its registry digest automatically. It must provide uv, git and CUDA 13 development tools:
 
 ```bash
 bash infrastructure/7c_kuberay/part7C.sh build --cloud \
   REGISTRY/BASE_IMAGE@sha256:ACTUAL_64_HEX_DIGEST part7-training:7c
 ```
+
+The helper uses Docker directly or passwordless sudo on a Lambda VM, and retains
+base-pull/build logs plus image/base identities under `results/7c/image_build_*`.
+A tag can be supplied instead of the base digest; the Dockerfile always receives
+the resolved digest. Inherited base-image entrypoints are cleared so KubeRay can
+start its own commands.
 
 This builds the isolated locked environment and source once. It does not download
 a model or dataset, push an image or deploy a job. The printed local configuration
@@ -440,3 +446,56 @@ workload does not use MPS. If the setup process is still waiting, let it finish.
 If it has timed out, retain its receipt and inspect before another setup invocation;
 the early-kubeconfig continuation does not support this later failure boundary.
 Reference: [pinned chart affinity](https://github.com/NVIDIA/k8s-device-plugin/blob/v0.17.1/deployments/helm/nvidia-device-plugin/values.yaml).
+
+
+Reviewed Lambda setup receipt: `setup_20261014T040415Z` reports success after the
+manual GPU label repair, with two advertised H100 GPUs, Bound PVC, pinned operator/
+K3s and created Hub Secret. This establishes bootstrap/API/storage readiness, not
+GPU kernel execution or token validity. New VMs must receive both source fixes.
+The training image still needs a compatible base reference and registry destination;
+registry publication and actual image preflight have not been performed.
+
+## Docker Hub build and publication
+
+User-selected public destination: `sclion/part7-training`. Deliver the latest source
+first; a Git clone does not include agent edits until user-approved commits/pushes.
+For uncommitted source, rsync `infrastructure/` and `workloads/` to their matching
+Part 7 paths on the VM, excluding caches, `.venv*`, `.env*`, `*.pem` and `*.key`.
+
+On the cloud VM, from Part 7:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh image --check --publish
+bash infrastructure/7c_kuberay/part7C.sh image --cloud --publish
+```
+
+The second command requests a Docker Hub personal access token with write
+permission at a hidden prompt (or reads `DOCKERHUB_TOKEN` already in the environment).
+Create it in Docker account settings → Personal access tokens. Do not paste tokens
+into chat or source. Docker authentication uses stdin and a temporary configuration
+outside results; it is removed afterwards. No manual Docker login is required.
+
+Default base: `nvidia/cuda:13.0.3-devel-ubuntu22.04`; `uv` is copied from its official
+`0.12.19` binary image. Both are pulled/resolved to immutable digests for the build;
+git, certificates and tar are installed inside the training image. Existing host
+CUDA 12.8 and Parts 1–6 environments are untouched. These candidates remain
+cloud-build/import unverified. `--base` can override the base when compatibility
+is reviewed. `--repository` overrides the destination.
+
+The command reuses the build helper, runs only a no-network/no-GPU Python-version
+startup check, then publishes a timestamped tag and verifies a pull of the
+reported registry digest. Public upload exposes source/dependencies; the allowed
+context excludes data/results/checkpoints/common credential files. Use the reviewed
+official base; arbitrary custom bases require their own content review.
+No model loads, GPU preflight or training occur in this action.
+
+Retain `results/7c/image_*/image_build.json`, `image_publish.json` and build/push logs.
+The publication receipt's `image` field is the reference to pass to `render` or
+`experiment`; local Docker IDs are not accepted as registry identities. Failures
+leave build logs/local image for diagnosis; never claim publication or GPU
+compatibility solely from a successful build. Registry upload is opt-in through
+`--publish`; no Git staging, commit or push is performed.
+
+References: [uv Docker integration](https://docs.astral.sh/uv/guides/integration/docker/),
+[Docker login](https://docs.docker.com/reference/cli/docker/login),
+[Docker push](https://docs.docker.com/reference/cli/docker/image/push).

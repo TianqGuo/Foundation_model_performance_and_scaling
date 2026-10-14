@@ -28,12 +28,17 @@ case "${1:---help}" in
     shift
     exec python3 "$part7_root/infrastructure/7c_kuberay/run_7c.py" "$@"
     ;;
+  image)
+    shift
+    exec python3 "$part7_root/infrastructure/7c_kuberay/image_publish.py" "$@"
+    ;;
   build)
     shift
     exec bash "$part7_root/infrastructure/7c_kuberay/build_image.sh" "$@"
     ;;
   --help)
     echo 'part7C.sh render --image REGISTRY/IMAGE@sha256:DIGEST --node-name NODE [--namespace part7] [--pvc part7-workspace] [--secret part7-huggingface] [--output PATH]'
+    echo 'part7C.sh image --check|--cloud [--publish] [--repository sclion/part7-training]'
     echo 'part7C.sh build --cloud BASE_IMAGE@sha256:DIGEST LOCAL_TAG'
     echo 'part7C.sh job --check --manifest PATH | --cloud --manifest PATH --context CONTEXT --output PATH [--cleanup-on-success]'
     echo 'part7C.sh experiment --check|--cloud --image IMAGE_DIGEST --node-name NODE [--context CONTEXT] [--data BUNDLE]'

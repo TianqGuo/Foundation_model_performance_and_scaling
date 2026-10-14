@@ -115,3 +115,22 @@ Setup now labels the hardware-verified node `nvidia.com/gpu.present=true` before
 chart creation. Fifty-four CPU tests pass. Live GPU plugin readiness remains
 pending; current instance can be repaired by that node-label command without
 reinstallation. MPS desired=0 is expected with no MPS-capable label.
+
+
+Image-build preparation follow-up: reviewed pasted successful Lambda bootstrap
+receipt `setup_20261014T040415Z` (two H100 GPUs advertised, Bound PVC, operator/API,
+Hub Secret created). This is not GPU kernel or token-authentication evidence.
+The build helper now resolves a supplied base tag to an immutable digest, supports
+sudo Docker, retains logs/identity hashes and clears inherited image boot hooks.
+No image was built/published; registry/base selection and live preflight are pending.
+No commits/pushes or changes to Parts 1–6.
+
+
+Docker Hub publication preparation: user selected public `sclion/part7-training`.
+Added `part7C.sh image --check|--cloud [--publish]` using candidate official NVIDIA
+CUDA 13.0.3 Ubuntu 22.04 base and uv 0.12.19, resolved to recorded digests. Build
+installs its own utilities, preserves host environments, tests Python startup with
+GPU visibility disabled, and optionally publishes via hidden-token temporary
+Docker authentication. Registry digest receipts are verified by pull; no Docker,
+Hub publication or GPU execution performed locally. Fifty-seven CPU tests pass;
+cloud build and GPU preflight remain pending. No Git commits/pushes.

@@ -1,11 +1,16 @@
 # Cloud build only; context is Part 7. See build_image.sh and documents/7C_RUNBOOK.md.
 # Supply the existing compatible CUDA 13 development base by registry digest.
 ARG BASE_IMAGE
+ARG UV_IMAGE
+FROM ${UV_IMAGE} AS uv_binary
 FROM ${BASE_IMAGE}
 ARG BASE_IMAGE
 LABEL org.opencontainers.image.base.name="${BASE_IMAGE}"
 USER root
 WORKDIR /opt/part7
+COPY --from=uv_binary /uv /usr/local/bin/uv
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tar \
+    && rm -rf /var/lib/apt/lists/*
 ENV VIRTUAL_ENV=/opt/part7/.venv-7a \
     PATH=/opt/part7/.venv-7a/bin:$PATH \
     HOME=/home/ray \
@@ -33,4 +38,6 @@ RUN mkdir -p /opt/part7/assets /opt/part7/results \
     && chown -R 1000:1000 /opt/part7 /home/ray /opt/uv-python
 # Numeric identity avoids assumptions about usernames in the custom base image.
 USER 1000:1000
+# KubeRay supplies the startup command; discard custom-base service boot hooks.
+ENTRYPOINT []
 CMD ["bash"]
