@@ -6,7 +6,7 @@ Updated: 2026-10-12. Implementation authorized on 2026-10-11.
 
 The source workflow is prepared: isolated image definition, RayJob rendering,
 GPU preflight, existing-cluster verl phases, private Hub checkpoint transfer,
-portable data staging and a single multi-phase experiment command. **Forty-six CPU
+portable data staging and a single multi-phase experiment command. **Fifty-one CPU
 tests pass** (including the pinned RayJob schema and mocked cloud operations).
 No Docker image has been built/published, no Kubernetes cluster contacted, no
 real Hub transfer performed, and no model/GPU execution run for 7C. **7C is not
@@ -26,6 +26,7 @@ All milestone files live under `infrastructure/7c_kuberay/`.
 | File | Responsibility |
 | --- | --- |
 | `Dockerfile` / `Dockerfile.dockerignore` | Isolated 7A lock/pinned verl source; immutable compatible CUDA 13 base; source allowlist excluding datasets/results/credentials. |
+| `setup_cluster.py` | Bootstrap a checked fresh Ubuntu GPU VM with pinned K3s/device-plugin/KubeRay, same-node storage, private kubeconfig and optional Hub Secret. |
 | `build_image.sh` | Cloud image build, with no model execution or registry push. |
 | `render.py` | Generate digest-pinned RayJob JSON for preflight/baseline/interruption/resume; Kubernetes pod and Ray settings, optional Hub transfer arguments. |
 | `preflight.py` | Check concurrent distinct GPU assignments, CUDA computation, imports and mounted Secret authentication; no model loaded. |
@@ -85,3 +86,15 @@ CPU preparation follow-up: added `part7C.sh cluster` to inspect prerequisites in
 explicit Kubernetes context. It rejects single-pod-only PVC access and incompatible
 initial placement/capacity/operator/API conditions before expensive work. Forty-six
 CPU tests pass; all live verification and hardware/budget decisions remain pending.
+
+## Fresh-VM bootstrap increment
+
+User-authorized fresh-VM setup is now implemented through `part7C.sh setup`.
+The destroyed Lambda VM's pasted diagnostics establish preliminary host suitability
+only. Fifty-one CPU tests pass, including no-mutation preview/host-rejection,
+credential-error redaction, same-node Retain storage and CPU-head GPU hiding.
+The helper does not rent resources or overwrite existing clusters. Live K3s,
+containerd/NVIDIA, charts, storage and Secret behavior remain unverified. The host
+CUDA 12.8 toolkit is not replaced; the training image still supplies CUDA 13.x.
+Next: review image prerequisites/destination, then cloud bootstrap/build/preflight
+and the recovery experiment within agreed hardware/budget. 7C remains incomplete.

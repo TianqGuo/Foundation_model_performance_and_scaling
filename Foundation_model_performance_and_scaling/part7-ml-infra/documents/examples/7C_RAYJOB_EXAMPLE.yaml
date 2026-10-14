@@ -81,6 +81,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: void
             volumeMounts:
             - name: workspace
               mountPath: /workspace

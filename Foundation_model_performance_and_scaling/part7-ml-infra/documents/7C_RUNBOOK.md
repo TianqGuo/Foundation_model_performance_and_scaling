@@ -1,11 +1,70 @@
 # 7C runbook — preparation increment
 
-This runner builds an image, renders preflight/training/recovery manifests, or
-executes a native training phase inside a prepared pod. It does not install
-Kubernetes/KubeRay or create storage or Secrets. The `job` action now submits
-and monitors one generated RayJob on an existing cluster. [7C_PLAN.md](7C_PLAN.md) records the remaining implementation and evidence.
-Do not rent another ordinary GPU container solely to run this stage: first confirm
-access to Kubernetes with NVIDIA GPU resources and a compatible storage class.
+The milestone runner can bootstrap a fresh Ubuntu GPU VM, build an image, and
+stage/submit/review the bounded RayJob experiment. Existing clusters can skip the
+bootstrap. [7C_PLAN.md](7C_PLAN.md) records pending live verification.
+
+## Fresh GPU VM setup
+
+The reviewed Lambda diagnostics showed a KVM Ubuntu 22.04 VM with systemd,
+passwordless sudo, two H100 80 GB GPUs, 52 CPUs, 442 GiB RAM and NVIDIA container
+tooling. This is preliminary host suitability evidence, not a Kubernetes test;
+the instance was destroyed before installation. Ordinary Vast Docker rentals
+failed this prerequisite because they lacked host permissions.
+
+Deliver source using Git clone/pull after user-approved commits/pushes. For
+uncommitted source, rsync the Part 7 directory (excluding `.git`, `.venv*`, caches,
+credentials and `results/`) to the VM. The prepared data bundle is transferred
+separately before the experiment, as described below. No Git actions are automatic.
+
+From the Part 7 root on a **fresh, dedicated Ubuntu x86_64 GPU VM**:
+
+```bash
+# Preview objects locally or on cloud; performs no installation or host inspection.
+bash infrastructure/7c_kuberay/part7C.sh setup --check
+
+# Cloud VM only: installs Kubernetes and reads the Hub write token without echoing it.
+bash infrastructure/7c_kuberay/part7C.sh setup --cloud --with-hf-secret
+export KUBECONFIG="$HOME/.kube/part7-config"
+
+bash infrastructure/7c_kuberay/part7C.sh cluster \
+  --context default --node-name part7-gpu
+```
+
+`setup_cluster.py` refuses containers, existing clusters/storage and insufficient
+hardware before installing. It requires exactly two GPUs, at least 32 CPUs,
+120 GiB host RAM and 200 GiB free disk, plus existing NVIDIA driver/runtime,
+passwordless sudo and curl. It leaves the existing host CUDA toolkit and Docker
+configuration untouched. Docker remains useful for the separate image build.
+
+It installs candidate pins K3s `v1.32.13+k3s1`, NVIDIA device plugin `0.17.1` and
+KubeRay `1.4.2`; the bundled K3s Helm controller installs the charts. The K3s
+installer is downloaded from its official URL, retained and hashed in the setup
+receipt; its script itself is not immutable. K3s uses its own containerd with the
+NVIDIA default runtime. Setup waits for a Ready node, two advertised GPU resources,
+the operator, established RayJob API and Bound PVC, then applies our cluster checks.
+Actual GPU assignment/computation is verified separately by the image preflight.
+
+The created resources match runner defaults: node `part7-gpu`, namespace `part7`,
+PVC `part7-workspace`, and optional Secret `part7-huggingface` with key `token`.
+The operator runs in `default`. `--with-hf-secret` uses `HF_TOKEN` if already set,
+otherwise a hidden prompt; no CLI login is required. Without that flag, provide
+an existing Secret before the GPU preflight. Tokens and the private mode-0600
+kubeconfig never enter the retained result files.
+
+The static 100 GiB RWO PV is pre-bound to this PVC, uses
+`/var/lib/part7-workspace`, and permits same-node head/worker sharing. The capacity
+is an advertised scheduling value, not a host filesystem quota. Its Retain policy
+preserves data on claim deletion; **destroying the VM destroys this storage**.
+Upload complete checkpoints to the Hub and retain lightweight evidence before
+releasing the VM. This is not a multi-node storage solution.
+
+Receipts and credential-free setup objects are under `results/7c/setup_*`.
+A partial installation is left for diagnosis; this initial helper deliberately
+refuses rerunning over an existing cluster. Inspect `sudo journalctl -u k3s` and
+`kubectl get pods -A` on failure; do not uninstall or delete storage before retention.
+Image building/publication, the GPU preflight and recovery experiment remain
+separate steps below. No live bootstrap has been verified yet.
 
 ## Cluster and image requirements
 

@@ -311,3 +311,15 @@ See the [generated RayJob example](examples/7C_RAYJOB_EXAMPLE.yaml),
 [runbook](7C_RUNBOOK.md). The example uses placeholder image/node values and is
 for reading. The implementation has CPU checks; image build/publication, live
 Kubernetes execution, fresh-cluster recovery and cleanup remain unverified.
+
+### Why does an Ubuntu Docker rental differ from an Ubuntu GPU VM for 7C?
+
+Ubuntu describes the userspace; it does not imply host administrative access.
+The checked Vast rental was an unprivileged Docker container lacking the required
+system/network capabilities. The checked Lambda rental was a KVM VM with systemd,
+sudo and two H100 GPUs. Its hardware passed preliminary checks but Kubernetes was
+not installed before deletion. `part7C.sh setup --cloud --with-hf-secret` now prepares
+a fresh suitable VM; `--check` only previews its configuration. The setup does not
+replace the host CUDA toolkit. CUDA 13.x comes from the separate training image.
+Its same-node PVC survives pod replacement, while Hub backup is needed before VM
+deletion. GPU preflight and the full recovery experiment still require cloud review.

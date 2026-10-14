@@ -388,3 +388,16 @@ RayJob API availability. Forty-six 7C CPU tests pass; CLI, shell, syntax/docstri
 and scoped whitespace checks pass. No real cluster or credentials were inspected.
 Next is confirming Kubernetes access and an agreed hardware/budget, building and
 publishing the image, then retaining live experiment evidence. 7C stays incomplete.
+
+## 7C fresh Ubuntu GPU VM setup
+
+Added `setup_cluster.py` / `part7C.sh setup --check|--cloud`: explicit fresh-host
+checks, pinned K3s and Helm-managed NVIDIA/KubeRay charts, pre-bound same-node
+Retain PV/PVC, protected user kubeconfig and optional hidden-prompt Hub Secret.
+Preserves host CUDA/Docker setup; no VM provisioning or local GPU execution.
+CPU Ray heads/staging templates explicitly hide unallocated NVIDIA GPUs.
+Fifty-one CPU tests pass. Lambda diagnostics confirm a suitable-looking KVM host,
+not working Kubernetes; the user destroyed it before setup. All bootstrap/image/
+GPU-pod/recovery verification remains pending. Source setup objects are retained;
+credentials are excluded. VM-backed storage survives pods but not VM deletion.
+No changes to Parts 1–6, commits or pushes.
