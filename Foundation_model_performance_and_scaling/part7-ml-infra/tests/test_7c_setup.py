@@ -79,3 +79,10 @@ class SetupTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     setup.verify_partial_setup(previous)
                 run.assert_not_called()
+
+    def test_verified_gpu_node_matches_chart_affinity(self):
+        """Set the NVIDIA chart's required GPU-present label on only our node."""
+        with patch.object(setup, "run") as run:
+            setup.label_gpu_node(["kubectl", "--context", "default"])
+        run.assert_called_once_with(["kubectl", "--context", "default", "label", "node", setup.NODE,
+                                     "nvidia.com/gpu.present=true", "--overwrite"])

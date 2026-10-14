@@ -92,6 +92,16 @@ def host_check(allow_installed_k3s=False):
     return dict(gpus=gpu.splitlines(), cpus=len(os.sched_getaffinity(0)), memory_bytes=memory)
 
 
+def label_gpu_node(kubectl):
+    """Mark the hardware-verified node eligible for the pinned NVIDIA chart.
+
+    Input: configured kubectl argument prefix. Sets the GPU-present label on this
+    single node; returns None. The chart requires it when NFD is not installed.
+    This label enables plugin placement, not a claim that GPU allocation works.
+    """
+    run([*kubectl, "label", "node", NODE, "nvidia.com/gpu.present=true", "--overwrite"])
+
+
 def write_private_config(path, content):
     """Exclusively create a UTF-8 mode-0600 kubeconfig from supplied content.
 
@@ -166,6 +176,7 @@ def install(output, with_hf_secret=False, continue_after_k3s=None):
         write_private_config(kubeconfig, config)
         kubectl = ["/usr/local/bin/kubectl", "--kubeconfig", str(kubeconfig), "--context", "default", "--request-timeout=30s"]
         run([*kubectl, "wait", "node/" + NODE, "--for=condition=Ready", "--timeout=180s"], timeout=200)
+        label_gpu_node(kubectl)
         run(["sudo", "-n", "mkdir", STORAGE])
         run(["sudo", "-n", "chown", "1000:1000", STORAGE])
         objects = documents()

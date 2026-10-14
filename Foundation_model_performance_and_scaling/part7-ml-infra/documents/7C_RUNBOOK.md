@@ -419,3 +419,24 @@ It requires that kubeconfig, storage and later setup objects do not yet exist,
 skips K3s reinstallation, and saves a new receipt. Other partial failures need
 inspection; this is not a general retry mechanism. Do not print kubeconfig or
 Secret contents when sharing diagnostics. Cloud continuation is pending review.
+
+## NVIDIA plugin DaemonSet desired=0
+
+The pinned chart requires an NVIDIA feature label or `nvidia.com/gpu.present=true`.
+This setup checks physical GPUs and now adds the latter label before installing
+charts; it does not install Node Feature Discovery. For an already running setup
+with Ready node/operator but no GPU-plugin pod, repair the verified GPU node:
+
+```bash
+sudo k3s kubectl label node part7-gpu nvidia.com/gpu.present=true --overwrite
+sudo k3s kubectl rollout status daemonset/part7-nvidia-nvidia-device-plugin \
+  -n kube-system --timeout=180s
+sudo k3s kubectl get node part7-gpu \
+  -o jsonpath='{.status.allocatable.nvidia\.com/gpu}{"\n"}'
+```
+
+Expected allocatable GPU count is `2`. MPS daemon desired=0 is expected; this
+workload does not use MPS. If the setup process is still waiting, let it finish.
+If it has timed out, retain its receipt and inspect before another setup invocation;
+the early-kubeconfig continuation does not support this later failure boundary.
+Reference: [pinned chart affinity](https://github.com/NVIDIA/k8s-device-plugin/blob/v0.17.1/deployments/helm/nvidia-device-plugin/values.yaml).

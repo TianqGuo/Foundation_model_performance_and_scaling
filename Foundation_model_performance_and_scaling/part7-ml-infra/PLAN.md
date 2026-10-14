@@ -409,3 +409,12 @@ exclusive mode-0600 open; added a narrowly validated early-failure continuation
 that skips K3s reinstallation. Fifty-three CPU tests pass, including actual private
 file creation and continuation guards. Cloud completion remains pending; no
 installation success, GPU pod or 7C completion claim is made.
+
+
+NVIDIA placement correction: user diagnostics show Ready K3s and Running KubeRay,
+but plugin DaemonSet desired=0 and no allocatable GPUs. The pinned NVIDIA chart
+requires a GPU-present/NFD label, while this bootstrap does not install NFD.
+Setup now labels the hardware-verified node `nvidia.com/gpu.present=true` before
+chart creation. Fifty-four CPU tests pass. Live GPU plugin readiness remains
+pending; current instance can be repaired by that node-label command without
+reinstallation. MPS desired=0 is expected with no MPS-capable label.
