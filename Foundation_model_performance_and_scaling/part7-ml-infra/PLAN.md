@@ -450,3 +450,14 @@ fixtures are unavailable in the current local environment (previously verified).
 Actual corrected cleanup and GPU/import preflight are still pending cloud evidence;
 publication success does not imply GPU compatibility. No rebuild is needed solely
 for this controller-side cleanup correction. No Git commits/pushes.
+
+
+Layer optimization after reviewed cloud history: final recursive ownership change
+added 16.7 GB above an 8.49 GB installation layer; source COPY layers were tiny.
+Moved ownership changes into the dependency installation RUN and source COPY
+ownership flags; uv cache now uses a BuildKit mount with copy link mode. This
+prevents the separate ownership-copy layer and excludes package cache from images.
+No package/base/model/algorithm changes. CPU suite remains 58 passing/one optional
+schema skip; Docker/GPU execution was not run locally. Optimized cloud size/time
+and GPU compatibility remain pending; one dependency rebuild is required before
+future source-only cache reuse. Existing published digest preserved.

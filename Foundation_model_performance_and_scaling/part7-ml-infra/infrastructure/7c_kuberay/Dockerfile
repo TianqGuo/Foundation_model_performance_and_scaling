@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Cloud build only; context is Part 7. See build_image.sh and documents/7C_RUNBOOK.md.
 # Supply the existing compatible CUDA 13 development base by registry digest.
 ARG BASE_IMAGE
@@ -18,8 +19,12 @@ ENV VIRTUAL_ENV=/opt/part7/.venv-7a \
     PYTHONPATH=/opt/part7:/opt/part7/.venv-7a/src/verl \
     TOKENIZERS_PARALLELISM=false
 COPY infrastructure/7a_verl/environment/ /opt/part7/infrastructure/7a_verl/environment/
-# Build-time dependency installation has no GPU detection, model loading or compilation.
-RUN command -v uv && command -v git && command -v tar && nvcc --version | grep -q 'release 13\.' \
+# Cache stays in BuildKit, outside exported layers; copy mode avoids cache hardlinks.
+# Set ownership in this same layer, before source COPY, to avoid copying dependencies up.
+# Build-time installation performs no model loading or GPU execution.
+RUN --mount=type=cache,id=part7-7c-uv,target=/root/.cache/uv,sharing=locked \
+    export UV_CACHE_DIR=/root/.cache/uv UV_LINK_MODE=copy \
+    && command -v uv && command -v git && command -v tar && nvcc --version | grep -q 'release 13\.' \
     && uv python install 3.12.14 \
     && uv venv --managed-python --python 3.12.14 /opt/part7/.venv-7a \
     && mkdir -p /opt/part7/.venv-7a/src \
@@ -31,11 +36,11 @@ RUN command -v uv && command -v git && command -v tar && nvcc --version | grep -
     && uv pip check --python /opt/part7/.venv-7a/bin/python \
     && mkdir -p /opt/part7/image_metadata /home/ray \
     && uv pip freeze --python /opt/part7/.venv-7a/bin/python > /opt/part7/image_metadata/installed.txt \
-    && nvcc --version > /opt/part7/image_metadata/cuda.txt
-COPY infrastructure/ /opt/part7/infrastructure/
-COPY workloads/ /opt/part7/workloads/
-RUN mkdir -p /opt/part7/assets /opt/part7/results \
+    && nvcc --version > /opt/part7/image_metadata/cuda.txt \
+    && mkdir -p /opt/part7/assets /opt/part7/results \
     && chown -R 1000:1000 /opt/part7 /home/ray /opt/uv-python
+COPY --chown=1000:1000 infrastructure/ /opt/part7/infrastructure/
+COPY --chown=1000:1000 workloads/ /opt/part7/workloads/
 # Numeric identity avoids assumptions about usernames in the custom base image.
 USER 1000:1000
 # KubeRay supplies the startup command; discard custom-base service boot hooks.

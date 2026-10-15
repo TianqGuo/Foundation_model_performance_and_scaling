@@ -520,3 +520,23 @@ receipt was saved before cleanup failed; retain `image_build.json`,
 checks of empty Dockerfile ARG defaults; this build supplied valid digest arguments
 and completed, so those warnings did not cause the cleanup error. GPU preflight
 is still required before training.
+
+## Layer-size correction for repeated builds
+
+The first cloud image history showed a **16.7 GB final recursive-chown layer**,
+compared with an 8.49 GB installation layer and only about 316 KB project source.
+Ownership changes in a later layer copied substantial installed content up.
+The Dockerfile now sets dependency ownership in its installation layer, uses
+`COPY --chown=1000:1000` for source, and mounts uv's cache through BuildKit with
+`UV_LINK_MODE=copy`. Cache contents are reused on that build machine but excluded
+from exported images. The locked dependencies, Python and CUDA base are unchanged.
+
+After delivering the updated Dockerfile and controller helpers, run the existing
+`part7C.sh image --cloud --publish` command. One dependency-layer rebuild is needed
+for this layout correction; cache downloads are reused afterwards. Subsequent
+source-only changes should reuse the expensive installation layer, provided the
+base/uv digests and environment inputs remain unchanged and Docker cache is retained.
+The first optimized build must be checked with `docker history` and the GPU
+preflight. Actual new image size/build time/transfer savings have not been measured.
+Do not prune the build cache while testing. A fresh VM has no local build cache.
+The existing published image remains available by its recorded digest.
