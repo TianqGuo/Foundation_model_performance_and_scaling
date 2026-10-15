@@ -41,6 +41,10 @@ RUN --mount=type=cache,id=part7-7c-uv,target=/root/.cache/uv,sharing=locked \
     && chown -R 1000:1000 /opt/part7 /home/ray /opt/uv-python
 COPY --chown=1000:1000 infrastructure/ /opt/part7/infrastructure/
 COPY --chown=1000:1000 workloads/ /opt/part7/workloads/
+# KubeRay injects wget-based health probes. Keep this small layer after dependencies
+# so fixing probe tools does not invalidate the expensive environment installation.
+RUN apt-get update && apt-get install -y --no-install-recommends wget \
+    && rm -rf /var/lib/apt/lists/*
 # Numeric identity avoids assumptions about usernames in the custom base image.
 USER 1000:1000
 # KubeRay supplies the startup command; discard custom-base service boot hooks.

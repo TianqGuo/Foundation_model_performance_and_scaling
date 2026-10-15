@@ -55,6 +55,18 @@ def temporary_docker_config(docker):
             shutil.rmtree(config)
 
 
+def verify_image_tools(command, tag):
+    """Check image startup and Kubernetes probe tools before publishing.
+
+    Inputs: Docker command prefix and image tag. Runs as image's nonroot user with
+    no network or GPU visibility, checks required executables and Python version.
+    Missing tools abort publication; this does not prove Ray/GPU runtime health.
+    """
+    script = "set -eu; for tool in bash wget tar git ray python; do command -v \"$tool\" >/dev/null; done; wget --version >/dev/null; python --version"
+    subprocess.run([*command, "run", "--rm", "--network", "none", "--env", "NVIDIA_VISIBLE_DEVICES=void",
+                    "--entrypoint", "/bin/bash", tag, "-ec", script], check=True, timeout=120)
+
+
 def execute(repository, base, output, publish):
     """Build on a cloud VM and optionally authenticate/publish the reviewed public image.
 
@@ -87,8 +99,7 @@ def execute(repository, base, output, publish):
             del token
         env = dict(os.environ, DOCKER_CONFIG=config, PART7_BUILD_OUTPUT=str(output.resolve()))
         subprocess.run(["bash", str(ROOT / "infrastructure/7c_kuberay/build_image.sh"), "--cloud", base, tag], env=env, check=True)
-        # No --gpus: this proves only image startup/Python, never training compatibility.
-        subprocess.run([*command, "run", "--rm", "--network", "none", "--env", "NVIDIA_VISIBLE_DEVICES=void", "--entrypoint", "/opt/part7/.venv-7a/bin/python", tag, "--version"], check=True, timeout=120)
+        verify_image_tools(command, tag)
         if publish:
             result = subprocess.run([*command, "push", tag], text=True, capture_output=True, timeout=3600)
             (output / "push.log").write_text(result.stdout + result.stderr)

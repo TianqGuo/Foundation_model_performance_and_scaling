@@ -47,3 +47,16 @@ class ImageTests(unittest.TestCase):
             with image.temporary_docker_config(["sudo", "-n", "docker"]) as config:
                 self.assertEqual(config, folder)
             run.assert_called_once_with(["sudo", "-n", "rm", "-rf", "--", folder], check=True, timeout=60)
+
+    def test_image_tool_check_runs_before_publish_without_gpu_or_network(self):
+        """Check wget in the actual candidate image; missing tools must fail the action."""
+        with patch.object(image.subprocess,"run") as run:
+            image.verify_image_tools(["docker"], "synthetic:image")
+        command = run.call_args.args[0]
+        self.assertIn("NVIDIA_VISIBLE_DEVICES=void", command)
+        self.assertIn("none", command)
+        self.assertIn("wget", command[-1])
+        self.assertTrue(run.call_args.kwargs["check"])
+        with patch.object(image.subprocess,"run", side_effect=image.subprocess.CalledProcessError(1, command)):
+            with self.assertRaises(image.subprocess.CalledProcessError):
+                image.verify_image_tools(["docker"], "synthetic:image")

@@ -609,3 +609,24 @@ Deliver the corrected `job_control.py` to the controller VM; no training-image
 rebuild is required. Render and submit a fresh uniquely named preflight using the
 existing published image. The invalid old RayJob can be deleted by its exact name
 once evidence is retained; do not delete namespaces/PVCs/Secrets or reinstall K3s.
+
+## Pods run but probes report wget missing
+
+KubeRay's injected readiness/liveness checks use wget. The first image lacked it:
+pulls succeeded, then Ray pods were unready and restarted. The Dockerfile now adds
+wget in a small layer after dependencies, and publication checks the tools inside
+the image as its nonroot user before push. No probes are disabled to mask failures.
+
+Stop the old monitoring command. Its evidence stays in the result directory.
+Collect previous/current pod logs if needed, then delete only the failed RayJob:
+
+```bash
+kubectl delete rayjob part7-preflight-20261015053855 -n part7 --wait=true
+kubectl get pods -n part7
+```
+
+Verify the failed job's pods disappear before another two-GPU run. Deliver the
+updated Dockerfile/image_publish.py, then run `part7C.sh image --cloud --publish`.
+Keep the Docker cache: the expensive dependency layer should be reused when its
+inputs match. Only new layers need uploading. Use the new published digest to
+render/submit a fresh uniquely named preflight. No K3s reinstall is needed.

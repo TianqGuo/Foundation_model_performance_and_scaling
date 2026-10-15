@@ -491,3 +491,14 @@ holding pods for evidence; it also prints status changes and stops promptly on
 UID-scoped InvalidRayJobSpec events. Sixty-three CPU tests pass; one optional
 schema check skipped. Cloud submission/preflight still pending; no pods/training
 were started by the rejected job. This controller-only fix needs no image rebuild.
+
+
+GPU preflight reached pods after ~81-second image pulls, but KubeRay health probes
+failed with `wget: command not found`, causing head/worker restarts. Added wget
+in a small Dockerfile layer after dependency installation (preserves the large
+cached environment). Image publication now requires a nonroot no-network/no-GPU
+check of bash/wget/tar/git/ray/python before push. Sixty-four CPU tests pass and
+one optional schema test skips; fixed image build/pod readiness remain pending.
+Old failed RayJob resources must be retained/released before fresh two-GPU retry.
+Kubernetes reinstall is unnecessary. No local Docker/model/GPU execution or Git
+commits/pushes performed.
