@@ -173,6 +173,8 @@ def run(document, context, output, cleanup_on_success=False):
     submitted = deepcopy(document)
     # Automatic shutdown can remove pods/logs before the client collects evidence.
     submitted["spec"]["shutdownAfterJobFinishes"] = False
+    # KubeRay rejects a finished-job TTL when automatic shutdown is disabled.
+    submitted["spec"].pop("ttlSecondsAfterFinished", None)
     path = output / "submitted_rayjob.json"
     path.write_text(json.dumps(submitted, indent=2))
     if kubectl(context, namespace, ["get", "rayjob", name, "--ignore-not-found", "-o", "json"]).strip():
@@ -184,6 +186,8 @@ def run(document, context, output, cleanup_on_success=False):
                    cleanup_requested=cleanup_on_success)
     (output / "submission.json").write_text(json.dumps(receipt, indent=2))
     deadline = time.monotonic() + submitted["spec"]["activeDeadlineSeconds"] + 300
+    print(f"Submitted RayJob {name}; monitoring operator and job status...", flush=True)
+    last_progress = None
     try:
         while time.monotonic() < deadline:
             job = json.loads(kubectl(context, namespace, ["get", "rayjob", name, "-o", "json"]))
@@ -192,6 +196,16 @@ def run(document, context, output, cleanup_on_success=False):
             status = job.get("status", {})
             (output / "rayjob_status.json").write_text(json.dumps(status, indent=2))
             cluster = status.get("rayClusterName")
+            progress = (status.get("jobDeploymentStatus"), status.get("jobStatus"), cluster)
+            if progress != last_progress:
+                print(f"RayJob {name}: deployment={progress[0] or 'pending'}, job={progress[1] or 'pending'}, cluster={cluster or 'not created'}", flush=True)
+                last_progress = progress
+            if not cluster and terminal_state(status) == "pending":
+                events = json.loads(kubectl(context, namespace, ["get", "events", "--field-selector",
+                    "involvedObject.uid=" + uid, "-o", "json"]))["items"]
+                if any(event.get("reason") == "InvalidRayJobSpec" for event in events):
+                    receipt["failure_reason"] = "InvalidRayJobSpec"
+                    raise RuntimeError("KubeRay rejected RayJob spec (InvalidRayJobSpec); inspect Kubernetes events")
             pods = collect(context, namespace, cluster, output) if cluster else []
             state = terminal_state(status)
             if state == "failure":

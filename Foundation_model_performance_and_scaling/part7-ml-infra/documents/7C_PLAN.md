@@ -179,3 +179,12 @@ cluster and the normal fresh setup command, preserving repository/build evidence
 and Docker image. User cloud clean installation plus GPU preflight must be
 reviewed before declaring the path verified. No local K3s uninstall/install,
 cloud mutation, provisioning, commits or pushes performed.
+
+
+First preflight submission was rejected before cluster creation: the controller
+held the cluster with shutdownAfterJobFinishes=false but retained the renderer's
+finished-job TTL, an invalid KubeRay combination. Controller now removes TTL when
+holding pods for evidence; it also prints status changes and stops promptly on
+UID-scoped InvalidRayJobSpec events. Sixty-three CPU tests pass; one optional
+schema check skipped. Cloud submission/preflight still pending; no pods/training
+were started by the rejected job. This controller-only fix needs no image rebuild.

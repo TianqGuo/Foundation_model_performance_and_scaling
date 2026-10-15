@@ -59,7 +59,9 @@ class JobControlTests(unittest.TestCase):
             out=Path(d)/"evidence"
             controller.run(self.manifest(),"explicit",out,True)
             self.assertEqual(calls,["retain","cleanup"])
-            self.assertFalse(json.loads((out/"submitted_rayjob.json").read_text())["spec"]["shutdownAfterJobFinishes"])
+            submitted = json.loads((out/"submitted_rayjob.json").read_text())["spec"]
+            self.assertFalse(submitted["shutdownAfterJobFinishes"])
+            self.assertNotIn("ttlSecondsAfterFinished", submitted)
             self.assertTrue(json.loads((out/"submission.json").read_text())["success"])
 
     def test_failed_job_keeps_resources_and_receipt(self):
@@ -121,3 +123,22 @@ class JobControlTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, patch.object(controller,"kubectl",side_effect=[json.dumps(dict(items=[pod])),"logs"]):
             controller.collect("ctx","part7","cluster",Path(d))
             self.assertNotIn("do-not-retain",(Path(d)/"pods.json").read_text())
+
+    def test_operator_rejection_fails_before_monitor_timeout(self):
+        """An invalid-spec event without status or pods must immediately stop polling."""
+        def api(context, namespace, args, **kwargs):
+            """Simulate operator validation failure that never populates RayJob status."""
+            if "--ignore-not-found" in args:
+                return ""
+            if args[:2] == ["get", "events"]:
+                self.assertIn("involvedObject.uid=owned", args)
+                return json.dumps(dict(items=[dict(reason="InvalidRayJobSpec")]))
+            return json.dumps(dict(metadata=dict(uid="owned")))
+        with tempfile.TemporaryDirectory() as folder, patch.object(controller,"kubectl",side_effect=api), patch.object(controller.time,"sleep") as sleep:
+            output = Path(folder) / "evidence"
+            with self.assertRaisesRegex(RuntimeError,"InvalidRayJobSpec"):
+                controller.run(self.manifest(), "default", output)
+            sleep.assert_not_called()
+            receipt = json.loads((output / "submission.json").read_text())
+            self.assertFalse(receipt["success"])
+            self.assertEqual(receipt["failure_reason"], "InvalidRayJobSpec")

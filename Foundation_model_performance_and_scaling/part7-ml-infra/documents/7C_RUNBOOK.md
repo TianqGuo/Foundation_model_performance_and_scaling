@@ -594,3 +594,18 @@ published image. A clean installation success proves bootstrap E2E only; the
 GPU RayJob and training/recovery experiment remain separate verification steps.
 Cloud clean-retest evidence remains pending.
 [K3s uninstall behavior](https://docs.k3s.io/installation/uninstall).
+
+## RayJob exists but no cluster/pods: InvalidRayJobSpec
+
+The first preflight was rejected because the controller set
+`shutdownAfterJobFinishes=false` while retaining `ttlSecondsAfterFinished`.
+KubeRay rejects that combination. The fixed controller removes TTL while holding
+pods for evidence and uses its explicit post-retention cleanup instead. It also
+fails promptly on UID-scoped invalid-spec events and prints status transitions.
+The renderer's automatic-shutdown manifest remains valid as generated.
+
+Stop the waiting old controller with Ctrl-C. Retain its evidence and event output.
+Deliver the corrected `job_control.py` to the controller VM; no training-image
+rebuild is required. Render and submit a fresh uniquely named preflight using the
+existing published image. The invalid old RayJob can be deleted by its exact name
+once evidence is retained; do not delete namespaces/PVCs/Secrets or reinstall K3s.
