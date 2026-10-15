@@ -4,6 +4,53 @@ The milestone runner can bootstrap a fresh Ubuntu GPU VM, build an image, and
 stage/submit/review the bounded RayJob experiment. Existing clusters can skip the
 bootstrap. [7C_PLAN.md](7C_PLAN.md) records pending live verification.
 
+## Normal one-command cloud workflow
+
+Deliver the latest Part 7 source to the cloud VM first (Git clone/pull only includes
+user-approved published changes; rsync can deliver uncommitted source). The full
+repository clone already contains the tracked Part 5 train/validation JSONL files,
+grader, prompt and selection helper. A laptop-to-VM data copy is **optional**.
+
+From Part 7 on the current verified VM:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh e2e --cloud
+```
+
+On a future clean VM, require an actual fresh-install test:
+
+```bash
+bash infrastructure/7c_kuberay/part7C.sh e2e --cloud --fresh-setup
+```
+
+Both use the user-reviewed published image ending `b1d8240...530fb8e8`; `--image`
+overrides it. No rebuild/publication is required for this host-controller wrapper.
+`--fresh-setup` refuses an existing K3s installation and never uninstalls it.
+Normal mode installs when K3s is absent, otherwise checks the existing cluster;
+partial/unhealthy installations stop for inspection rather than silently reset.
+Fresh setup prompts for the Hub token; a healthy existing setup reuses its Secret.
+
+The runner then uses Docker on the VM to prepare the accepted 1023/32 bundle in
+the published environment, with the Part 5 clone mounted read-only, GPU visibility
+disabled and no container network. No host pyarrow installation or model loading
+is needed for data preparation. It verifies all five accepted input hashes,
+selection settings and prepared output hashes. Existing valid data is reused;
+partial/different bundles are not silently overwritten. The PVC staging pod is
+still needed to move the VM-prepared bundle into the pod-accessible filesystem.
+
+The native experiment runs GPU preflight, three-step baseline, step-2 interruption,
+private Hub checkpoint upload/pinned fresh download and resume/state audit. Native
+per-phase evidence retention/cleanup remains in force; failure stops the wrapper
+and leaves diagnostics/resources. There is no automatic failure retry or cluster
+uninstall. The final `results/7c/part7-e2e-*/e2e_review.json` distinguishes fresh
+setup from cluster reuse and records successful stages. Its `experiment/` child
+contains the actual recovery report. Retain this evidence before VM deletion.
+
+`e2e --check` only validates local source hashes/image identity and performs no
+cloud operations. CPU orchestration tests use simulated external commands;
+**the complete new cloud E2E command has not yet passed on cloud**. The user-pasted
+clean setup and GPU preflight success are separate reviewed milestones.
+
 ## Fresh GPU VM setup
 
 The reviewed Lambda diagnostics showed a KVM Ubuntu 22.04 VM with systemd,

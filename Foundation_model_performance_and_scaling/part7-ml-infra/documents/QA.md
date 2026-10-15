@@ -323,3 +323,15 @@ a fresh suitable VM; `--check` only previews its configuration. The setup does n
 replace the host CUDA toolkit. CUDA 13.x comes from the separate training image.
 Its same-node PVC survives pod replacement, while Hub backup is needed before VM
 deletion. GPU preflight and the full recovery experiment still require cloud review.
+
+### Do I need manual stage-by-stage commands or to copy data from my laptop?
+
+No. `part7C.sh e2e --cloud` now coordinates setup/readiness, prepares data from the
+Part 5 files already in the cloud Git clone, stages to PVC and runs the complete
+training/recovery experiment. The portable generated bundle is Git-ignored, but
+its original train/validation JSONL sources are tracked. Copying an existing bundle
+is an optional shortcut. On a clean VM, `--fresh-setup` requires the real setup path;
+on an existing cluster it refuses rather than presenting reuse as clean-install
+evidence. Diagnostics may still require individual commands when a stage fails.
+CPU tests simulate external operations; real fresh setup, GPU preflight and full
+training-state recovery each require their respective cloud evidence.

@@ -512,3 +512,17 @@ writable HOME and imports torch._inductor.codecache before publication. Sixty-fo
 CPU tests pass, one optional schema check skips; image check itself must execute
 on cloud (local tests inspect invocation only). No inference/model training or
 GPU success claim. Cloud rebuilt-image/preflight evidence remains pending.
+
+
+One-command cloud E2E runner added after user feedback. `part7C.sh e2e --cloud`
+composes native fresh setup or existing-cluster validation, automatic cloud-side
+data preparation, staging and the complete preflight/training/Hub recovery audit.
+`--fresh-setup` rejects existing K3s to distinguish genuine fresh-install evidence.
+Confirmed Part 5 train/validation are Git-tracked; local rsync is not required.
+Data is prepared with the existing published image, original five input hashes,
+1023/32 selection, readonly Part 5 mount and no container GPU/network. Controller
+needs no image rebuild. Sixty-nine CPU tests pass; one optional schema skips.
+User pasted clean setup and later GPU preflight/controller success were reviewed;
+full wrapper cloud execution/training-recovery remains pending. Local orchestration
+tests simulate external systems and are not cloud E2E. No provisioning, Git commit/
+push, host dependency changes or edits to Parts 1–6.

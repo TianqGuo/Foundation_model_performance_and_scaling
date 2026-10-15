@@ -4,6 +4,10 @@
 set -euo pipefail
 part7_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 case "${1:---help}" in
+  e2e)
+    shift
+    exec python3 "$part7_root/infrastructure/7c_kuberay/e2e.py" "$@"
+    ;;
   setup)
     shift
     exec python3 "$part7_root/infrastructure/7c_kuberay/setup_cluster.py" "$@"
@@ -43,6 +47,7 @@ case "${1:---help}" in
     echo 'part7C.sh job --check --manifest PATH | --cloud --manifest PATH --context CONTEXT --output PATH [--cleanup-on-success]'
     echo 'part7C.sh experiment --check|--cloud --image IMAGE_DIGEST --node-name NODE [--context CONTEXT] [--data BUNDLE]'
     echo 'part7C.sh cluster --context CONTEXT --node-name NODE [--operator-namespace NAMESPACE] [--output PATH]'
+    echo 'part7C.sh e2e --check|--cloud [--fresh-setup] [--image IMAGE_DIGEST]'
     echo 'part7C.sh setup --check|--cloud [--output PATH] (fresh Ubuntu GPU VM only)'
     ;;
   *) echo 'Unknown action; use --help.' >&2; exit 2 ;;
