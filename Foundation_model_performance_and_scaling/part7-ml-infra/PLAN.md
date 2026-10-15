@@ -502,3 +502,13 @@ one optional schema test skips; fixed image build/pod readiness remain pending.
 Old failed RayJob resources must be retained/released before fresh two-GPU retry.
 Kubernetes reinstall is unnecessary. No local Docker/model/GPU execution or Git
 commits/pushes performed.
+
+
+Preflight with wget-fixed image reached Ray RUNNING and GPUProbe workers but failed
+inside vLLM/PyTorch import: UID 1000 had no passwd entry, so getpass.getuser raised
+KeyError in compiler-cache initialization. Added a real UID/GID 1000 account via
+small late image layer. The no-GPU image check now resolves passwd/getpass, checks
+writable HOME and imports torch._inductor.codecache before publication. Sixty-four
+CPU tests pass, one optional schema check skips; image check itself must execute
+on cloud (local tests inspect invocation only). No inference/model training or
+GPU success claim. Cloud rebuilt-image/preflight evidence remains pending.

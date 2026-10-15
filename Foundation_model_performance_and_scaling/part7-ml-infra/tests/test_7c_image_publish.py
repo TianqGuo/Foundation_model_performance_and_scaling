@@ -56,6 +56,9 @@ class ImageTests(unittest.TestCase):
         self.assertIn("NVIDIA_VISIBLE_DEVICES=void", command)
         self.assertIn("none", command)
         self.assertIn("wget", command[-1])
+        self.assertIn("pwd.getpwuid", command[-1])
+        self.assertIn("torch._inductor.codecache", command[-1])
+        self.assertIn("TemporaryFile", command[-1])
         self.assertTrue(run.call_args.kwargs["check"])
         with patch.object(image.subprocess,"run", side_effect=image.subprocess.CalledProcessError(1, command)):
             with self.assertRaises(image.subprocess.CalledProcessError):

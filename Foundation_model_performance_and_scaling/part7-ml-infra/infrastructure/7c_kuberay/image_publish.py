@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import shlex
 import subprocess
 import tempfile
 
@@ -59,10 +60,20 @@ def verify_image_tools(command, tag):
     """Check image startup and Kubernetes probe tools before publishing.
 
     Inputs: Docker command prefix and image tag. Runs as image's nonroot user with
-    no network or GPU visibility, checks required executables and Python version.
+    no network or GPU visibility, checks tools, passwd identity, writable home
+    and PyTorch compiler-cache import (the cloud failure path).
     Missing tools abort publication; this does not prove Ray/GPU runtime health.
     """
     script = "set -eu; for tool in bash wget tar git ray python; do command -v \"$tool\" >/dev/null; done; wget --version >/dev/null; python --version"
+    cpu_check = (
+        "import os,pwd,getpass,tempfile; "
+        "assert os.getuid()==1000 and os.getgid()==1000; "
+        "identity=pwd.getpwuid(os.getuid()); "
+        "print('Container user:',identity.pw_name,'getpass:',getpass.getuser()); "
+        "probe=tempfile.TemporaryFile(dir=os.environ['HOME']); probe.close(); "
+        "import torch._inductor.codecache; print('PyTorch compiler-cache import passed')"
+    )
+    script += "; python -c " + shlex.quote(cpu_check)
     subprocess.run([*command, "run", "--rm", "--network", "none", "--env", "NVIDIA_VISIBLE_DEVICES=void",
                     "--entrypoint", "/bin/bash", tag, "-ec", script], check=True, timeout=120)
 

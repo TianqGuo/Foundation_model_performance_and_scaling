@@ -45,7 +45,14 @@ COPY --chown=1000:1000 workloads/ /opt/part7/workloads/
 # so fixing probe tools does not invalidate the expensive environment installation.
 RUN apt-get update && apt-get install -y --no-install-recommends wget \
     && rm -rf /var/lib/apt/lists/*
-# Numeric identity avoids assumptions about usernames in the custom base image.
+# Python/getpass and PyTorch require a real passwd entry, not only numeric USER.
+# Late metadata-only layer preserves the cached CUDA/dependency layers.
+RUN if ! getent group 1000 >/dev/null; then groupadd --gid 1000 ray; fi \
+    && if ! getent passwd 1000 >/dev/null; then \
+         useradd --uid 1000 --gid 1000 --home-dir /home/ray --no-create-home --shell /bin/bash ray; \
+       fi \
+    && getent passwd 1000 && getent group 1000
+# Same numeric identity as the Kubernetes pod security context.
 USER 1000:1000
 # KubeRay supplies the startup command; discard custom-base service boot hooks.
 ENTRYPOINT []

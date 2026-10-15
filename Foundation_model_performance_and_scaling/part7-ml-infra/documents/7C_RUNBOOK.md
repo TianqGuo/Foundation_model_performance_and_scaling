@@ -630,3 +630,17 @@ updated Dockerfile/image_publish.py, then run `part7C.sh image --cloud --publish
 Keep the Docker cache: the expensive dependency layer should be reused when its
 inputs match. Only new layers need uploading. Use the new published digest to
 render/submit a fresh uniquely named preflight. No K3s reinstall is needed.
+
+## Preflight KeyError: getpwuid(): uid not found: 1000
+
+A numeric Docker USER/pod UID does not create `/etc/passwd` entries. The first
+wget-fixed preflight reached Ray worker imports but failed when PyTorch's cache
+path called getpass/pwd. The Dockerfile now creates UID/GID 1000 when absent in
+a small layer after dependencies. Publication checks actual default user identity,
+HOME writability and torch._inductor.codecache import with no network/GPU.
+
+Preserve the failed job's evidence/logs, delete only that RayJob and verify its
+pods disappear before retrying. Update source, run the normal image build/publish
+command, then render a fresh preflight with its new digest. No K3s reinstall,
+checkpoint/model download or dependency version change is needed. Runtime
+GPU/import checks still belong to the RayJob preflight, not the CPU image test.
