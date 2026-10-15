@@ -112,8 +112,48 @@ def write_private_config(path, content):
         stream.write(content + "\n")
 
 
+def ensure_private_config(path, content, allow_reuse=False):
+    """Create config or reuse an exact private file during verified continuation.
+
+    Inputs: destination, current server config and reuse permission. Reject links,
+    different credentials, unsafe permissions or another owner; never overwrite.
+    """
+    if path.is_symlink():
+        raise ValueError("Refusing symlink kubeconfig")
+    if path.exists():
+        info = path.stat()
+        if not allow_reuse or info.st_uid != os.getuid() or info.st_mode & 0o777 != 0o600:
+            raise ValueError("Refusing existing or unsafe kubeconfig")
+        if path.read_text().strip() != content.strip():
+            raise ValueError("Existing kubeconfig differs from this server")
+    else:
+        write_private_config(path, content)
+
+
+def wait_for_node(kubectl):
+    """Poll node registration/API readiness, then wait for the Ready condition.
+
+    Input: kubectl prefix. Retries transient startup errors for up to 180 seconds;
+    returns None or raises a bounded timeout. No resources or credentials changed.
+    """
+    print("Waiting for Kubernetes node registration...", flush=True)
+    deadline = time.monotonic() + 180
+    while True:
+        try:
+            nodes = json.loads(run([*kubectl, "get", "nodes", "-o", "json"]))
+            if any(node["metadata"]["name"] == NODE for node in nodes["items"]):
+                break
+        except (RuntimeError, subprocess.TimeoutExpired):
+            pass
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Node registration failed; inspect sudo journalctl -u k3s")
+        time.sleep(3)
+    print("Waiting for node Ready...", flush=True)
+    run([*kubectl, "wait", "node/" + NODE, "--for=condition=Ready", "--timeout=180s"], timeout=200)
+
+
 def verify_partial_setup(previous):
-    """Validate evidence for continuation only at the failed kubeconfig-write boundary.
+    """Validate evidence for continuation before storage/chart creation.
 
     Input: previous failed setup directory. Checks receipt pins, no later objects,
     and the actual installed K3s version/node identity. Returns saved receipt;
@@ -123,7 +163,7 @@ def verify_partial_setup(previous):
     if receipt.get("success") or receipt.get("k3s") != K3S_VERSION or receipt.get("node") != NODE:
         raise ValueError("Continuation requires this helper's failed pinned setup receipt")
     if (previous / "setup_objects.json").exists():
-        raise ValueError("Setup advanced beyond kubeconfig creation; inspect rather than retry")
+        raise ValueError("Setup advanced to chart creation; inspect rather than retry")
     if K3S_VERSION not in run(["/usr/local/bin/k3s", "--version"]):
         raise ValueError("Existing K3s version differs from setup pin")
     nodes = json.loads(run(["sudo", "-n", "k3s", "kubectl", "--request-timeout=30s", "get", "nodes", "-o", "json"]))
@@ -138,7 +178,7 @@ def install(output, with_hf_secret=False, continue_after_k3s=None):
     Inputs: fresh output directory and optional interactive Hub Secret flag. Writes system services, charts, shared storage
     and private user kubeconfig; waits for GPU/operator/API/PVC readiness. Failures
     retain partial installation for diagnosis. Optional continue_after_k3s accepts
-    only verified failure before kubeconfig/storage creation, skipping reinstallation.
+    only verified failure before storage/chart creation, skipping reinstallation.
     No model loading, training or GPU kernel test is performed. Optional Hub token
     is read silently (or from HF_TOKEN) and sent through stdin, never written to evidence.
     """
@@ -147,7 +187,7 @@ def install(output, with_hf_secret=False, continue_after_k3s=None):
     if previous and previous["host"]["gpus"] != host["gpus"]:
         raise ValueError("Continuation must use the original VM GPUs")
     kubeconfig = Path.home() / ".kube" / "part7-config"
-    if kubeconfig.exists():
+    if kubeconfig.exists() and not previous:
         raise ValueError("Private part7 kubeconfig already exists; refusing overwrite")
     token = None
     if with_hf_secret:
@@ -173,9 +213,9 @@ def install(output, with_hf_secret=False, continue_after_k3s=None):
         kubeconfig.parent.mkdir(parents=True, exist_ok=True)
         # Credentials stay outside results, never in retained evidence or stdout.
         config = run(["sudo", "-n", "cat", "/etc/rancher/k3s/k3s.yaml"])
-        write_private_config(kubeconfig, config)
+        ensure_private_config(kubeconfig, config, allow_reuse=bool(previous))
         kubectl = ["/usr/local/bin/kubectl", "--kubeconfig", str(kubeconfig), "--context", "default", "--request-timeout=30s"]
-        run([*kubectl, "wait", "node/" + NODE, "--for=condition=Ready", "--timeout=180s"], timeout=200)
+        wait_for_node(kubectl)
         label_gpu_node(kubectl)
         run(["sudo", "-n", "mkdir", STORAGE])
         run(["sudo", "-n", "chown", "1000:1000", STORAGE])
@@ -183,6 +223,7 @@ def install(output, with_hf_secret=False, continue_after_k3s=None):
         (output / "setup_objects.json").write_text(json.dumps(objects, indent=2) + "\n")
         for obj in objects:
             run([*kubectl, "create", "-f", "-"], input_text=json.dumps(obj))
+        print("Waiting for NVIDIA GPU resources and KubeRay operator...", flush=True)
         # Chart creation precedes asynchronous Helm installation; poll boundedly.
         deadline = time.monotonic() + 600
         while True:

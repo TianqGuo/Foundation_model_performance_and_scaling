@@ -540,3 +540,13 @@ The first optimized build must be checked with `docker history` and the GPU
 preflight. Actual new image size/build time/transfer savings have not been measured.
 Do not prune the build cache while testing. A fresh VM has no local build cache.
 The existing published image remains available by its recorded digest.
+
+
+Node-readiness correction: user logs show successful K3s startup and a Ready
+`part7-gpu` after the initial named-node wait failed; exact original stderr was
+not retained, so a registration race is suspected, not proved. Setup now polls
+registration/transient API availability before waiting for Ready, with progress
+messages. `--continue-after-k3s ORIGINAL_FAILED_DIRECTORY` also permits reusing an
+exact, user-owned mode-0600 kubeconfig before storage/chart creation, without
+reinstallation. Existing symlinks/different configs are rejected. Sixty CPU tests
+pass; one optional schema test skipped. Cloud continuation still needs review.

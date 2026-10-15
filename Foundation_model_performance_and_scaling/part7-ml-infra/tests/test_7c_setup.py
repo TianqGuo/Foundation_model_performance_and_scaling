@@ -86,3 +86,23 @@ class SetupTests(unittest.TestCase):
             setup.label_gpu_node(["kubectl", "--context", "default"])
         run.assert_called_once_with(["kubectl", "--context", "default", "label", "node", setup.NODE,
                                      "nvidia.com/gpu.present=true", "--overwrite"])
+
+    def test_registration_race_retries_before_ready_wait(self):
+        """Node absence and transient API failures must not abort fresh installation."""
+        responses = [RuntimeError("API starting"), '{"items": []}',
+                     json.dumps(dict(items=[dict(metadata=dict(name=setup.NODE))])), "Ready"]
+        with patch.object(setup, "run", side_effect=responses) as run, patch.object(setup.time, "sleep") as sleep:
+            setup.wait_for_node(["kubectl"])
+        self.assertEqual(sleep.call_count, 2)
+        self.assertIn("wait", run.call_args.args[0])
+
+    def test_resume_reuses_only_matching_private_config(self):
+        """Resume may retain a private original kubeconfig, never different credentials."""
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "config"
+            setup.write_private_config(path, "synthetic")
+            setup.ensure_private_config(path, "synthetic", allow_reuse=True)
+            with self.assertRaises(ValueError):
+                setup.ensure_private_config(path, "different", allow_reuse=True)
+            with self.assertRaises(ValueError):
+                setup.ensure_private_config(path, "synthetic")

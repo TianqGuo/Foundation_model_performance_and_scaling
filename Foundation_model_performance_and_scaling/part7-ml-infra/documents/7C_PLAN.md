@@ -158,3 +158,13 @@ No package/base/model/algorithm changes. CPU suite remains 58 passing/one option
 schema skip; Docker/GPU execution was not run locally. Optimized cloud size/time
 and GPU compatibility remain pending; one dependency rebuild is required before
 future source-only cache reuse. Existing published digest preserved.
+
+
+Node-readiness correction: user logs show successful K3s startup and a Ready
+`part7-gpu` after the initial named-node wait failed; exact original stderr was
+not retained, so a registration race is suspected, not proved. Setup now polls
+registration/transient API availability before waiting for Ready, with progress
+messages. `--continue-after-k3s ORIGINAL_FAILED_DIRECTORY` also permits reusing an
+exact, user-owned mode-0600 kubeconfig before storage/chart creation, without
+reinstallation. Existing symlinks/different configs are rejected. Sixty CPU tests
+pass; one optional schema test skipped. Cloud continuation still needs review.
