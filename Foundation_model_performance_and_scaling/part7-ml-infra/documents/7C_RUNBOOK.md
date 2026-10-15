@@ -499,3 +499,24 @@ compatibility solely from a successful build. Registry upload is opt-in through
 References: [uv Docker integration](https://docs.astral.sh/uv/guides/integration/docker/),
 [Docker login](https://docs.docker.com/reference/cli/docker/login),
 [Docker push](https://docs.docker.com/reference/cli/docker/image/push).
+
+## Publication succeeded but temporary-auth cleanup failed
+
+A sudo Docker build can create root-owned `buildx` directories under its temporary
+configuration. The old Python TemporaryDirectory cleanup could not remove those
+files, raising PermissionError after successful publication. The controller now
+uses privileged cleanup of only its newly allocated temporary directory. This
+controller fix does not require rebuilding the already published training image.
+
+For the reviewed failed cleanup, remove only the exact path printed in that error:
+
+```bash
+sudo rm -rf -- /tmp/part7-docker-auth-ei1zerx0
+```
+
+Do not use a wildcard or remove your persistent Docker configuration. The image
+receipt was saved before cleanup failed; retain `image_build.json`,
+`image_publish.json` and logs. The two InvalidDefaultArgInFrom warnings are static
+checks of empty Dockerfile ARG defaults; this build supplied valid digest arguments
+and completed, so those warnings did not cause the cleanup error. GPU preflight
+is still required before training.

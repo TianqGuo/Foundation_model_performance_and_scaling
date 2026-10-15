@@ -437,3 +437,16 @@ GPU visibility disabled, and optionally publishes via hidden-token temporary
 Docker authentication. Registry digest receipts are verified by pull; no Docker,
 Hub publication or GPU execution performed locally. Fifty-seven CPU tests pass;
 cloud build and GPU preflight remain pending. No Git commits/pushes.
+
+
+Reviewed user image-build/publication output: Python 3.12.14 startup succeeded and
+`sclion/part7-training@sha256:211e567f0bfd55617db36102b6e00891e6a136420850788c2874045dffcb3294`
+was pushed and pulled by digest. Post-publication cleanup failed because sudo Docker
+created root-owned buildx files in the temporary auth directory. Fixed cleanup to
+use the same privilege level, scoped only to its newly allocated temporary path.
+Fifty-eight CPU tests pass, including cleanup after failures and sudo scoping;
+one optional pinned-schema test is skipped because its temporary jsonschema/CRD
+fixtures are unavailable in the current local environment (previously verified).
+Actual corrected cleanup and GPU/import preflight are still pending cloud evidence;
+publication success does not imply GPU compatibility. No rebuild is needed solely
+for this controller-side cleanup correction. No Git commits/pushes.

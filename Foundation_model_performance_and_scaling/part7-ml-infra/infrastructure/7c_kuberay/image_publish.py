@@ -1,11 +1,13 @@
 """Build and optionally publish the public training image on a cloud VM only."""
 import argparse
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import getpass
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tempfile
 
@@ -34,6 +36,25 @@ def publish_digest(output):
     return matches.pop()
 
 
+@contextmanager
+def temporary_docker_config(docker):
+    """Yield an isolated authentication directory and remove it on success or failure.
+
+    Input: selected Docker command prefix. A sudo Docker client can create root-only
+    buildx files, so that branch uses sudo to delete only this newly allocated
+    directory. Never touches the user's persistent Docker configuration.
+    Cleanup failures remain visible; credentials must not silently remain behind.
+    """
+    config = tempfile.mkdtemp(prefix="part7-docker-auth-")
+    try:
+        yield config
+    finally:
+        if docker[:2] == ["sudo", "-n"]:
+            subprocess.run(["sudo", "-n", "rm", "-rf", "--", config], check=True, timeout=60)
+        else:
+            shutil.rmtree(config)
+
+
 def execute(repository, base, output, publish):
     """Build on a cloud VM and optionally authenticate/publish the reviewed public image.
 
@@ -53,7 +74,7 @@ def execute(repository, base, output, publish):
         subprocess.run(["sudo", "-n", "docker", "info"], stdout=subprocess.DEVNULL, check=True)
         docker = ["sudo", "-n", "docker"]
     tag = repository + ":7c-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    with tempfile.TemporaryDirectory(prefix="part7-docker-auth-") as config:
+    with temporary_docker_config(docker) as config:
         command = [*docker, "--config", config]
         if publish:
             token = os.environ.get("DOCKERHUB_TOKEN") or getpass.getpass("Docker Hub access token with write permission (hidden): ")

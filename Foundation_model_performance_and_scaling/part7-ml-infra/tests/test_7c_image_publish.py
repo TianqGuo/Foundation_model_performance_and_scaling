@@ -2,6 +2,8 @@
 from importlib import import_module
 import contextlib
 import io
+from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 image = import_module("infrastructure.7c_kuberay.image_publish")
@@ -29,3 +31,19 @@ class ImageTests(unittest.TestCase):
             image.main()
         execute.assert_not_called()
         self.assertIn("sclion/part7-training", output.getvalue())
+
+    def test_unprivileged_auth_cleanup_after_failure(self):
+        """Remove temporary credentials even when the wrapped build raises."""
+        config = None
+        with self.assertRaisesRegex(RuntimeError, "build failed"):
+            with image.temporary_docker_config(["docker"]) as config:
+                (Path(config) / "config.json").write_text("synthetic")
+                raise RuntimeError("build failed")
+        self.assertFalse(Path(config).exists())
+
+    def test_sudo_cleanup_uses_only_new_directory(self):
+        """Root-owned buildx cleanup must target the allocated auth directory only."""
+        with tempfile.TemporaryDirectory() as folder, patch.object(image.tempfile, "mkdtemp", return_value=folder), patch.object(image.subprocess, "run") as run:
+            with image.temporary_docker_config(["sudo", "-n", "docker"]) as config:
+                self.assertEqual(config, folder)
+            run.assert_called_once_with(["sudo", "-n", "rm", "-rf", "--", folder], check=True, timeout=60)
