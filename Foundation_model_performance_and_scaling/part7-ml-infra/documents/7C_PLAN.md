@@ -168,3 +168,14 @@ messages. `--continue-after-k3s ORIGINAL_FAILED_DIRECTORY` also permits reusing 
 exact, user-owned mode-0600 kubeconfig before storage/chart creation, without
 reinstallation. Existing symlinks/different configs are rejected. Sixty CPU tests
 pass; one optional schema test skipped. Cloud continuation still needs review.
+
+
+Clean-retest requirement: user correctly identified missing post-fix fresh-install
+E2E evidence. Added full install control-flow CPU scenarios (external host/API
+commands simulated; actual private config/receipt writes and validators execute).
+Sixty-two CPU tests pass with one optional schema skip. These are not cloud E2E.
+Runbook now describes guarded uninstall of the dedicated pre-storage failed K3s
+cluster and the normal fresh setup command, preserving repository/build evidence
+and Docker image. User cloud clean installation plus GPU preflight must be
+reviewed before declaring the path verified. No local K3s uninstall/install,
+cloud mutation, provisioning, commits or pushes performed.

@@ -550,3 +550,47 @@ messages. `--continue-after-k3s ORIGINAL_FAILED_DIRECTORY` also permits reusing 
 exact, user-owned mode-0600 kubeconfig before storage/chart creation, without
 reinstallation. Existing symlinks/different configs are rejected. Sixty CPU tests
 pass; one optional schema test skipped. Cloud continuation still needs review.
+
+## Clean setup retest after the node-registration fix
+
+The user requested testing the normal setup path, not another continuation.
+Two complete installer control-flow CPU tests now exercise real credential-file
+creation and final validation, mocking only host inventory/external commands.
+They cover delayed registration, label-before-chart ordering, asynchronous chart
+readiness, PVC/API validation, Secret creation and failure receipts. These do not
+constitute real Kubernetes E2E verification.
+
+For the current failed VM, setup stopped before the storage/chart creation stage.
+Keep repository/results and Docker images. Deliver the latest setup source first.
+Check that the cluster still has no application storage or workloads:
+
+```bash
+sudo k3s kubectl get pvc -A
+sudo k3s kubectl get pods -A
+sudo test ! -e /var/lib/part7-workspace && echo 'No Part 7 workspace storage exists'
+```
+
+If there are PVCs, non-system workload pods or a workspace directory, stop for
+review. Otherwise the dedicated test cluster can be uninstalled and the normal
+fresh setup rerun. The uninstall removes the Kubernetes datastore/pods/local
+Kubernetes storage; it does not rebuild/remove the separately stored Docker image.
+Existing receipts and repository files stay in place.
+
+```bash
+sudo /usr/local/bin/k3s-uninstall.sh
+mv "$HOME/.kube/part7-config" "$HOME/.kube/part7-config.before-retest-$(date -u +%Y%m%dT%H%M%SZ)"
+bash infrastructure/7c_kuberay/part7C.sh setup --cloud --with-hf-secret
+```
+
+Stop on any error. Do not use `--continue-after-k3s` for this test. After success:
+
+```bash
+export KUBECONFIG="$HOME/.kube/part7-config"
+bash infrastructure/7c_kuberay/part7C.sh cluster --context default --node-name part7-gpu
+```
+
+Review the new setup receipt and then run the GPU preflight with the existing
+published image. A clean installation success proves bootstrap E2E only; the
+GPU RayJob and training/recovery experiment remain separate verification steps.
+Cloud clean-retest evidence remains pending.
+[K3s uninstall behavior](https://docs.k3s.io/installation/uninstall).
