@@ -335,3 +335,46 @@ on an existing cluster it refuses rather than presenting reuse as clean-install
 evidence. Diagnostics may still require individual commands when a stage fails.
 CPU tests simulate external operations; real fresh setup, GPU preflight and full
 training-state recovery each require their respective cloud evidence.
+
+
+### What do the 7C test stages verify, and where does Hub recovery get its checkpoint metadata?
+
+Staging copies the prepared bundle from the cloud VM to the shared PVC. GPU
+preflight checks GPU assignment, CUDA computation, imports and Hub authentication
+without training. Baseline, interruption and recovery are actual short training
+runs: baseline provides an uninterrupted three-step reference; interruption saves
+complete training state at step 2 and deliberately stops; recovery restores that
+state in a new RayJob and continues at step 3. This tests a controlled checkpoint
+boundary, not unexpected VM failure or replacement-node recovery.
+
+Recovery uses three kinds of metadata:
+
+| Metadata | Storage | Purpose |
+| --- | --- | --- |
+| Checkpoint manifest | PVC, then Hugging Face alongside the complete checkpoint | Records the saved step, configuration identities, file inventory and hashes. |
+| Hub revision | Hugging Face repository history | Identifies the exact uploaded checkpoint commit. |
+| `hf_checkpoint.json` upload receipt | Run directory on PVC, then controller VM evidence | Records repository ID, revision and saved step for the recovery job. |
+
+```text
+Upload complete checkpoint + manifest to private HF dataset repository
+    |
+Resolve uploaded commit and save repository/revision in hf_checkpoint.json
+    |
+Experiment controller reads receipt and configures a new recovery RayJob
+    |
+Download exact HF revision into a fresh PVC path
+    |
+Verify manifest/file hashes -> restore native training state -> audit continuation
+```
+
+The checkpoint and its manifest are retained together on Hugging Face. Recovery
+therefore tests upload, pinned download, integrity and restoration of model,
+optimizer, scheduler and recorded RNG/data state; uploading files alone does not
+prove recovery. The current upload receipt is not itself included in that
+checkpoint upload. If the VM/PVC is lost, select the repository and revision from
+retained evidence or HF history; automatic discovery after controller loss is not
+implemented. Complete 7C training/recovery verification remains pending until its
+cloud experiment passes and the evidence is reviewed.
+
+See [checkpoint transfer code](../infrastructure/7c_kuberay/checkpoint_transfer.py)
+and [experiment orchestration](../infrastructure/7c_kuberay/experiment.py).
