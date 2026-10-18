@@ -1,0 +1,299 @@
+# Reading example only: placeholder serving image; do not deploy.
+apiVersion: ray.io/v1
+kind: RayService
+metadata:
+  name: part7-7d
+  namespace: part7
+  labels:
+    part7-milestone: 7d
+  annotations:
+    part7/model-repo: sclion/part7-7a-smoke-execution-20261005T045405Z-dwaxLH
+    part7/model-revision: 40c33b6ad0a7a2879e7b5a8f5f6a52baaa94a584
+    part7/status: cpu-prepared-cloud-verification-pending
+spec:
+  serveConfigV2: |
+    proxy_location: HeadOnly
+    http_options:
+      host: 0.0.0.0
+      port: 8000
+    applications:
+    - name: part7-llm
+      route_prefix: /
+      import_path: ray.serve.llm:build_openai_app
+      args:
+        llm_configs:
+        - model_loading_config:
+            model_id: part7-math-grpo
+            model_source: /workspace/models/7d/6e0f3c0d4f14b9d26d6a1609
+          deployment_config:
+            num_replicas: 1
+            max_ongoing_requests: 16
+          engine_kwargs:
+            dtype: bfloat16
+            tensor_parallel_size: 1
+            max_model_len: 4096
+            max_num_seqs: 16
+            gpu_memory_utilization: 0.5
+            enforce_eager: true
+            enable_prefix_caching: false
+  rayClusterConfig:
+    rayVersion: 2.49.2
+    enableInTreeAutoscaling: false
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: 0.0.0.0
+        num-cpus: '2'
+        num-gpus: '0'
+        object-store-memory: '536870912'
+      template:
+        metadata:
+          labels:
+            part7-milestone: 7d
+            part7-run: part7-7d
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+          nodeSelector:
+            kubernetes.io/hostname: part7-gpu
+          containers:
+          - name: ray-head
+            image: registry.example/part7-serving@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            imagePullPolicy: IfNotPresent
+            workingDir: /opt/part7
+            resources:
+              requests:
+                cpu: '2'
+                memory: 8Gi
+              limits:
+                cpu: '2'
+                memory: 8Gi
+            securityContext: &id005
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+            env:
+            - &id001
+              name: PART7_IMAGE
+              value: registry.example/part7-serving@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            - &id002
+              name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - &id003
+              name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - &id004
+              name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: void
+            - name: HF_HUB_OFFLINE
+              value: '1'
+            - name: TRANSFORMERS_OFFLINE
+              value: '1'
+            volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+            - name: hub-token
+              mountPath: /run/secrets/huggingface
+              readOnly: true
+            ports:
+            - name: gcs
+              containerPort: 6379
+            - name: dashboard
+              containerPort: 8265
+            - name: client
+              containerPort: 10001
+            - name: metrics
+              containerPort: 8080
+            - name: serve
+              containerPort: 8000
+          volumes:
+          - name: workspace
+            persistentVolumeClaim:
+              claimName: part7-workspace
+          - name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 2Gi
+          - name: hub-token
+            secret:
+              secretName: part7-huggingface
+              defaultMode: 288
+              items:
+              - key: token
+                path: token
+          initContainers:
+          - name: stage-model
+            image: registry.example/part7-serving@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            command:
+            - /opt/part7/.venv-7a/bin/python
+            args:
+            - /opt/part7/infrastructure/7d_serve/prepare_model.py
+            - --cloud
+            - --repo
+            - sclion/part7-7a-smoke-execution-20261005T045405Z-dwaxLH
+            - --revision
+            - 40c33b6ad0a7a2879e7b5a8f5f6a52baaa94a584
+            - --output
+            - /workspace/models/7d/6e0f3c0d4f14b9d26d6a1609
+            env:
+            - *id001
+            - *id002
+            - *id003
+            - *id004
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: void
+            securityContext: *id005
+            resources:
+              requests:
+                cpu: '1'
+                memory: 2Gi
+              limits:
+                cpu: '1'
+                memory: 2Gi
+            volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: hub-token
+              mountPath: /run/secrets/huggingface
+              readOnly: true
+    workerGroupSpecs:
+    - groupName: serving
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 1
+      rayStartParams:
+        num-cpus: '16'
+        num-gpus: '1'
+        object-store-memory: '4294967296'
+      template:
+        metadata:
+          labels:
+            part7-milestone: 7d
+            part7-run: part7-7d
+        spec:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+          nodeSelector:
+            kubernetes.io/hostname: part7-gpu
+          containers:
+          - name: ray-worker
+            image: registry.example/part7-serving@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            imagePullPolicy: IfNotPresent
+            workingDir: /opt/part7
+            resources:
+              requests:
+                cpu: '16'
+                memory: 64Gi
+                nvidia.com/gpu: 1
+              limits:
+                cpu: '16'
+                memory: 64Gi
+                nvidia.com/gpu: 1
+            securityContext: &id010
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+            env:
+            - &id006
+              name: PART7_IMAGE
+              value: registry.example/part7-serving@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            - &id007
+              name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - &id008
+              name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - &id009
+              name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: HF_HUB_OFFLINE
+              value: '1'
+            - name: TRANSFORMERS_OFFLINE
+              value: '1'
+            volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+            - name: hub-token
+              mountPath: /run/secrets/huggingface
+              readOnly: true
+          volumes:
+          - name: workspace
+            persistentVolumeClaim:
+              claimName: part7-workspace
+          - name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 16Gi
+          - name: hub-token
+            secret:
+              secretName: part7-huggingface
+              defaultMode: 288
+              items:
+              - key: token
+                path: token
+          initContainers:
+          - name: stage-model
+            image: registry.example/part7-serving@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            command:
+            - /opt/part7/.venv-7a/bin/python
+            args:
+            - /opt/part7/infrastructure/7d_serve/prepare_model.py
+            - --cloud
+            - --repo
+            - sclion/part7-7a-smoke-execution-20261005T045405Z-dwaxLH
+            - --revision
+            - 40c33b6ad0a7a2879e7b5a8f5f6a52baaa94a584
+            - --output
+            - /workspace/models/7d/6e0f3c0d4f14b9d26d6a1609
+            env:
+            - *id006
+            - *id007
+            - *id008
+            - *id009
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: void
+            securityContext: *id010
+            resources:
+              requests:
+                cpu: '1'
+                memory: 2Gi
+              limits:
+                cpu: '1'
+                memory: 2Gi
+            volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: hub-token
+              mountPath: /run/secrets/huggingface
+              readOnly: true

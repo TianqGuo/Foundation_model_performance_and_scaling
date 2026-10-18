@@ -17,7 +17,7 @@ recovery are outside this claim; broader numerical/tokenizer parity remains unve
 `part7-e2e-20261018-031219` on two H100 80 GB GPUs passed GPU preflight,
 training/interruption/private-Hub restore, native state audits and four verified
 job cleanups. Local synced evidence was independently re-reviewed. 7D serving
-is next; no 7D implementation or cloud execution is included in this closeout.
+has started at CPU source-preparation scope; no 7D cloud execution has occurred.
 See [current 7C results](documents/7C_PLAN.md) and [runbook](documents/7C_RUNBOOK.md).
 Historical increment notes below describe the status at their original time;
 this summary, checklist and milestone documents state the current status.
@@ -557,3 +557,19 @@ claim. Next review 7D's exported 7A model identity, compatible serving image and
 RayService/benchmark/restart plan before implementation/provisioning. The existing
 training-state repository is not a serving-ready export. Keep larger-model/TP/PP,
 Kueue, broader recovery and 7E optional. No commits/pushes without approval.
+
+
+## First 7D increment — pinned model and RayService preparation
+
+User authorized 7D implementation after releasing the 7C VM. Added milestone
+`infrastructure/7d_serve/` with configurable immutable 7A model identity/native
+Serve LLM settings, RayService renderer reusing 7C pod conventions, cloud-only
+locked/atomic snapshot staging and a shell renderer entry point. Serving stays
+one replica/one whole GPU and uses the existing 7A BF16 export rather than 7C
+training-state tensors. Added 7D plan/runbook and generated reading example.
+Eight new CPU tests pass including KubeRay 1.4.2 RayService schema and synthetic
+snapshot-integrity tests. Serving dependency overlay is candidate input only;
+no claim that native Ray Serve LLM works with the training stack until resolved
+and import-tested. Serving image, lifecycle/benchmark/restart and one-command
+cloud E2E are next. No rent/build/model download/load/GPU execution, registry
+publication, Git commit/push or changes to Parts 1–6/accepted 7A–7C code.
