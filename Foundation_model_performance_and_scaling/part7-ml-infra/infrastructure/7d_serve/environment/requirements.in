@@ -1,0 +1,6 @@
+# Candidate serving overlay input, NOT a resolved environment or install script.
+# Keep the verified training stack unchanged; resolve/validate in a separate image.
+-c ../../7a_verl/environment/requirements.lock
+ray[serve,llm]==2.49.2
+jsonref==1.1.0
+hf-transfer==0.1.9
