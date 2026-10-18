@@ -13,6 +13,10 @@
   `documents/7A_ENVIRONMENT.md`, `documents/7A_GRPO_MAPPING.md` and
   `documents/7A_RUNBOOK.md`. User-run bounded 7A smoke/export/weights-reload evidence is reviewed. Agree hardware and
   a spending cap before paid provisioning.
+- Bounded 7B and 7C recovery are complete with reviewed retained evidence.
+  7C accepted run: `results/7c/part7-e2e-20261018-031219`; see
+  `documents/7C_PLAN.md`. Fresh setup and same-node two-rank recovery passed;
+  replacement-node/bitwise recovery remains unverified. 7D is next.
 - Do not stage, commit or push without explicit user approval.
 
 ## Execution and code

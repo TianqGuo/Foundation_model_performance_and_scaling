@@ -40,7 +40,9 @@ to understand the distinction. See [7B_PLAN.md](7B_PLAN.md).
   store memory. These supplement Kubernetes resource requests; they do not
   allocate physical Kubernetes GPUs by themselves.
 - `activeDeadlineSeconds`, `shutdownAfterJobFinishes` and `ttlSecondsAfterFinished`:
-  requested job lifecycle behavior, which still requires live verification.
+  requested job lifecycle behavior. The controller holds pods for evidence by
+  disabling automatic shutdown and removing TTL; explicit cleanup was verified
+  in the accepted run.
 
 ## Which Kubernetes configuration already exists?
 
@@ -51,8 +53,9 @@ must duplicate these settings.
 
 **Cluster prerequisites are not provisioned by this renderer.** Kubernetes nodes,
 NVIDIA device plugin, storage classes, KubeRay operator installation, namespace,
-PVC and Secret creation must be supplied separately. No live cluster has been
-configured or contacted by the implementation so far.
+PVC and Secret creation are supplied by `setup_cluster.py` on a fresh suitable
+VM, not by this renderer. The accepted fresh-install E2E run verified these
+prerequisites and the workload lifecycle; see [7C results](7C_PLAN.md).
 
 A Helm chart packages templates and values that generate manifests. Our Python
 renderer generates a RayJob directly. Installing KubeRay through its Helm chart

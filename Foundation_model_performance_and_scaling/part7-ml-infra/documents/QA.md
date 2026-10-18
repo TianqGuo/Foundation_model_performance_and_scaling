@@ -309,20 +309,22 @@ KubeRay separately from submission of these workload manifests.
 See the [generated RayJob example](examples/7C_RAYJOB_EXAMPLE.yaml),
 [manifest comparison guide](MANIFEST_GUIDE.md), [7C plan](7C_PLAN.md) and
 [runbook](7C_RUNBOOK.md). The example uses placeholder image/node values and is
-for reading. The implementation has CPU checks; image build/publication, live
-Kubernetes execution, fresh-cluster recovery and cleanup remain unverified.
+for reading. The bounded 7C fresh-install E2E run is now reviewed and complete,
+including actual GPU training, pinned Hub restore and job cleanup; see 7C_PLAN
+for tested settings and same-node recovery limits.
 
 ### Why does an Ubuntu Docker rental differ from an Ubuntu GPU VM for 7C?
 
 Ubuntu describes the userspace; it does not imply host administrative access.
 The checked Vast rental was an unprivileged Docker container lacking the required
 system/network capabilities. The checked Lambda rental was a KVM VM with systemd,
-sudo and two H100 GPUs. Its hardware passed preliminary checks but Kubernetes was
-not installed before deletion. `part7C.sh setup --cloud --with-hf-secret` now prepares
+sudo and two H100 GPUs. An initial VM was deleted after hardware checks; a later VM completed fresh
+Kubernetes installation and the bounded E2E experiment. `part7C.sh setup --cloud --with-hf-secret` now prepares
 a fresh suitable VM; `--check` only previews its configuration. The setup does not
 replace the host CUDA toolkit. CUDA 13.x comes from the separate training image.
 Its same-node PVC survives pod replacement, while Hub backup is needed before VM
-deletion. GPU preflight and the full recovery experiment still require cloud review.
+deletion. Fresh setup, GPU preflight and the bounded recovery experiment have
+passed cloud review; replacement-node recovery remains outside that result.
 
 ### Do I need manual stage-by-stage commands or to copy data from my laptop?
 
@@ -373,8 +375,9 @@ optimizer, scheduler and recorded RNG/data state; uploading files alone does not
 prove recovery. The current upload receipt is not itself included in that
 checkpoint upload. If the VM/PVC is lost, select the repository and revision from
 retained evidence or HF history; automatic discovery after controller loss is not
-implemented. Complete 7C training/recovery verification remains pending until its
-cloud experiment passes and the evidence is reviewed.
+implemented. The bounded 7C experiment has now passed and its synced evidence
+was reviewed locally, including a rerun of the recovery checks. This verifies
+same-node restoration, not replacement-node or bitwise equivalence.
 
 See [checkpoint transfer code](../infrastructure/7c_kuberay/checkpoint_transfer.py)
 and [experiment orchestration](../infrastructure/7c_kuberay/experiment.py).

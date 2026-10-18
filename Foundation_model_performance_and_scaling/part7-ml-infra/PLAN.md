@@ -1,6 +1,6 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-12
+Updated: 2026-10-17
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
@@ -12,6 +12,15 @@ Hub download into a fresh path, a new Ray runtime, exact model/Adam/scheduler/sa
 worker RNG fingerprints and trainer step/data restoration, followed by sharded
 updates/evaluation/checkpointing. Driver RNG, vLLM server state and replacement-node
 recovery are outside this claim; broader numerical/tokenizer parity remains unverified.
+
+7C is complete at its bounded same-node scope. Reviewed fresh-install E2E run
+`part7-e2e-20261018-031219` on two H100 80 GB GPUs passed GPU preflight,
+training/interruption/private-Hub restore, native state audits and four verified
+job cleanups. Local synced evidence was independently re-reviewed. 7D serving
+is next; no 7D implementation or cloud execution is included in this closeout.
+See [current 7C results](documents/7C_PLAN.md) and [runbook](documents/7C_RUNBOOK.md).
+Historical increment notes below describe the status at their original time;
+this summary, checklist and milestone documents state the current status.
 
 `infrastructure/7a_verl/part7A.sh --upload-hf` is the single cloud entry point:
 setup/reuse, automatic authentication/destination naming, data/model preparation,
@@ -259,8 +268,9 @@ recorded interests, not extra committed Part 7 milestones.
 - [x] Complete bounded 7A and review retained cloud evidence.
 - [x] Complete bounded 7B recovery and review retained evidence.
 - [x] Prepare first 7C container/manifest/GPU-preflight increment with CPU checks.
-- [ ] Confirm Kubernetes access/cost before cloud 7C execution.
-- [ ] Complete 7C and 7D. 7E requires a separate decision to continue.
+- [x] Confirm Kubernetes access and review fresh cloud 7C execution evidence.
+- [x] Complete bounded 7C and retain/review fresh E2E evidence.
+- [ ] Implement and verify 7D serving. 7E requires a separate decision to continue.
 
 All model execution is cloud-only. Local work is static/lightweight CPU checks.
 Resolved dependency pins, configuration, thin MATH adapters and a cloud launcher
@@ -526,3 +536,24 @@ User pasted clean setup and later GPU preflight/controller success were reviewed
 full wrapper cloud execution/training-recovery remains pending. Local orchestration
 tests simulate external systems and are not cloud E2E. No provisioning, Git commit/
 push, host dependency changes or edits to Parts 1–6.
+
+
+## 7C closeout and 7D handoff
+
+Accepted UTC run `part7-e2e-20261018-031219`: fresh K3s installation, automatic
+1,023/32 bundle preparation/staging, GPU preflight, baseline/interruption/pinned
+private-Hub recovery all passed on one Lambda VM with two H100 80 GB GPUs.
+Model/Adam/scheduler/saved worker RNG and trainer step/data audits passed across
+distinct worker pods/Ray runtimes, with step-2 -> step-3 and next indices
+`[78, 536, 279, 461]`. Optimizer calls/rank were 6/4/2. All four cleanup receipts
+verified. Local retention: 87 files / 1,292,168 bytes / zero checkpoint tensors;
+local `experiment.review` re-execution passed. Full checkpoint/manifest retained
+at `sclion/part7-7c-part7-e2e-20261018-031219-interrupt` revision
+`122e784fddc0a315a65e5ad9b2ed932dcc41b117`. See 7C_PLAN for image identity/timings.
+
+7C is complete within its accepted same-node scope. No automatic crash/reboot,
+replacement-node, vLLM server/driver RNG restoration, bitwise parity or scalability
+claim. Next review 7D's exported 7A model identity, compatible serving image and
+RayService/benchmark/restart plan before implementation/provisioning. The existing
+training-state repository is not a serving-ready export. Keep larger-model/TP/PP,
+Kueue, broader recovery and 7E optional. No commits/pushes without approval.

@@ -5,8 +5,9 @@ forward Qwen2.5-Math-1.5B and MATH from Part 5.
 
 **Status:** 7A cloud smoke verified on two A100 40 GB GPUs: FSDP2 sharding,
 training/evaluation, checkpoint export, private Hugging Face uploads and loading
-a pinned uploaded model revision. 7B same-host training-state recovery is also verified; Kubernetes deployment
-and serving remain pending. See [PLAN.md](PLAN.md) for implementation details.
+a pinned uploaded model revision. 7B same-host training-state recovery and 7C
+fresh Kubernetes deployment with checkpoint recovery are also verified. 7D serving
+is next. See [PLAN.md](PLAN.md) for implementation details.
 
 ## Roadmap
 
@@ -41,6 +42,16 @@ trainer step/data state and the next batch also match. Each rank records 338
 sharded parameter tensors and two resumed optimizer calls. Native load took about
 7.6 s per rank, with about 20.6 s of audit overhead. Driver/vLLM RNG and
 replacement-node recovery are outside this bounded verification.
+
+## Measured 7C Kubernetes recovery
+
+One Lambda VM with two H100 80 GB GPUs: fresh K3s/KubeRay installation, automatic
+data staging, GPU preflight, native two-rank training, private Hub checkpoint
+retention and pinned restore in distinct RayJob pods/runtimes all passed.
+Step-2 state restored and resumed at step 3; optimizer calls per rank were 6/4/2
+for baseline/interruption/resume. All four job cleanup checks passed, and small
+local evidence was retained. Same-node recovery only; no driver/vLLM RNG,
+replacement-node or bitwise-equivalence claim. See [7C results](documents/7C_PLAN.md).
 
 ## Reference and validation
 

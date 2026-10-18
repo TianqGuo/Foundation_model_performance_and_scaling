@@ -1,693 +1,184 @@
-# 7C runbook — preparation increment
+# 7C runbook — verified cloud workflow
 
-The milestone runner can bootstrap a fresh Ubuntu GPU VM, build an image, and
-stage/submit/review the bounded RayJob experiment. Existing clusters can skip the
-bootstrap. [7C_PLAN.md](7C_PLAN.md) records pending live verification.
+7C passed its bounded fresh-install/training/recovery acceptance run. See
+[7C_PLAN.md](7C_PLAN.md) for measured results, pinned identities and limits.
+Historical implementation/failure notes remain in the root [PLAN.md](../PLAN.md).
 
-## Normal one-command cloud workflow
+## One-command cloud execution
 
-Deliver the latest Part 7 source to the cloud VM first (Git clone/pull only includes
-user-approved published changes; rsync can deliver uncommitted source). The full
-repository clone already contains the tracked Part 5 train/validation JSONL files,
-grader, prompt and selection helper. A laptop-to-VM data copy is **optional**.
+Use a full Ubuntu x86_64 GPU VM with systemd, passwordless sudo, existing NVIDIA
+container runtime/driver and Docker. Initial setup requires exactly two GPUs,
+32 CPUs, 120 GiB host RAM and 200 GiB free host disk. The verified VM had two H100
+80 GB GPUs, 52 CPUs and about 442 GiB RAM. An ordinary restricted Docker rental
+is not a Kubernetes host. Agree hardware/spending cap before paid provisioning.
 
-From Part 7 on the current verified VM:
+Clone/pull the full project after user-approved source publication, then enter
+Part 7. Git operations are never performed automatically. Rsync is an alternative
+for uncommitted source; exclude credentials, `.git`, `.venv*`, caches and results.
+The Git clone includes the Part 5 JSONL source data and reference code.
 
-```bash
-bash infrastructure/7c_kuberay/part7C.sh e2e --cloud
-```
-
-On a future clean VM, require an actual fresh-install test:
+On a clean VM:
 
 ```bash
 bash infrastructure/7c_kuberay/part7C.sh e2e --cloud --fresh-setup
 ```
 
-Both use the user-reviewed published image ending `b1d8240...530fb8e8`; `--image`
-overrides it. No rebuild/publication is required for this host-controller wrapper.
-`--fresh-setup` refuses an existing K3s installation and never uninstalls it.
-Normal mode installs when K3s is absent, otherwise checks the existing cluster;
-partial/unhealthy installations stop for inspection rather than silently reset.
-Fresh setup prompts for the Hub token; a healthy existing setup reuses its Secret.
-
-The runner then uses Docker on the VM to prepare the accepted 1023/32 bundle in
-the published environment, with the Part 5 clone mounted read-only, GPU visibility
-disabled and no container network. No host pyarrow installation or model loading
-is needed for data preparation. It verifies all five accepted input hashes,
-selection settings and prepared output hashes. Existing valid data is reused;
-partial/different bundles are not silently overwritten. The PVC staging pod is
-still needed to move the VM-prepared bundle into the pod-accessible filesystem.
-
-The native experiment runs GPU preflight, three-step baseline, step-2 interruption,
-private Hub checkpoint upload/pinned fresh download and resume/state audit. Native
-per-phase evidence retention/cleanup remains in force; failure stops the wrapper
-and leaves diagnostics/resources. There is no automatic failure retry or cluster
-uninstall. The final `results/7c/part7-e2e-*/e2e_review.json` distinguishes fresh
-setup from cluster reuse and records successful stages. Its `experiment/` child
-contains the actual recovery report. Retain this evidence before VM deletion.
-
-`e2e --check` only validates local source hashes/image identity and performs no
-cloud operations. CPU orchestration tests use simulated external commands;
-**the complete new cloud E2E command has not yet passed on cloud**. The user-pasted
-clean setup and GPU preflight success are separate reviewed milestones.
-
-## Fresh GPU VM setup
-
-The reviewed Lambda diagnostics showed a KVM Ubuntu 22.04 VM with systemd,
-passwordless sudo, two H100 80 GB GPUs, 52 CPUs, 442 GiB RAM and NVIDIA container
-tooling. This is preliminary host suitability evidence, not a Kubernetes test;
-the instance was destroyed before installation. Ordinary Vast Docker rentals
-failed this prerequisite because they lacked host permissions.
-
-Deliver source using Git clone/pull after user-approved commits/pushes. For
-uncommitted source, rsync the Part 7 directory (excluding `.git`, `.venv*`, caches,
-credentials and `results/`) to the VM. The prepared data bundle is transferred
-separately before the experiment, as described below. No Git actions are automatic.
-
-From the Part 7 root on a **fresh, dedicated Ubuntu x86_64 GPU VM**:
+On an already prepared healthy cluster:
 
 ```bash
-# Preview objects locally or on cloud; performs no installation or host inspection.
-bash infrastructure/7c_kuberay/part7C.sh setup --check
-
-# Cloud VM only: installs Kubernetes and reads the Hub write token without echoing it.
-bash infrastructure/7c_kuberay/part7C.sh setup --cloud --with-hf-secret
-export KUBECONFIG="$HOME/.kube/part7-config"
-
-bash infrastructure/7c_kuberay/part7C.sh cluster \
-  --context default --node-name part7-gpu
+bash infrastructure/7c_kuberay/part7C.sh e2e --cloud
 ```
 
-`setup_cluster.py` refuses containers, existing clusters/storage and insufficient
-hardware before installing. It requires exactly two GPUs, at least 32 CPUs,
-120 GiB host RAM and 200 GiB free disk, plus existing NVIDIA driver/runtime,
-passwordless sudo and curl. It leaves the existing host CUDA toolkit and Docker
-configuration untouched. Docker remains useful for the separate image build.
+Fresh setup reads `HF_TOKEN` if present, otherwise prompts invisibly for a Hub
+write token. Existing setup reuses the Kubernetes Secret. Do not share tokens.
+`--fresh-setup` refuses existing K3s; it does not uninstall or reset anything.
+Normal mode installs only when K3s is absent; partial/unhealthy clusters stop for
+inspection. The existing published image is reused: no Docker Hub token or image
+rebuild is required for normal E2E runs.
 
-It installs candidate pins K3s `v1.32.13+k3s1`, NVIDIA device plugin `0.17.1` and
-KubeRay `1.4.2`; the bundled K3s Helm controller installs the charts. The K3s
-installer is downloaded from its official URL, retained and hashed in the setup
-receipt; its script itself is not immutable. K3s uses its own containerd with the
-NVIDIA default runtime. Setup waits for a Ready node, two advertised GPU resources,
-the operator, established RayJob API and Bound PVC, then applies our cluster checks.
-Actual GPU assignment/computation is verified separately by the image preflight.
+Default image:
 
-The created resources match runner defaults: node `part7-gpu`, namespace `part7`,
-PVC `part7-workspace`, and optional Secret `part7-huggingface` with key `token`.
-The operator runs in `default`. `--with-hf-secret` uses `HF_TOKEN` if already set,
-otherwise a hidden prompt; no CLI login is required. Without that flag, provide
-an existing Secret before the GPU preflight. Tokens and the private mode-0600
-kubeconfig never enter the retained result files.
+```text
+sclion/part7-training@sha256:b1d8240b348d2a036d311f19fe75784825613607129c1d93526cfa7f530fb8e8
+```
 
-The static 100 GiB RWO PV is pre-bound to this PVC, uses
-`/var/lib/part7-workspace`, and permits same-node head/worker sharing. The capacity
-is an advertised scheduling value, not a host filesystem quota. Its Retain policy
-preserves data on claim deletion; **destroying the VM destroys this storage**.
-Upload complete checkpoints to the Hub and retain lightweight evidence before
-releasing the VM. This is not a multi-node storage solution.
+`--image`, `--part5-root`, `--data`, `--name` and `--output` allow overrides.
+`e2e --check` validates references/image identity only; it is not a cloud test.
 
-Receipts and credential-free setup objects are under `results/7c/setup_*`.
-A partial installation is left for diagnosis; this helper refuses a general rerun over an existing cluster. A verified early
-kubeconfig-write failure can use the continuation command below. Inspect `sudo journalctl -u k3s` and
-`kubectl get pods -A` on failure; do not uninstall or delete storage before retention.
-Image building/publication, the GPU preflight and recovery experiment remain
-separate steps below. No live bootstrap has been verified yet.
+## Stages and expected behavior
 
-## Cluster and image requirements
+1. Install/check K3s, NVIDIA plugin, KubeRay, Ready node, GPU capacity, API and PVC.
+2. Generate/reuse the portable 1,023/32 data bundle from Part 5 in a no-network,
+   no-GPU Docker container. Input/output hashes and selection settings are checked;
+   the Part 5 mount is read-only. No laptop copy or host pyarrow install is needed.
+3. Copy the verified bundle onto the shared PVC through a temporary CPU staging
+   pod. Docker and K3s use separate image stores; initial pulls may happen twice.
+4. Run preflight with two GPU actors: CUDA computation, distinct allocation,
+   required imports and mounted-Secret Hub authentication.
+5. Run three-step baseline, separate training interrupted after a complete step-2
+   checkpoint, private Hub upload, exact-revision download and fresh-RayJob resume
+   at step 3. Native state audits compare against the uninterrupted reference.
+6. Retain logs/placement/configuration/status and review recovery. Clean successful
+   phase RayJobs/clusters/pods only after evidence collection. Failures retain
+   resources for inspection and stop the workflow.
 
-The initial layout requires one selected node with two whole GPUs, at least
-26 allocatable CPUs and 104 GiB memory for the Ray pods, plus capacity for system,
-operator and submission pods. GPU model/memory and budget must be agreed before
-provisioning. The NVIDIA device plugin must advertise `nvidia.com/gpu` resources.
-The manifest requests one worker with two GPUs, not two independently placed pods.
-The head requests no GPU. This retains the same-node two-rank topology used in 7B.
+The final message is `7C E2E completed; retain and review ...`. Its output contains
+`e2e_review.json`, `cluster_check.json`, optional `setup/`, and `experiment/`.
+Check `success`, `fresh_setup_verified`, `experiment/recovery_review.json`, and
+per-phase `cleanup.json` before releasing cloud resources. `fresh_setup_verified`
+is false for a cluster-reuse run, even if the training experiment succeeds.
 
-Use an existing namespace, a durable PVC accessible to UID/GID 1000, and a Secret
-with a `token` key containing a suitable Hub token. Both Ray pods mount the PVC
-at `/workspace` and the token read-only at `/run/secrets/huggingface/token`.
-Both pods select the same node so an initial ReadWriteOnce volume can be shared
-there. Confirm storage capacity, attachment semantics and filesystem permissions;
-allow substantial capacity for caches and complete optimizer checkpoints when
-training is added. Shared-memory mounts are 2 GiB on the head and 16 GiB on the
-worker. They consume pod memory; do not subtract them from resource planning.
+The accepted local evidence is `results/7c/part7-e2e-20261018-031219` (UTC run ID).
+The dependency-light reviewer was rerun locally and all four cleanup receipts
+verified. Checkpoint tensors are not required on the laptop for this review.
 
-KubeRay v1.4.2 is the candidate operator pin. The manifest's actual CRD schema has
-been checked, but live operator compatibility and storage/GPU setup are pending.
-Use a registry image accessible to the cluster; `--pull-secret` optionally names
-an existing registry Secret. Never put credential values into source or manifests.
+## Storage, authentication and retention
 
-## Prepared commands
+Defaults: node `part7-gpu`, namespace `part7`, operator in `default`, PVC
+`part7-workspace`, Secret `part7-huggingface` with key `token`. Pods use UID/GID
+1000 and mount the Secret as a read-only file. The private user kubeconfig is
+`$HOME/.kube/part7-config` (mode 0600), outside results. Never copy it into evidence.
 
-From the Part 7 root, render locally with an actual published registry digest:
+The pre-bound 100 GiB RWO PV uses `/var/lib/part7-workspace`. Same-node head/worker
+pods can share it; it is not a multi-node filesystem or enforced disk quota.
+Retain policy protects against claim deletion, not VM destruction. Keep full
+state on HF and copy lightweight controller evidence before deleting the VM.
+Automatic external backup of the complete controller evidence is not implemented.
+
+Accepted full checkpoint: `sclion/part7-7c-part7-e2e-20261018-031219-interrupt` at
+`122e784fddc0a315a65e5ad9b2ed932dcc41b117` (private HF dataset). The checkpoint manifest is
+uploaded with the state. `hf_checkpoint.json` records repository/revision on PVC
+and in controller evidence; the recovery manifest pins those values. The receipt
+itself is not included in that checkpoint upload. If the controller is lost,
+select the repository/revision using retained evidence or HF history.
+
+From local Part 7, an optional evidence copy is:
 
 ```bash
-bash infrastructure/7c_kuberay/part7C.sh render \
-  --image REGISTRY/PART7_IMAGE@sha256:ACTUAL_64_HEX_DIGEST \
-  --node-name ACTUAL_KUBERNETES_GPU_NODE \
-  --namespace part7 --pvc part7-workspace --secret part7-huggingface \
-  --name part7-7c-preflight --output results/7c/preflight.json
+rsync -az --partial -e "ssh -i ~/.ssh/id_ed25519" \
+  ubuntu@CLOUD_IP:~/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part7-ml-infra/results/7c/RUN_NAME \
+  ./results/7c/
 ```
 
-The uppercase values are placeholders, not runnable defaults. Output is JSON,
-which Kubernetes accepts as a manifest. Existing output files are rejected to
-avoid replacing a reviewed manifest accidentally. Rendering creates no resources.
+Replace host/run placeholders; create local `results/7c/` first. Copy only the
+controller run directory, not `/workspace` checkpoint/model directories.
 
-For the eventual cloud image build, select a compatible custom base image reference. The build helper pulls it and
-resolves its registry digest automatically. It must provide uv, git and CUDA 13 development tools:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh build --cloud \
-  REGISTRY/BASE_IMAGE@sha256:ACTUAL_64_HEX_DIGEST part7-training:7c
-```
-
-The helper uses Docker directly or passwordless sudo on a Lambda VM, and retains
-base-pull/build logs plus image/base identities under `results/7c/image_build_*`.
-A tag can be supplied instead of the base digest; the Dockerfile always receives
-the resolved digest. Inherited base-image entrypoints are cleared so KubeRay can
-start its own commands.
-
-This builds the isolated locked environment and source once. It does not download
-a model or dataset, push an image or deploy a job. The printed local configuration
-ID is not the published registry manifest digest required by the renderer.
-The Dockerfile has not yet been build-tested; retain build output and resolve any
-base-image compatibility issues before deployment. Parts 1–6 images/environments
-are preserved. Git clone/pull remains the preferred delivery method for approved
-source commits; rsync can deliver uncommitted source to the cloud build machine.
-
-## What the preflight will establish
-
-Once cluster access and image publication are ready, the rendered RayJob connects
-to the existing Ray cluster and runs two concurrent GPU probes. Success requires
-two distinct GPU assignments on the same worker pod, one visible CUDA device per
-actor, a successful CUDA kernel, compatible imports and Hub Secret authentication.
-It saves `preflight.json` and `job_status.json` under
-`/workspace/runs/<job-name>`. No model loading or training occurs in this probe.
-
-The job is bounded to 15 minutes, with no automatic retry and cluster shutdown
-requested after completion. A 10-minute finished-job TTL is configured. These
-are intended settings, not verified cleanup behavior; retain pod/operator logs
-and Kubernetes status before automatic cleanup, and verify actual lifecycle.
-The external PVC and Secret must remain available for later jobs. The submission
-controller described below retains evidence before optional cleanup. Native
-training/recovery phases are now prepared as described below; cloud verification
-remains pending.
-
-## Existing-cluster training/recovery increment
-
-`infrastructure/7c_kuberay/run_7c.py` now composes the unchanged 7A workload,
-connects with `ray.init(address="auto")`, prepares the model on a two-GPU worker
-actor and runs native verl's TaskRunner on that worker without reserving a GPU
-for the coordinator. The preparation actor is released before training starts.
-The launcher explicitly merges verl runtime defaults when attaching to Ray.
-Existing 7B trainer/worker audits implement checkpoint-boundary interruption,
-manifest creation and native full-state resume; model/data/source/environment
-identities must match. Separate phase RayJobs are required for fresh-runtime
-recovery. This code is CPU-checked, not cloud-verified. Fifteen 7C CPU tests pass,
-including all four phase manifests against the pinned CRD. Cloud paths must stay
-on the PVC under `/workspace`; recovery also requires the same recorded image digest.
-
-The renderer now accepts `--phase preflight|baseline|interrupt|resume` and
-`--checkpoint /workspace/.../global_step_2` for resume. Use a unique `--name`
-for each job/output. Training phases have a 45-minute active deadline. The
-prepared data bundle must exist at `/workspace/data/step2_math_final`; automatic
-model downloads use the mounted Hub Secret and shared `/workspace/models`.
-No token is passed in Ray runtime environment or generated manifests.
-
-Inside a prepared pod, the milestone runner can invoke a phase directly:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase interrupt \
-  --output /workspace/runs/7c-interrupt
-bash infrastructure/7c_kuberay/part7C.sh phase --cloud --phase resume \
-  --checkpoint /workspace/runs/7c-interrupt/checkpoints/global_step_2 \
-  --output /workspace/runs/7c-resume
-```
-
-Normally Kubernetes invokes these phases through rendered RayJobs. End the
-interrupted RayJob/cluster before starting the resume RayJob; invoking both in
-the same surviving runtime does not establish fresh-runtime recovery. The
-submission controller and optional direct Hub checkpoint transfer are implemented. PVC manifests can be resumed, but durable external backup and
-Kubernetes lifecycle/evidence review remain required before 7C completion.
-
-For a concrete generated deployment document and comparison with 7A/7B, see
-[the manifest guide](MANIFEST_GUIDE.md) and [RayJob example](examples/7C_RAYJOB_EXAMPLE.yaml).
-
-## Submit, monitor and retain one job
-
-`job_control.py`, exposed by `part7C.sh job`, now handles one generated RayJob.
-Its CPU check makes no Kubernetes API calls:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh job --check \
-  --manifest results/7c/preflight.json
-```
-
-Once cluster access, image, PVC/Secret, workload data and the hardware/budget are
-ready, submit from a machine with configured `kubectl` access. All GPU execution
-remains on the cloud cluster; the controller itself only runs Kubernetes commands:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh job --cloud \
-  --manifest results/7c/preflight.json \
-  --context ACTUAL_KUBECTL_CONTEXT \
-  --output results/7c/preflight_deployment \
-  --cleanup-on-success
-```
-
-The context placeholder must identify the intended cluster. Use unique manifest
-job names and fresh evidence directories. The controller accepts the exact JSON
-output from the renderer, not edited manifests or the reading-example YAML.
-It performs server-side dry-run validation, refuses an existing RayJob of that
-name, creates the job and monitors its RayJob status. Polling has the configured
-job deadline plus five minutes; Kubernetes commands have individual timeouts.
-
-The submitted copy changes `shutdownAfterJobFinishes` to `false`, so pods stay
-available during evidence collection. It records this actual submitted manifest,
-job UID, Kubernetes status, pod placement/images/resources and available pod logs.
-At success it retrieves the full Ray driver log using the head's local dashboard
-and saves `workspace_evidence.tar.gz`. The archive includes run configuration,
-identities, metrics/diagnostics, rollouts, audits and checkpoint manifests; tensor
-files, checkpoint payloads, model exports and caches are excluded. No archive is
-extracted automatically, and no Secret contents or pod environment values are
-queried for evidence.
-
-`--cleanup-on-success` deletes only the newly created RayJob after required logs,
-workspace evidence and successful phase status are retained. It verifies that
-its UID still matches and waits for the associated RayCluster and Ray pods to
-vanish. The receipt preserves the PVC/Secret scope. This is lifecycle checking,
-not a claim of checkpoint backup or a check that rented nodes have been released.
-
-On failure, timeout or retention error, resources remain for inspection. Without
-`--cleanup-on-success`, even a successful job leaves its cluster available; inspect
-`submission.json` and use the recorded context/namespace/name for later cleanup.
-Retained GPU pods continue occupying resources until removed. Cluster/node rental
-cleanup is separate from RayJob deletion.
-
-Run preflight, baseline, interruption and resume as separate jobs. For recovery,
-clean up the interrupted job/cluster first, then render a new resume job pointing
-to the checkpoint still on the same PVC. A new pod/runtime is intended, not a
-verified replacement physical node. Direct Hub backup/restore is prepared as described below. Portable bundle staging and an end-to-end multi-phase experiment wrapper are
-now prepared as described below; registry publication remains external. Do not treat these prepared commands as cloud-verified.
-
-Validation: 25 CPU tests pass, including controller success/failure, evidence-before-
-cleanup, UID mismatch, lightweight archive exclusions and pinned schema checks.
-No live Kubernetes API was contacted during development.
-
-## Direct private Hub checkpoint retention and restore
-
-`checkpoint_transfer.py` reuses 7B's checkpoint manifest/layout/hash verification,
-with KubeRay-specific Secret authentication and persistent paths. It reads the
-existing `token` Secret file, requires pod identity and private dataset repositories,
-and never exports the token into runtime settings. Downloads are byte transfers,
-not tensor deserialization. Training-state restoration is still audited by verl's
-native resume and the 7B hooks afterward.
-
-To retain the complete step-2 checkpoint, add `--upload-checkpoint-repo auto` when
-rendering the interruption manifest:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh render \
-  --image REGISTRY/PART7_IMAGE@sha256:ACTUAL_64_HEX_DIGEST \
-  --node-name ACTUAL_KUBERNETES_GPU_NODE --name part7-7c-interrupt-UNIQUE \
-  --phase interrupt --upload-checkpoint-repo auto \
-  --output results/7c/interrupt.json
-```
-
-The lowercase Kubernetes name must replace the `UNIQUE` placeholder. `auto` selects
-`ACCOUNT/part7-7c-JOB_NAME`, a private dataset repository. An explicit repository ID
-is also supported. Upload verification records the pinned commit in
-`/workspace/runs/JOB_NAME/hf_checkpoint.json`. The controller includes that receipt
-in its lightweight evidence archive. With upload selected, phase success is recorded
-only after upload and remote inventory checks succeed; an upload failure blocks
-success cleanup. Full state transfers cloud-to-Hub without passing through a laptop.
-
-Render a separate resume RayJob using the recorded repository and full 40-hex commit:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh render \
-  --image REGISTRY/PART7_IMAGE@sha256:ACTUAL_64_HEX_DIGEST \
-  --node-name ACTUAL_KUBERNETES_GPU_NODE --name part7-7c-resume-UNIQUE \
-  --phase resume --checkpoint /workspace/restored/UNIQUE/global_step_2 \
-  --restore-repo ACCOUNT/RECORDED_REPOSITORY --restore-revision FULL_40_HEX_COMMIT \
-  --output results/7c/resume.json
-```
-
-Use a fresh destination under `/workspace`; existing directories are rejected.
-The launcher downloads the selected commit, verifies every checkpoint file hash,
-then composes native resume settings. A partial download remains for inspection;
-choose another fresh destination after a failed attempt. No latest-branch fallback
-or automatic overwrite occurs. Omit restore options to resume an already verified
-PVC checkpoint. Upload can also be enabled for baseline/resume final checkpoints.
-
-These options are available directly through `part7C.sh phase` as well. Transfer
-helpers use the installed pinned Hub client and large-folder upload path already
-used in reviewed 7B; no dependency upgrade is introduced. Public uploads remain
-unsupported. Hub inventories alone do not establish training-state recovery.
-Thirty-two 7C CPU tests pass, including mocked authentication/private upload,
-pinned download, invalid revisions, fresh paths and renderer/controller integration.
-Actual 7C Hub transfers, image and GPU Kubernetes execution remain unverified.
-
-Reference: [Hub downloads](https://huggingface.co/docs/huggingface_hub/guides/download)
-and [Hub uploads](https://huggingface.co/docs/huggingface_hub/guides/upload).
-
-## End-to-end bounded experiment
-
-`part7C.sh experiment` now coordinates portable data staging, preflight, baseline,
-controlled interruption with direct Hub upload, a fresh pinned Hub download/resume,
-evidence review and successful-job cleanup. The image must already be built and
-published; Kubernetes, KubeRay, GPU nodes, namespace, PVC and Hub Secret must
-already be available. This workflow is CPU-tested, not cloud-verified.
-
-From the Part 7 root, check the existing prepared data bundle and initial manifest
-without Kubernetes contacts (replace the placeholders with actual values):
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh experiment --check \
-  --image REGISTRY/PART7_IMAGE@sha256:ACTUAL_64_HEX_DIGEST \
-  --node-name ACTUAL_KUBERNETES_GPU_NODE
-```
-
-After hardware/budget and cluster prerequisites are confirmed, one controller
-command runs the sequence:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh experiment --cloud \
-  --image REGISTRY/PART7_IMAGE@sha256:ACTUAL_64_HEX_DIGEST \
-  --node-name ACTUAL_KUBERNETES_GPU_NODE --context ACTUAL_KUBECTL_CONTEXT
-```
-
-Optional arguments are `--data PATH`, `--namespace NAME`, `--pvc NAME`,
-`--secret NAME`, `--pull-secret NAME`, `--name LOWERCASE_UNIQUE_RUN_NAME` and
-`--output FRESH_LOCAL_DIRECTORY`. Defaults discover the existing local
-`results/7a/step2_math_final` bundle and create a UTC-named directory under
-`results/7c`. No manual data copy or phase-by-phase command sequence is required.
-If the prepared bundle is absent, prepare it with the existing 7A adapter first;
-the experiment does not recreate historical dataset selections or change grading.
-
-The sequence is:
-
-1. Package only manifest-recorded data/prompt/grader files after local hash checks.
-   A temporary CPU pod on the selected node mounts the existing PVC and verifies
-   the copied bundle at `/workspace/data/step2_math_final`. Matching existing data
-   can be reused; mismatched data is never overwritten. The staging pod has no
-   GPU or Hub Secret and is removed after its UID is checked.
-2. Run GPU preflight as a RayJob, retain evidence and verify cleanup.
-3. Run a three-step baseline RayJob, retain evidence and verify cleanup.
-4. Run an interruption RayJob through completed step 2. Upload full state directly
-   to a run-specific private Hub dataset repository, retain the commit receipt,
-   then retain evidence and verify cleanup.
-5. Start a separate resume RayJob. Download that exact commit into
-   `/workspace/restored/RUN_NAME/global_step_2`, verify hashes, restore/audit state
-   and finish step 3. Retain evidence and verify cleanup.
-6. Reuse the 7B restoration review and require distinct worker pod UIDs/Ray node
-   IDs for all training phases, the same physical GPU node/image digest, matching
-   Hub transfer receipts, native fresh-path resume, verified cleanup, actual
-   two-rank sharding and 6/4/2 optimizer calls per rank. Write `recovery_review.json`
-   and per-phase controller timings.
-
-The local evidence extraction accepts only regular files, rejects tensors/path
-escapes/links, and limits expanded data to 256 MiB. It loads no checkpoint tensors.
-Full state stays on the PVC and Hub, rather than being downloaded to the controller.
-The experiment stops on any failed phase/retention/review; failed RayJobs remain
-for inspection. It does not retry automatically or restart crashed containers.
-A failed experiment needs diagnosis and a new unique run name/fresh output path.
-Partial incoming/downloaded data is preserved; PVC/Secret deletion and rented-node
-release are separate decisions after evidence review.
-
-Validation: 40 CPU tests pass, including synthetic data packaging, mocked staging,
-four-phase ordering, pinned fresh restore, safe evidence extraction and review
-requirements. No real cluster, Hub transfer, Docker build, model or GPU was used.
-The staging image requires `tar` for `kubectl cp`; the Dockerfile now checks it.
-[Official copy command reference](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_cp/).
-
-## Read-only cluster prerequisite inspection
-
-Before the experiment, an existing cluster can be checked without creating jobs:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh cluster \
-  --context ACTUAL_KUBECTL_CONTEXT --node-name ACTUAL_KUBERNETES_GPU_NODE \
-  --operator-namespace ACTUAL_OPERATOR_NAMESPACE \
-  --output results/7c/cluster_prerequisites.json
-```
-
-`--operator-name` defaults to `kuberay-operator`; namespace defaults to `default`.
-Override these for the actual installation. Workload namespace/PVC defaults match
-other 7C commands. This invokes only metadata `kubectl get` operations and does
-not query Secrets, create resources, load models or execute GPUs.
-
-The check requires a ready/schedulable node whose hostname label matches our
-current selector, at least 26 allocatable CPUs/104 GiB RAM/two advertised GPUs,
-a Bound PVC with at least 100 GiB capacity and RWO/RWX access, an available
-candidate v1.4.2 operator and an established served RayJob v1 API. RWOP is rejected
-because it cannot support our simultaneous head/worker mounts. Current pod templates
-have no explicit node-taint tolerations; restrictive node taints require a reviewed
-placement/toleration change before execution. Capacity is not free capacity, actual
-GPU memory, PVC free disk, registry access or a storage/network performance test.
-The live staging/GPU preflight and experiment remain necessary. This helper does
-not install missing prerequisites or prove image/operator compatibility by itself.
-
-Validation: 46 7C CPU tests pass, including fabricated capacity/storage/operator/API
-cases and proof that inspection uses only read operations. No real cluster was
-contacted; cluster access, hardware budget and image build/publication are pending.
-
-## Early kubeconfig-write failure (2026-10-13)
-
-The first user-run installation reached the private kubeconfig write, then failed
-because `Path.open()` does not support `opener`. The corrected helper uses builtin
-`open()` and CPU-tests actual mode-0600/exclusive creation. K3s installation may
-already have completed; do not rerun fresh setup or uninstall it.
-
-After delivering the corrected `setup_cluster.py` to the same VM, identify the
-original failed directory with `ls -d results/7c/setup_*`, then run:
-
-```bash
-bash infrastructure/7c_kuberay/part7C.sh setup --cloud --with-hf-secret \
-  --continue-after-k3s results/7c/setup_ORIGINAL_TIMESTAMP
-```
-
-Replace the placeholder with the original directory. Continuation verifies its
-failed receipt, K3s pin, original GPU identities and single `part7-gpu` node.
-It requires that kubeconfig, storage and later setup objects do not yet exist,
-skips K3s reinstallation, and saves a new receipt. Other partial failures need
-inspection; this is not a general retry mechanism. Do not print kubeconfig or
-Secret contents when sharing diagnostics. Cloud continuation is pending review.
-
-## NVIDIA plugin DaemonSet desired=0
-
-The pinned chart requires an NVIDIA feature label or `nvidia.com/gpu.present=true`.
-This setup checks physical GPUs and now adds the latter label before installing
-charts; it does not install Node Feature Discovery. For an already running setup
-with Ready node/operator but no GPU-plugin pod, repair the verified GPU node:
-
-```bash
-sudo k3s kubectl label node part7-gpu nvidia.com/gpu.present=true --overwrite
-sudo k3s kubectl rollout status daemonset/part7-nvidia-nvidia-device-plugin \
-  -n kube-system --timeout=180s
-sudo k3s kubectl get node part7-gpu \
-  -o jsonpath='{.status.allocatable.nvidia\.com/gpu}{"\n"}'
-```
-
-Expected allocatable GPU count is `2`. MPS daemon desired=0 is expected; this
-workload does not use MPS. If the setup process is still waiting, let it finish.
-If it has timed out, retain its receipt and inspect before another setup invocation;
-the early-kubeconfig continuation does not support this later failure boundary.
-Reference: [pinned chart affinity](https://github.com/NVIDIA/k8s-device-plugin/blob/v0.17.1/deployments/helm/nvidia-device-plugin/values.yaml).
-
-
-Reviewed Lambda setup receipt: `setup_20261014T040415Z` reports success after the
-manual GPU label repair, with two advertised H100 GPUs, Bound PVC, pinned operator/
-K3s and created Hub Secret. This establishes bootstrap/API/storage readiness, not
-GPU kernel execution or token validity. New VMs must receive both source fixes.
-The training image still needs a compatible base reference and registry destination;
-registry publication and actual image preflight have not been performed.
-
-## Docker Hub build and publication
-
-User-selected public destination: `sclion/part7-training`. Deliver the latest source
-first; a Git clone does not include agent edits until user-approved commits/pushes.
-For uncommitted source, rsync `infrastructure/` and `workloads/` to their matching
-Part 7 paths on the VM, excluding caches, `.venv*`, `.env*`, `*.pem` and `*.key`.
-
-On the cloud VM, from Part 7:
+## Image build/publication — only when the image changes
 
 ```bash
 bash infrastructure/7c_kuberay/part7C.sh image --check --publish
 bash infrastructure/7c_kuberay/part7C.sh image --cloud --publish
 ```
 
-The second command requests a Docker Hub personal access token with write
-permission at a hidden prompt (or reads `DOCKERHUB_TOKEN` already in the environment).
-Create it in Docker account settings → Personal access tokens. Do not paste tokens
-into chat or source. Docker authentication uses stdin and a temporary configuration
-outside results; it is removed afterwards. No manual Docker login is required.
+Default public destination: `sclion/part7-training`. Publication asks invisibly for
+a Docker Hub write token (or reads `DOCKERHUB_TOKEN`); it uses stdin and isolated
+temporary authentication. No manual login required. Sudo-created auth files are
+removed using the matching privilege level. The allowed build context excludes
+datasets, results, checkpoints, Git metadata and common credential files.
 
-Default base: `nvidia/cuda:13.0.3-devel-ubuntu22.04`; `uv` is copied from its official
-`0.12.19` binary image. Both are pulled/resolved to immutable digests for the build;
-git, certificates and tar are installed inside the training image. Existing host
-CUDA 12.8 and Parts 1–6 environments are untouched. These candidates remain
-cloud-build/import unverified. `--base` can override the base when compatibility
-is reviewed. `--repository` overrides the destination.
+The default base is NVIDIA CUDA 13.0.3 development/Ubuntu 22.04; uv 0.12.19 comes
+from its official binary image. Both tags resolve to recorded immutable digests.
+Host CUDA 12.8 need not be replaced. The image supplies its own Python 3.12.14,
+locked 7A stack, wget and a real UID/GID 1000 user. Before push, a no-network,
+no-GPU check verifies tools, identity, writable HOME and PyTorch compiler-cache
+import. Real GPU/import compatibility is tested in Kubernetes preflight.
 
-The command reuses the build helper, runs only a no-network/no-GPU Python-version
-startup check, then publishes a timestamped tag and verifies a pull of the
-reported registry digest. Public upload exposes source/dependencies; the allowed
-context excludes data/results/checkpoints/common credential files. Use the reviewed
-official base; arbitrary custom bases require their own content review.
-No model loads, GPU preflight or training occur in this action.
+BuildKit caches uv outside image layers, sets dependency ownership during
+installation and uses COPY ownership flags. Source-only changes can reuse the
+large dependency layer if base/environment inputs and local cache remain unchanged.
+No cache survives a VM deletion unless separately exported. Do not prune it during
+builds. The early 16.7 GB ownership-copy layer was removed; observed export-stage
+time fell from 515.8 to 240.3 seconds across those two builds, not a controlled
+benchmark. Later small-layer fixes exported in about 0.2 seconds with cache reuse.
 
-Retain `results/7c/image_*/image_build.json`, `image_publish.json` and build/push logs.
-The publication receipt's `image` field is the reference to pass to `render` or
-`experiment`; local Docker IDs are not accepted as registry identities. Failures
-leave build logs/local image for diagnosis; never claim publication or GPU
-compatibility solely from a successful build. Registry upload is opt-in through
-`--publish`; no Git staging, commit or push is performed.
+Keep `image_build.json`, `image_publish.json` and logs. The publication receipt's
+`image` field is the registry reference; a local Docker configuration ID is not
+an interchangeable identity. Existing images stay usable by their old digests.
 
-References: [uv Docker integration](https://docs.astral.sh/uv/guides/integration/docker/),
-[Docker login](https://docs.docker.com/reference/cli/docker/login),
-[Docker push](https://docs.docker.com/reference/cli/docker/image/push).
-
-## Publication succeeded but temporary-auth cleanup failed
-
-A sudo Docker build can create root-owned `buildx` directories under its temporary
-configuration. The old Python TemporaryDirectory cleanup could not remove those
-files, raising PermissionError after successful publication. The controller now
-uses privileged cleanup of only its newly allocated temporary directory. This
-controller fix does not require rebuilding the already published training image.
-
-For the reviewed failed cleanup, remove only the exact path printed in that error:
-
-```bash
-sudo rm -rf -- /tmp/part7-docker-auth-ei1zerx0
-```
-
-Do not use a wildcard or remove your persistent Docker configuration. The image
-receipt was saved before cleanup failed; retain `image_build.json`,
-`image_publish.json` and logs. The two InvalidDefaultArgInFrom warnings are static
-checks of empty Dockerfile ARG defaults; this build supplied valid digest arguments
-and completed, so those warnings did not cause the cleanup error. GPU preflight
-is still required before training.
-
-## Layer-size correction for repeated builds
-
-The first cloud image history showed a **16.7 GB final recursive-chown layer**,
-compared with an 8.49 GB installation layer and only about 316 KB project source.
-Ownership changes in a later layer copied substantial installed content up.
-The Dockerfile now sets dependency ownership in its installation layer, uses
-`COPY --chown=1000:1000` for source, and mounts uv's cache through BuildKit with
-`UV_LINK_MODE=copy`. Cache contents are reused on that build machine but excluded
-from exported images. The locked dependencies, Python and CUDA base are unchanged.
-
-After delivering the updated Dockerfile and controller helpers, run the existing
-`part7C.sh image --cloud --publish` command. One dependency-layer rebuild is needed
-for this layout correction; cache downloads are reused afterwards. Subsequent
-source-only changes should reuse the expensive installation layer, provided the
-base/uv digests and environment inputs remain unchanged and Docker cache is retained.
-The first optimized build must be checked with `docker history` and the GPU
-preflight. Actual new image size/build time/transfer savings have not been measured.
-Do not prune the build cache while testing. A fresh VM has no local build cache.
-The existing published image remains available by its recorded digest.
-
-
-Node-readiness correction: user logs show successful K3s startup and a Ready
-`part7-gpu` after the initial named-node wait failed; exact original stderr was
-not retained, so a registration race is suspected, not proved. Setup now polls
-registration/transient API availability before waiting for Ready, with progress
-messages. `--continue-after-k3s ORIGINAL_FAILED_DIRECTORY` also permits reusing an
-exact, user-owned mode-0600 kubeconfig before storage/chart creation, without
-reinstallation. Existing symlinks/different configs are rejected. Sixty CPU tests
-pass; one optional schema test skipped. Cloud continuation still needs review.
-
-## Clean setup retest after the node-registration fix
-
-The user requested testing the normal setup path, not another continuation.
-Two complete installer control-flow CPU tests now exercise real credential-file
-creation and final validation, mocking only host inventory/external commands.
-They cover delayed registration, label-before-chart ordering, asynchronous chart
-readiness, PVC/API validation, Secret creation and failure receipts. These do not
-constitute real Kubernetes E2E verification.
-
-For the current failed VM, setup stopped before the storage/chart creation stage.
-Keep repository/results and Docker images. Deliver the latest setup source first.
-Check that the cluster still has no application storage or workloads:
-
-```bash
-sudo k3s kubectl get pvc -A
-sudo k3s kubectl get pods -A
-sudo test ! -e /var/lib/part7-workspace && echo 'No Part 7 workspace storage exists'
-```
-
-If there are PVCs, non-system workload pods or a workspace directory, stop for
-review. Otherwise the dedicated test cluster can be uninstalled and the normal
-fresh setup rerun. The uninstall removes the Kubernetes datastore/pods/local
-Kubernetes storage; it does not rebuild/remove the separately stored Docker image.
-Existing receipts and repository files stay in place.
-
-```bash
-sudo /usr/local/bin/k3s-uninstall.sh
-mv "$HOME/.kube/part7-config" "$HOME/.kube/part7-config.before-retest-$(date -u +%Y%m%dT%H%M%SZ)"
-bash infrastructure/7c_kuberay/part7C.sh setup --cloud --with-hf-secret
-```
-
-Stop on any error. Do not use `--continue-after-k3s` for this test. After success:
+## Individual actions — diagnosis or targeted reruns
 
 ```bash
 export KUBECONFIG="$HOME/.kube/part7-config"
 bash infrastructure/7c_kuberay/part7C.sh cluster --context default --node-name part7-gpu
+kubectl get rayjobs,pods -n part7
+kubectl get events -n part7 --sort-by=.metadata.creationTimestamp
 ```
 
-Review the new setup receipt and then run the GPU preflight with the existing
-published image. A clean installation success proves bootstrap E2E only; the
-GPU RayJob and training/recovery experiment remain separate verification steps.
-Cloud clean-retest evidence remains pending.
-[K3s uninstall behavior](https://docs.k3s.io/installation/uninstall).
+`setup --cloud --with-hf-secret` bootstraps a fresh VM without training. `render`
+generates the workload RayJob; `job --check` validates it locally and `job --cloud`
+submits it. `experiment --cloud` assumes Kubernetes and a prepared bundle already
+exist; prefer `e2e` for normal use. Use each action's `--help` for exact options.
+For isolated preflight, render phase `preflight`, submit with an explicit context,
+fresh output and `--cleanup-on-success`; choose a unique job name for every retry.
 
-## RayJob exists but no cluster/pods: InvalidRayJobSpec
+## Troubleshooting
 
-The first preflight was rejected because the controller set
-`shutdownAfterJobFinishes=false` while retaining `ttlSecondsAfterFinished`.
-KubeRay rejects that combination. The fixed controller removes TTL while holding
-pods for evidence and uses its explicit post-retention cleanup instead. It also
-fails promptly on UID-scoped invalid-spec events and prints status transitions.
-The renderer's automatic-shutdown manifest remains valid as generated.
+| Symptom | Cause/action |
+| --- | --- |
+| `kubectl` not found | Check whether setup ran on this VM. Image building does not install Kubernetes. |
+| Node wait fails during startup | Current setup polls registration/API availability before waiting for Ready. Inspect `sudo journalctl -u k3s`; do not reinstall blindly. |
+| Plugin DaemonSet desired=0 | Pinned chart needs `nvidia.com/gpu.present=true`; current setup labels the hardware-verified node before chart creation. |
+| RayJob exists without pods, `InvalidRayJobSpec` | Current controller removes finished-job TTL when disabling automatic shutdown to retain evidence; it detects invalid-spec events promptly. |
+| Probes fail with missing wget | Use the accepted image or rebuild current Dockerfile; do not disable probes. |
+| `getpwuid(): uid not found: 1000` | Use the accepted image with a real passwd entry. Numeric USER alone is insufficient. |
+| PermissionError cleaning temporary Docker auth | Current publisher uses privileged cleanup for its exact allocated directory when Docker used sudo. Do not print auth contents. |
+| Docker ARG default warnings | Build supplies digest arguments; these warnings did not block accepted builds. |
+| Long first image pull/export | Inspect pod events/disk activity before restarting. Preserve caches; Docker and K3s stores differ. |
 
-Stop the waiting old controller with Ctrl-C. Retain its evidence and event output.
-Deliver the corrected `job_control.py` to the controller VM; no training-image
-rebuild is required. Render and submit a fresh uniquely named preflight using the
-existing published image. The invalid old RayJob can be deleted by its exact name
-once evidence is retained; do not delete namespaces/PVCs/Secrets or reinstall K3s.
+`setup --continue-after-k3s ORIGINAL_FAILED_DIRECTORY` is limited to a verified
+same-VM failure before storage/chart creation and can reuse only an exact private
+kubeconfig. It is not a general recovery/retry tool or a substitute for clean E2E.
+Uninstalling K3s deletes its local cluster/pod/storage state; review retention before
+using the native uninstall script. No automatic uninstall is part of the runner.
 
-## Pods run but probes report wget missing
+## Verification limits and next milestone
 
-KubeRay's injected readiness/liveness checks use wget. The first image lacked it:
-pulls succeeded, then Ray pods were unready and restarted. The Dockerfile now adds
-wget in a small layer after dependencies, and publication checks the tools inside
-the image as its nonroot user before push. No probes are disabled to mask failures.
+Accepted 7C is same-node, controlled checkpoint-boundary recovery. It does not
+restore vLLM server/driver RNG, cache or in-flight requests and makes no claim of
+bitwise equivalence, unexpected crash recovery, replacement-node recovery or
+multi-node scalability. CPU mocks are supplemental; the retained cloud run is
+the acceptance evidence. Current local suite: 69 passing, one optional schema skip.
 
-Stop the old monitoring command. Its evidence stays in the result directory.
-Collect previous/current pod logs if needed, then delete only the failed RayJob:
-
-```bash
-kubectl delete rayjob part7-preflight-20261015053855 -n part7 --wait=true
-kubectl get pods -n part7
-```
-
-Verify the failed job's pods disappear before another two-GPU run. Deliver the
-updated Dockerfile/image_publish.py, then run `part7C.sh image --cloud --publish`.
-Keep the Docker cache: the expensive dependency layer should be reused when its
-inputs match. Only new layers need uploading. Use the new published digest to
-render/submit a fresh uniquely named preflight. No K3s reinstall is needed.
-
-## Preflight KeyError: getpwuid(): uid not found: 1000
-
-A numeric Docker USER/pod UID does not create `/etc/passwd` entries. The first
-wget-fixed preflight reached Ray worker imports but failed when PyTorch's cache
-path called getpass/pwd. The Dockerfile now creates UID/GID 1000 when absent in
-a small layer after dependencies. Publication checks actual default user identity,
-HOME writability and torch._inductor.codecache import with no network/GPU.
-
-Preserve the failed job's evidence/logs, delete only that RayJob and verify its
-pods disappear before retrying. Update source, run the normal image build/publish
-command, then render a fresh preflight with its new digest. No K3s reinstall,
-checkpoint/model download or dependency version change is needed. Runtime
-GPU/import checks still belong to the RayJob preflight, not the CPU image test.
+7D will separately choose its serving stack/model revision and implement
+RayService deployment, request benchmarks and restart/readiness recovery. Do not
+use the FSDP training-state dataset directly as a serving model export.
