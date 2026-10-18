@@ -381,3 +381,84 @@ same-node restoration, not replacement-node or bitwise equivalence.
 
 See [checkpoint transfer code](../infrastructure/7c_kuberay/checkpoint_transfer.py)
 and [experiment orchestration](../infrastructure/7c_kuberay/experiment.py).
+
+
+### How does the E2E command execute run_7c.py inside the image, and where is Ray imported in 7C versus 7D?
+
+The Docker image packages Python, Ray, verl, vLLM and our source files. Copying
+`run_7c.py` into the image does not execute it. In the normal workflow, the E2E
+controller submits a RayJob whose application command runs that file after
+KubeRay has started the Ray cluster. `run_7c.py` does not provision Kubernetes or
+pull the image, and `render.py` does not modify the image's startup configuration.
+
+```text
+ON THE CLOUD VM
+part7C.sh e2e --cloud --fresh-setup
+    |
+    +--> e2e.py
+           |
+           +--> setup_cluster.py: install Kubernetes/KubeRay
+           +--> prepare data
+           +--> experiment.py: coordinate the test phases
+                    |
+                    +--> render.py: generate each RayJob manifest
+                    |      - which image?
+                    |      - which resources?
+                    |      - which entrypoint command?
+                    |
+                    +--> job_control.py: submit manifest to Kubernetes
+                                  |
+                     Kubernetes + KubeRay start the pods
+                                  |
+INSIDE THE CONTAINERS             |
+                     +------------+-------------+
+                     |                          |
+              preflight.py                 run_7c.py
+              GPU checks                   baseline / interrupt / resume
+                                                |
+                                                +--> restore files if requested
+                                                +--> compose/validate configuration
+                                                +--> connect to existing Ray
+                                                +--> execute native verl
+```
+
+There are two distinct startup settings:
+
+| Setting | Meaning |
+| --- | --- |
+| Dockerfile `ENTRYPOINT` / `CMD` | Default process when a container starts. Our image clears ENTRYPOINT and defaults CMD to bash; KubeRay supplies Ray startup commands in the Kubernetes pod specification. The stored image remains unchanged. |
+| RayJob `spec.entrypoint` | Application command submitted to the already running Ray cluster, such as `python /opt/part7/infrastructure/7c_kuberay/run_7c.py ...`. It is not the Docker ENTRYPOINT. |
+
+`render.py` selects `preflight.py` for the preflight phase and `run_7c.py` for
+training phases. The latter imports Ray, calls `ray.init(address="auto", ...)`,
+prepares/validates the workload and invokes verl. During resume it downloads and
+verifies checkpoint files; verl performs native training-state restoration and
+training. Ray runs the application as a process inside the existing cluster;
+no extra shell entrypoint in the Dockerfile is required for that application.
+
+In **both 7C and 7D, Ray integration executes inside containers**. In 7C our
+launcher explicitly imports Ray and invokes verl. The prepared 7D configuration
+instead names `ray.serve.llm:build_openai_app`; Ray Serve imports and executes that
+installed framework builder inside the cluster. The renderer runs on the cloud
+VM, but the builder it references does not. The serving image must still contain
+Ray Serve LLM, vLLM and all required application/staging code. That 7D integration
+is source-prepared and remains cloud-unverified.
+
+Although the image contains the infrastructure source tree, the normal workflow
+runs `e2e.py`, setup, renderer, job controller and experiment coordinator on the
+VM. Preflight, the training launcher and verl/Ray workers run in Kubernetes
+containers. The VM also uses a separate temporary Docker container to prepare
+data; that is not a training pod.
+
+Code references:
+
+- [E2E shell dispatch](../infrastructure/7c_kuberay/part7C.sh),
+  [E2E orchestration](../infrastructure/7c_kuberay/e2e.py) and
+  [phase coordination](../infrastructure/7c_kuberay/experiment.py).
+- [Source packaging](../infrastructure/7c_kuberay/Dockerfile) and
+  [RayJob application command](../infrastructure/7c_kuberay/render.py).
+- [Training Ray import](../infrastructure/7c_kuberay/run_7c.py),
+  [cluster connection](../infrastructure/7c_kuberay/run_7c.py) and
+  [remote coordinator/native verl invocation](../infrastructure/7c_kuberay/run_7c.py).
+- [GPU-probe Ray import](../infrastructure/7c_kuberay/preflight.py) and
+  [7D native Serve builder reference](../infrastructure/7d_serve/render.py).
