@@ -462,3 +462,100 @@ Code references:
   [remote coordinator/native verl invocation](../infrastructure/7c_kuberay/run_7c.py).
 - [GPU-probe Ray import](../infrastructure/7c_kuberay/preflight.py) and
   [7D native Serve builder reference](../infrastructure/7d_serve/render.py).
+
+
+### How do Kubernetes, KubeRay and the Ray cluster relate, and how do head/worker pods use the same image and resources?
+
+Kubernetes manages machines, pods and containers. A Ray cluster is a distributed
+runtime formed by Ray head and worker processes running inside those containers;
+it is not another machine cluster that replaces Kubernetes. Our bounded 7C
+configuration uses two Ray pods on one GPU VM:
+
+```text
+Cloud VM — one Kubernetes node
+└── Kubernetes cluster (K3s)
+    ├── KubeRay operator pod
+    │     Creates and manages Ray pods
+    │
+    ├── Ray head pod
+    │   └── Container running Ray head processes
+    │
+    └── Ray worker pod
+        └── Container running Ray worker processes
+            ├── Preparation actor (temporary)
+            └── Training workers (after preparation)
+
+        Head + worker processes together form ONE Ray cluster
+```
+
+A Ray cluster can span multiple pods and machines. A Kubernetes cluster can host
+multiple independent Ray clusters. In 7C, each phase's RayJob creates its own
+RayCluster; 7D's RayService is configured to manage a serving RayCluster. The
+Kubernetes `RayCluster` object is the desired configuration, not the runtime:
+
+```text
+RayCluster object stored in Kubernetes
+    ↓ watched by
+KubeRay operator
+    ↓ creates
+Head and worker pods
+    ↓ run
+Ray processes forming the actual Ray cluster
+```
+
+Our fresh-VM setup installs the KubeRay operator through its Helm chart first.
+Submitting a RayJob/RayService does not install the operator. The operator uses
+its own KubeRay image; both application pods use our shared workload image:
+
+```text
+setup_cluster.py
+    └── Installs KubeRay operator using its operator image
+
+RayJob / RayService manifest
+    └── Existing KubeRay operator reads it
+          ├── Head pod   → our image → ray start --head …
+          └── Worker pod → our image → ray start --address=HEAD_ADDRESS …
+```
+
+The startup command selects head versus worker behavior. Pod resource settings
+also differ: our 7C head is CPU-only, and its worker requests two GPUs. The image
+provides the software, while KubeRay supplies the role-specific startup commands.
+Different head/worker images are possible; this deployment shares one to keep
+dependencies consistent. The head coordinates the Ray runtime and provides the
+dashboard/job API; workers execute scheduled application work. This is our chosen
+placement, not a rule that head processes can never execute application tasks.
+
+Within `run_7c.py`, the reviewed lines have these distinct responsibilities:
+
+| Location | Meaning |
+| --- | --- |
+| Line 105 | `ray.get_runtime_context().get_node_id()` records the preparation actor's current Ray node ID; it is not Kubernetes context or the entire cluster configuration. |
+| Line 144 | `ray.init(address="auto", runtime_env=runtime)` connects the launcher to the existing Ray cluster and supplies runtime settings for child tasks/actors; it does not connect to the Kubernetes controller. |
+| Line 153 | `@ray.remote(num_cpus=1, num_gpus=2)` defines the preparation actor's logical resource requirements. Declaration alone does not allocate them. |
+| Lines 160–162 | `.remote()` requests actor creation on the chosen worker; preparation executes, its result is collected, then the actor is killed to release resources before training. |
+| Lines 183–186 | Configure the remote training coordinator (one CPU, zero GPUs), then invoke native verl, which creates/uses the coordinator and its distributed GPU workers. |
+
+```text
+Connect to existing Ray cluster
+    ↓
+Create preparation actor requesting both GPUs
+    ↓
+Prepare/validate model and record worker context
+    ↓
+Release preparation actor's resources
+    ↓
+Invoke verl with the configured remote coordinator
+    ↓
+verl creates and coordinates GPU training workers
+```
+
+There are two scheduling layers: Kubernetes has already assigned GPUs to the
+worker pod; Ray schedules actors against that pod's advertised logical resources.
+The preparation actor does not request additional GPUs from Kubernetes or reserve
+quota in a shared-cluster queue. Ray resource requests/placement groups do not
+replace Kubernetes placement or Kueue admission, and do not by themselves provide
+GPU-memory isolation.
+
+See [training launcher](../infrastructure/7c_kuberay/run_7c.py),
+[pod/cluster renderer](../infrastructure/7c_kuberay/render.py) and
+[platform setup](../infrastructure/7c_kuberay/setup_cluster.py).
