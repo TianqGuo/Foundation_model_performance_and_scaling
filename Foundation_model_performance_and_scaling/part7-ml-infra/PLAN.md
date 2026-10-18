@@ -1,6 +1,6 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-17
+Updated: 2026-10-18
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
@@ -24,8 +24,9 @@ this summary, checklist and milestone documents state the current status.
 
 `infrastructure/7a_verl/part7A.sh --upload-hf` is the single cloud entry point:
 setup/reuse, automatic authentication/destination naming, data/model preparation,
-smoke execution, export and direct artifact retention. Public uploads are not
-implemented. No commits or pushes were performed by the agent.
+smoke execution, export and direct private artifact retention. The 7C training
+image is separately published publicly on Docker Hub. No commits or pushes were
+performed by the agent.
 
 This project uses `part7-ml-infra/`, the existing workspace name;
 the Part 5 plan calls it `part7-ml-infrastructure/`.
@@ -43,8 +44,10 @@ at the project root for ongoing planning and working conventions.
 
 Group infrastructure code by milestone. `infrastructure/7a_verl/` contains the
 7A shell/Python runners, diagnostics, configuration and environment files.
-`workloads/` holds reusable MATH and generation adapters. Add 7B–7E directories
-when their implementation starts; tests and results remain at the project root.
+`workloads/` holds reusable MATH and generation adapters. Implemented milestone
+directories also include `7b_ray/`, `7c_kuberay/` and the first `7d_serve/`
+increment. Add an optional 7E directory only if selected; tests and results remain
+at the project root.
 
 Start with Qwen2.5-Math-1.5B and MATH. The corrected Part 5 GRPO-Clip reference is
 `tight_pilot_FRqpow9W`: clipping 0.2/0.2, FP32 log-softmax, stable microbatches,
@@ -66,23 +69,38 @@ Ray Train/FSDP2 via RayJob. Ray Train does not wrap verl.
 
 ## Accepted roadmap and completion evidence
 
-| Milestone | Required outcome |
-| --- | --- |
-| 7A — Framework workload | Pinned isolated verl/Ray/PyTorch/vLLM stack; thin reward/prompt/data adapters; explicit GRPO mapping; one cloud generation/update/evaluation/checkpoint run proving at least two FSDP2 training ranks and actual sharding. Retain config, identities, placement, throughput, memory, logs and checkpoint events. |
-| 7B — Ray operations | Recorded topology/resource placement; durable artifacts readable after job exit; controlled interruption and measured recovery. Verify restoration of model, optimizer, scheduler where applicable, step, data/progress and RNG; disclose unsupported state. Use built-in metrics/logs first, small Prometheus/Grafana where useful; W&B optional, no smoke login required. |
-| 7C — Kubernetes training | Digest-pinned image and real GPU KubeRay RayJob with explicit resources, sufficient shared memory, durable storage and Secret injection. Retain manifests, placement, status, metrics/logs and checkpoints; validate interruption/recovery and cleanup. CPU manifest checks alone do not complete this milestone. |
-| 7D — Serving | Export/merge a 7A checkpoint for vLLM; deploy through RayService with readiness and durable model access. Measure requests/s, generated tokens/s, TTFT, output-token timing, p50/p95 end-to-end latency, errors and replica status; demonstrate restart/readiness recovery and cleanup. |
-| 7E — Optional SFT | Small Ray Train/PyTorch or Hugging Face FSDP2 workload reusing platform conventions; verify two-rank sharding and recovery. No Part 6 8B retraining required. |
+Core scope is **7A–7D**. The table below states current completion and the evidence
+needed for each milestone; optional extensions are listed separately and do not
+expand 7D's acceptance criteria.
 
-Record serving hardware, lengths, concurrency, warmup, streaming and measurement
-scope; distinguish engine metrics from client latency and memory/cache use from
-compute utilization. Training and serving can run sequentially and use separate
-pinned images. Fractional Ray GPU requests do not isolate GPU memory.
+| Core milestone | Current status | Completion evidence / remaining acceptance |
+| --- | --- | --- |
+| 7A — Framework workload | **Complete: bounded cloud smoke.** | Pinned verl/FSDP2/vLLM workload on two A100 40 GB GPUs; actual parameter/gradient/Adam sharding, generation, updates, fixed evaluation, merged export, private Hub retention and pinned weights reload reviewed. This is infrastructure evidence, not model-quality improvement or full training-state recovery. See [7A runbook](documents/7A_RUNBOOK.md). |
+| 7B — Ray operations and recovery | **Complete: same-host recovery.** | Two A100 80 GB ranks; step-2 checkpoint interruption, complete private Hub retention/pinned download, fresh Ray runtime and step-3 continuation. Model/Adam/scheduler/saved worker RNG, trainer step/data and next batch restoration reviewed. Driver/vLLM server state and replacement-host recovery excluded. See [7B plan](documents/7B_PLAN.md). |
+| 7C — Kubernetes training | **Complete: fresh-install, same-node E2E.** | One Lambda VM/two H100 80 GB GPUs; fresh K3s/KubeRay setup, automatic data preparation/PVC staging, GPU preflight, native two-rank training, checkpoint interruption/pinned Hub recovery in distinct RayJob pods/runtimes, retained evidence and verified cleanup. Accepted run `part7-e2e-20261018-031219`; no multi-node/replacement-node/bitwise claim. See [7C results](documents/7C_PLAN.md). |
+| 7D — Serving | **In progress: first CPU increment prepared; cloud unverified.** | Existing 7A BF16 model export/revision selected; configurable native Serve settings, RayService renderer and model-staging code pass CPU/schema checks. Still required: resolved serving image, actual export serving through RayService, HTTP readiness, measured requests/s/generated tokens/s/streaming TTFT/output-token timing/p50–p95 latency/errors/replica status, owned-worker restart/readiness recovery, retained evidence and cleanup in one cloud E2E workflow. See [7D plan](documents/7D_PLAN.md) and [runbook](documents/7D_RUNBOOK.md). |
 
-Check Kubernetes access/cost before 7C: a rented GPU container is not automatically
-a GPU node; verify host privileges, GPU plugin access, networking, shared memory
-and storage. If blocked by access/cost, develop and measure serving on a cloud GPU
-first, then complete RayService deployment later; this fallback does not finish 7D.
+Record serving hardware, input/output lengths, concurrency, warmup, streaming and
+client/measurement scope. Distinguish engine metrics from client latency and GPU
+memory/cache allocation from compute utilization. Training and serving can run
+sequentially and use separate pinned images. Fractional Ray GPU requests do not
+isolate GPU memory. CPU/schema checks alone never establish cloud completion.
+
+| Optional extension after core work | Status | Proposed evidence / decision |
+| --- | --- | --- |
+| 7E — Supervised-training platform reuse | Optional; not started. | Small Ray Train/FSDP2 SFT workload with two-rank sharding and recovery; no required Part 6 8B retraining. Requires a separate decision. |
+| Shared resource pool / Kueue | Optional after 7D; not implemented. | Multiple model/image/configuration workloads sharing a limited pool; configurable resource profiles, queues/quotas/priority and storage/credential isolation. Demonstrate competing workloads, waiting/admission/resource release and cleanup. Validate version/workload support; quota reservation is not physical placement. JobSet is an alternative for suitable jobs, not a wrapper required around RayJob. |
+| Larger models, training TP/PP, broader recovery and monitoring | Deferred options; not acceptance requirements. | Select the experiment, compatibility/topology, hardware and budget before implementation; measure each new claim separately. |
+
+See [optional milestone and deferred follow-ups](#optional-milestone-and-deferred-follow-ups)
+for detailed scope. These options do not authorize implementation or paid
+resources and do not block 7D. The platform is configurable, but concurrent
+multi-workload/shared-pool and multi-node operation are not currently verified.
+
+For future cloud runs, confirm hardware, Kubernetes access and spending cap first.
+An ordinary restricted GPU container is not a Kubernetes host. If cluster access
+is unavailable, cloud-GPU serving can be developed separately, but only actual
+RayService deployment completes the Kubernetes-serving acceptance criterion.
 
 ## Proposed first 7A implementation steps
 
@@ -246,10 +264,23 @@ additional experiments.
 - **Training TP/PP:** explore a compatible verl training backend, such as Megatron,
   after the current stages. Ray schedules workers; the training backend implements
   tensor/pipeline parallelism. This is exploratory, not a backend migration plan.
-- **Shared-cluster scheduling:** evaluate Kueue integration with KubeRay RayJob
-  when queues, quotas or admission control are needed. Discuss JobSet only if the
-  chosen job architecture requires it; it is not a prerequisite for RayJob.
-  Resource requests/limits and placement remain required within core 7C.
+- **Shared resource pool — optional after 7D:** evaluate Kueue admission for
+  multiple training/serving workloads competing for a limited GPU pool. Validate
+  the selected Kueue/KubeRay versions and workload-type support before integration.
+  Separate workload settings (model revision, image digest, algorithm/serving
+  configuration) from resource profiles (GPU type/count, CPU/RAM, replicas,
+  parallelism) and admission policy (queue, quota, priority, interruption policy).
+  Generalize fixed names, node placement and artifact/storage paths; define
+  namespace, credential and storage isolation rather than assuming unique names
+  provide security. Keep training and serving admission/recovery policies distinct.
+  Acceptance: submit at least two independently configured competing workloads;
+  demonstrate one waiting when quota is exhausted, admission after resources are
+  released, correct GPU placement and resource accounting, artifact/credential
+  isolation, and owned-resource cleanup. Test configured priority/preemption only
+  if enabled; quota reservation alone is not proof of physical schedulability.
+  JobSet is an alternative for suitable distributed jobs, not a required wrapper
+  around RayJob. This follow-up requires a separate scope/hardware/budget decision;
+  it does not block 7D or claim current shared-pool/multi-node readiness.
 - **Broader recovery:** consider replacement-host/node-failure recovery and
   multi-node experiments separately. Reviewed 7B proves same-host fresh-runtime
   recovery only; future claims need their own retained evidence.
@@ -270,7 +301,9 @@ recorded interests, not extra committed Part 7 milestones.
 - [x] Prepare first 7C container/manifest/GPU-preflight increment with CPU checks.
 - [x] Confirm Kubernetes access and review fresh cloud 7C execution evidence.
 - [x] Complete bounded 7C and retain/review fresh E2E evidence.
-- [ ] Implement and verify 7D serving. 7E requires a separate decision to continue.
+- [x] Prepare first 7D model configuration, RayService/staging code and CPU/schema checks.
+- [ ] Complete serving image, lifecycle/benchmark/restart runner and cloud 7D E2E review.
+- [ ] Separately decide optional 7E/shared-pool or other follow-ups after core work.
 
 All model execution is cloud-only. Local work is static/lightweight CPU checks.
 Resolved dependency pins, configuration, thin MATH adapters and a cloud launcher
