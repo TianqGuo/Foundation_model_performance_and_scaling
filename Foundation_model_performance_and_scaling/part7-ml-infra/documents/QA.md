@@ -71,10 +71,39 @@ with explicit provenance and a saved evaluation selection.
 
 verl coordinates the RL workflow: data batches, response generation, reward
 calculation, advantages, policy updates, weight synchronization, evaluation and
-checkpointing. Ray manages processes and resource placement; PyTorch FSDP2 shards
-training state; vLLM generates responses. verl includes algorithm implementations
+checkpointing. Ray schedules the tasks/actors and their logical resources;
+PyTorch FSDP2 shards training state and uses PyTorch Distributed/NCCL for GPU
+collectives; vLLM generates responses. verl includes algorithm implementations
 and extension points as well as orchestration. Ray Train does not wrap our verl
 workload; it is reserved for optional SFT later in Part 7.
+
+Calling Ray "above" or "below" verl without naming the perspective is ambiguous.
+As a dependency, **verl uses Ray as its distributed runtime**; a software-stack
+picture can therefore put Ray below verl. In an execution picture, Ray starts
+and schedules application processes that execute verl. Neither means Ray defines
+the RL algorithm or carries every FSDP tensor collective.
+
+```text
+Platform management:
+Kubernetes schedules pods
+    └── KubeRay manages Ray head/worker pods
+          └── Ray processes inside containers form the Ray cluster
+
+Application execution:
+verl defines the RL workflow
+    ├── uses Ray to schedule/call actors and collect results
+    ├── uses FSDP2/PyTorch Distributed for sharded training
+    │     └── NCCL performs GPU collectives between training ranks
+    └── uses vLLM for response generation
+```
+
+Our accepted 7C layout is one CPU head pod plus **one two-GPU worker pod**, with
+multiple actors/processes and two communicating training ranks. It is not a
+single-task test. Those ranks synchronize through their distributed process
+group even though they share a container. Ray still coordinates actor calls and
+control/results, but does not mediate each NCCL collective. The architecture can
+span worker pods, while multi-pod/multi-node training is not yet verified here;
+Ray schedules tasks/actors, and Kubernetes remains responsible for pod placement.
 
 ## Did we implement FSDP2 or leave vLLM configuration to verl?
 
@@ -260,6 +289,11 @@ coordinates training through those actors.
                            ├── FSDP2 / PyTorch: training
                            └── vLLM: rollout generation
 ```
+
+This graph shows startup/management flow, not a strict library-dependency stack.
+During execution, verl calls the Ray runtime to schedule workers; FSDP2/NCCL
+collectives use their own distributed communication path. See the earlier Q&A
+on framework/runtime responsibilities.
 
 The earlier configuration and verification files remain part of the workload:
 

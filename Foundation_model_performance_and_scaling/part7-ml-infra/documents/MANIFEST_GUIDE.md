@@ -60,3 +60,14 @@ prerequisites and the workload lifecycle; see [7C results](7C_PLAN.md).
 A Helm chart packages templates and values that generate manifests. Our Python
 renderer generates a RayJob directly. Installing KubeRay through its Helm chart
 and submitting our RayJob are separate operations.
+
+
+## Runtime orchestration versus training communication
+
+Kubernetes/KubeRay manages the pod and Ray-cluster lifecycle. Inside the containers,
+verl defines the RL workflow and uses Ray for actor/task execution; FSDP2/PyTorch
+Distributed uses NCCL for GPU collectives. A diagram putting Ray below verl depicts
+runtime dependency, while startup diagrams may show Ray launching the application.
+Neither means Ray carries FSDP collectives. The accepted 7C run has one head pod,
+one two-GPU worker pod and two communicating training ranks. Additional worker
+pods are a future topology change to validate, not a different framework.

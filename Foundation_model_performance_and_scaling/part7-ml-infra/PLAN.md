@@ -66,6 +66,12 @@ compatibility. This goal does not expand the initial 7A acceptance criteria.
 Shared platform: Kubernetes → KubeRay → Ray. RL uses verl/FSDP2/vLLM via
 RayJob; inference uses Ray Serve LLM/vLLM via RayService. Optional SFT uses
 Ray Train/FSDP2 via RayJob. Ray Train does not wrap verl.
+These are platform-management relationships, not a strict above/below library
+stack. verl defines the RL workflow and uses Ray to schedule/call actors. FSDP2/
+PyTorch Distributed uses NCCL for GPU collectives, which do not pass through Ray's
+actor messaging. Current 7C is one head pod and one two-GPU worker pod with two
+training ranks, not one actor/task. Kubernetes places pods; Ray places application
+tasks/actors within its cluster. Cross-worker-pod training remains unverified.
 
 ## Accepted roadmap and completion evidence
 

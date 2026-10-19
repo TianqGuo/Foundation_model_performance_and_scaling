@@ -22,7 +22,9 @@ is next. See [PLAN.md](PLAN.md) for implementation details.
 The shared platform is **Kubernetes → KubeRay → Ray**. Training runs as batch
 RayJobs; serving runs as a long-lived RayService. verl manages the RL workload;
 Ray Train is reserved for optional SFT. Training and serving may use separate
-pinned environments and run sequentially on a small GPU allocation.
+pinned environments and run sequentially on a small GPU allocation. These arrows
+describe platform management: verl uses Ray as its distributed runtime, while
+FSDP2/PyTorch Distributed handles training collectives through NCCL.
 
 ## Measured 7A smoke
 
