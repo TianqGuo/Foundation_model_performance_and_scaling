@@ -84,7 +84,7 @@ expand 7D's acceptance criteria.
 | 7A — Framework workload | **Complete: bounded cloud smoke.** | Pinned verl/FSDP2/vLLM workload on two A100 40 GB GPUs; actual parameter/gradient/Adam sharding, generation, updates, fixed evaluation, merged export, private Hub retention and pinned weights reload reviewed. This is infrastructure evidence, not model-quality improvement or full training-state recovery. See [7A runbook](documents/7A_RUNBOOK.md). |
 | 7B — Ray operations and recovery | **Complete: same-host recovery.** | Two A100 80 GB ranks; step-2 checkpoint interruption, complete private Hub retention/pinned download, fresh Ray runtime and step-3 continuation. Model/Adam/scheduler/saved worker RNG, trainer step/data and next batch restoration reviewed. Driver/vLLM server state and replacement-host recovery excluded. See [7B plan](documents/7B_PLAN.md). |
 | 7C — Kubernetes training | **Complete: fresh-install, same-node E2E.** | One Lambda VM/two H100 80 GB GPUs; fresh K3s/KubeRay setup, automatic data preparation/PVC staging, GPU preflight, native two-rank training, checkpoint interruption/pinned Hub recovery in distinct RayJob pods/runtimes, retained evidence and verified cleanup. Accepted run `part7-e2e-20261018-031219`; no multi-node/replacement-node/bitwise claim. See [7C results](documents/7C_PLAN.md). |
-| 7D — Serving | **In progress: first CPU increment prepared; cloud unverified.** | Existing 7A BF16 model export/revision selected; configurable native Serve settings, RayService renderer and model-staging code pass CPU/schema checks. Still required: resolved serving image, actual export serving through RayService, HTTP readiness, measured requests/s/generated tokens/s/streaming TTFT/output-token timing/p50–p95 latency/errors/replica status, owned-worker restart/readiness recovery, retained evidence and cleanup in one cloud E2E workflow. See [7D plan](documents/7D_PLAN.md) and [runbook](documents/7D_RUNBOOK.md). |
+| 7D — Serving | **In progress: serving configuration, image diagnostic, benchmark and lifecycle CPU preparation; cloud unverified.** | Existing 7A BF16 model export/revision selected; configurable native Serve settings, RayService renderer and model-staging code pass CPU/schema checks. Candidate dependency lock/build diagnostic, HTTP measurement helper and owned-service lifecycle/restart controller are prepared with CPU tests. Still required: compatible cloud-validated serving image, E2E wiring, actual export serving through RayService, HTTP readiness, measured requests/s/generated tokens/s/streaming TTFT/output-token timing/p50–p95 latency/errors/replica status, owned-worker restart/readiness recovery, retained evidence and cleanup in one cloud E2E workflow. See [7D plan](documents/7D_PLAN.md) and [runbook](documents/7D_RUNBOOK.md). |
 
 Record serving hardware, input/output lengths, concurrency, warmup, streaming and
 client/measurement scope. Distinguish engine metrics from client latency and GPU
@@ -656,3 +656,31 @@ semantics. No HTTP/model/GPU execution occurred. Native endpoint support for
 streamed usage and stop-string inclusion still needs cloud validation. Service
 lifecycle/readiness/restart/evidence cleanup and single-command E2E are next;
 7D is not complete and no VM rental is needed yet.
+
+
+## 7D lifecycle/controller increment — 2026-10-20
+
+Added `infrastructure/7d_serve/service_control.py`, a VM-side controller for the
+future single-command E2E workflow. It validates the exact renderer output before
+creation, refuses existing service names/evidence directories, records created
+service/cluster UIDs and rejects changed service generations or cluster ownership.
+Readiness requires current-generation KubeRay Ready, a nonempty healthy native
+Serve deployment status and a ready endpoint, followed by HTTP catalog checks and
+real completion warmup. Waits are bounded with progress messages.
+
+The controller opens a private VM-loopback port-forward to its owned head pod,
+runs the HTTP benchmark, retains status/placement/current and previous pod logs
+(including model init), and deletes one owned worker with an atomic UID precondition.
+Recovery requires a different worker UID on the same node and successful inference.
+Observed pod readiness loss, HTTP probe failures and recovery timing are recorded;
+HTTP downtime is not assumed. It benchmarks again after recovery. Cleanup requires
+a matching successful review, uses an atomic service UID precondition, verifies
+service/cluster/pod absence and preserves PVCs/Secrets. Failures retain resources
+and best-effort evidence; a local tunnel is always stopped.
+
+Eleven additional synthetic lifecycle tests cover status/generation/owner gates,
+UID-protected deletion, restart/recovery, review-before-cleanup, failure retention
+and tunnel termination. No kubectl, HTTP, model or GPU execution occurred. The
+controller is an internal E2E helper, not a new manual stage users must run.
+Full cloud E2E wiring, prompt provenance preparation and native serving image/API
+compatibility remain pending; do not rent an instance yet.

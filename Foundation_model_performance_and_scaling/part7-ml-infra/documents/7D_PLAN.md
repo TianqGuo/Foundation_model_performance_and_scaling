@@ -127,3 +127,31 @@ semantics. No HTTP/model/GPU execution occurred. Native endpoint support for
 streamed usage and stop-string inclusion still needs cloud validation. Service
 lifecycle/readiness/restart/evidence cleanup and single-command E2E are next;
 7D is not complete and no VM rental is needed yet.
+
+
+## 7D lifecycle/controller increment — 2026-10-20
+
+Added `infrastructure/7d_serve/service_control.py`, a VM-side controller for the
+future single-command E2E workflow. It validates the exact renderer output before
+creation, refuses existing service names/evidence directories, records created
+service/cluster UIDs and rejects changed service generations or cluster ownership.
+Readiness requires current-generation KubeRay Ready, a nonempty healthy native
+Serve deployment status and a ready endpoint, followed by HTTP catalog checks and
+real completion warmup. Waits are bounded with progress messages.
+
+The controller opens a private VM-loopback port-forward to its owned head pod,
+runs the HTTP benchmark, retains status/placement/current and previous pod logs
+(including model init), and deletes one owned worker with an atomic UID precondition.
+Recovery requires a different worker UID on the same node and successful inference.
+Observed pod readiness loss, HTTP probe failures and recovery timing are recorded;
+HTTP downtime is not assumed. It benchmarks again after recovery. Cleanup requires
+a matching successful review, uses an atomic service UID precondition, verifies
+service/cluster/pod absence and preserves PVCs/Secrets. Failures retain resources
+and best-effort evidence; a local tunnel is always stopped.
+
+Eleven additional synthetic lifecycle tests cover status/generation/owner gates,
+UID-protected deletion, restart/recovery, review-before-cleanup, failure retention
+and tunnel termination. No kubectl, HTTP, model or GPU execution occurred. The
+controller is an internal E2E helper, not a new manual stage users must run.
+Full cloud E2E wiring, prompt provenance preparation and native serving image/API
+compatibility remain pending; do not rent an instance yet.

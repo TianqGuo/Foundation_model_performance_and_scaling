@@ -1,7 +1,8 @@
 # 7D runbook — first source increment
 
-**Do not rent a GPU VM for 7D yet.** The serving image/extras, lifecycle controller,
-load/restart runner and one-command cloud E2E workflow are still being prepared.
+**Do not rent a GPU VM for 7D yet.** The serving image/extras, native serving compatibility and the one-command cloud E2E workflow are still
+being prepared. The lifecycle/load/restart helpers now have CPU tests, but have
+not run against a real service.
 The renderer, candidate image diagnostic and bounded HTTP benchmark helper are
 exposed by `part7D.sh`; they are not yet a complete deployment workflow. See [7D plan](7D_PLAN.md).
 
@@ -98,3 +99,42 @@ text events and engine token usage, not an engine inter-token latency measuremen
 A zero-token response has no TTFT/output-token estimate. An endpoint without valid
 streamed usage fails validation rather than substituting text chunk counts.
 No throughput/latency results have been measured yet.
+
+
+## Lifecycle helper (runs on the VM, outside serving pods)
+
+`service_control.py` will be called by the E2E runner, rather than requiring more
+manual cloud commands. Its application sequence is:
+
+```text
+VM-side E2E controller
+  -> validate/create RayService through Kubernetes API
+  -> wait for KubeRay and native Serve readiness
+  -> open loopback port-forward to the owned head pod
+  -> verify model catalog + completion warmup
+  -> benchmark concurrent HTTP requests
+  -> retain pre-restart logs/status/placement
+  -> delete the owned worker pod using its UID
+  -> observe replacement UID, same node and working inference
+  -> benchmark again + retain post-restart evidence
+  -> save successful review
+  -> optionally delete owned service and verify descendant cleanup
+```
+
+KubeRay replaces the worker pod; this code requests the intentional deletion and
+observes the result. It does not restart the VM or restore a training checkpoint.
+The serving model remains the pinned 7A export on PVC. HTTP requests may continue
+or fail during replacement; reports retain the observed probe results. A successful
+model-catalog response alone does not establish working inference.
+
+Failure leaves service resources available for diagnosis. Evidence includes init
+logs, bounded current/previous container logs, pod status/placement, service status,
+benchmark reports and recovery/cleanup receipts. Log capture is capped at 10,000
+lines per container/version and does not archive model files, Secrets or pod
+environments. Full evidence backup/retention remains part of final E2E setup.
+
+Status field mapping follows the pinned
+[KubeRay 1.4.2 RayService API](https://github.com/ray-project/kuberay/blob/v1.4.2/ray-operator/apis/ray/v1/rayservice_types.go).
+The UID deletion body uses the
+[kubectl 1.32 raw-delete path](https://github.com/kubernetes/kubectl/blob/v0.32.0/pkg/cmd/delete/delete.go).
+These source checks and synthetic tests do not establish cloud completion.
