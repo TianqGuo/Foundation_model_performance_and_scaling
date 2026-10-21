@@ -612,3 +612,22 @@ no claim that native Ray Serve LLM works with the training stack until resolved
 and import-tested. Serving image, lifecycle/benchmark/restart and one-command
 cloud E2E are next. No rent/build/model download/load/GPU execution, registry
 publication, Git commit/push or changes to Parts 1–6/accepted 7A–7C code.
+
+
+## Serving dependency/import gate — 2026-10-20
+
+Added a metadata-resolved candidate serving overlay (197 packages), a separate
+Dockerfile based on the accepted immutable 7C image, and `part7D.sh image --cloud`
+for build/import diagnostics. This does not change 7A–7C or publish images.
+The lock preserves the candidate Ray 2.49.2/vLLM 0.12 GPU stack; successful
+resolution does **not** establish native Serve compatibility. Native Serve imports,
+configuration validation and explicit AsyncLLM constructor signature checks must
+pass inside the candidate image. Failures retain build/import evidence and block
+acceptance. These checks never instantiate an engine or load/download a model.
+
+API review found version-sensitive Serve-to-vLLM calls requiring this extra gate;
+a serving-only Ray/version change may still be necessary. No serving image has
+been built or validated on cloud. Lifecycle, HTTP/load/restart checks and the
+single-command full E2E runner remain pending. Do not rent a VM for this partial
+workflow yet. Local tests cover signature mismatch detection with synthetic
+functions; they are not native runtime or cloud E2E tests.
