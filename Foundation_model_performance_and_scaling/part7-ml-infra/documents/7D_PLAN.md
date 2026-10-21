@@ -102,3 +102,28 @@ Validation for this increment: 80 combined 7C/7D CPU tests ran, 78 passed and
 two optional CRD-schema tests skipped because their external schema fixtures
 were not supplied. Shell syntax checks passed. No local GPU/model execution,
 cloud deployment, publication or changes to accepted 7A–7C code.
+
+
+## 7D HTTP measurement increment — 2026-10-20
+
+Added dependency-light `infrastructure/7d_serve/benchmark.py` and the shell
+`benchmark` action for the future E2E controller. It sends bounded concurrent raw
+`/v1/completions` requests over a cloud-VM loopback port-forward, with fixed
+warmup, temperature/seed, token cap and R1 `</answer>` stop handling. It does not
+load models or apply a chat template. JSONL input contains already rendered
+prompt strings; source-bundle validation/preparation will be wired by E2E.
+
+SSE parsing requires an explicit terminal event, finish reason and valid engine
+usage. Successful request and generated-token throughput use the full measured
+wall interval; failures remain in error counts/rate. Reports include p50/p95
+latency, first-text TTFT and an explicitly labeled text-event-span/output-token
+estimate. SSE chunks are never counted as tokens. Warmup is excluded, failed
+warmup aborts, and reports hash prompts rather than retain generated text. The
+request cap is 128, concurrency at most 16 and output cap at most 512 tokens.
+
+Seven synthetic tests verify framing/usage, truncated/error responses, timeouts,
+zero-token output, failure accounting, warmup exclusion, input bounds and request
+semantics. No HTTP/model/GPU execution occurred. Native endpoint support for
+streamed usage and stop-string inclusion still needs cloud validation. Service
+lifecycle/readiness/restart/evidence cleanup and single-command E2E are next;
+7D is not complete and no VM rental is needed yet.

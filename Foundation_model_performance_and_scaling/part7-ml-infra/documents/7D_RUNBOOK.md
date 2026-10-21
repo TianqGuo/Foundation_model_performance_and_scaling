@@ -2,7 +2,8 @@
 
 **Do not rent a GPU VM for 7D yet.** The serving image/extras, lifecycle controller,
 load/restart runner and one-command cloud E2E workflow are still being prepared.
-Only the renderer is exposed by `part7D.sh` in this increment. See [7D plan](7D_PLAN.md).
+The renderer, candidate image diagnostic and bounded HTTP benchmark helper are
+exposed by `part7D.sh`; they are not yet a complete deployment workflow. See [7D plan](7D_PLAN.md).
 
 ## CPU preview
 
@@ -78,3 +79,22 @@ been built or validated on cloud. Lifecycle, HTTP/load/restart checks and the
 single-command full E2E runner remain pending. Do not rent a VM for this partial
 workflow yet. Local tests cover signature mismatch detection with synthetic
 functions; they are not native runtime or cloud E2E tests.
+
+
+## HTTP benchmark helper (for the pending E2E runner)
+
+`part7D.sh benchmark --cloud --prompts PATH --output PATH` requires a running
+service through a VM-local port-forward. Each JSONL row must have a fully rendered
+raw `prompt` string. The future E2E runner will prepare these from the accepted
+bundle and record its provenance, so manually preparing this file is not part of
+the intended normal setup. Options include `--requests`, `--concurrency`,
+`--warmup`, `--max-tokens`, `--timeout`, `--model-id` and `--base-url`.
+
+The helper refuses output overwrite, requires a GPU-visible cloud host and saves
+measurement failures before exiting unsuccessfully. No automatic retry hides
+errors. Successful warmup is required. Client TTFT includes HTTP, queue/prefill
+and transport latency. Output-token timing is an estimate based on the first/last
+text events and engine token usage, not an engine inter-token latency measurement.
+A zero-token response has no TTFT/output-token estimate. An endpoint without valid
+streamed usage fails validation rather than substituting text chunk counts.
+No throughput/latency results have been measured yet.
