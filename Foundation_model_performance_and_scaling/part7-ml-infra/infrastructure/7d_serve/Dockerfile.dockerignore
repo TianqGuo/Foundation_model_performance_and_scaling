@@ -1,0 +1,12 @@
+# Send only serving source/config; exclude model data, credentials and caches.
+**
+!infrastructure/
+!infrastructure/7d_serve/
+!infrastructure/7d_serve/**
+**/__pycache__/**
+**/.venv*/**
+**/.cache/**
+**/.env*
+**/*.pem
+**/*.key
+**/.git/**

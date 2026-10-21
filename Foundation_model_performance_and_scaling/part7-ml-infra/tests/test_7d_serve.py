@@ -100,3 +100,22 @@ class ServingPreparationTests(unittest.TestCase):
         schema=next(v for v in crd["spec"]["versions"] if v["name"]=="v1")["schema"]["openAPIV3Schema"]
         errors=list(jsonschema.Draft7Validator(schema).iter_errors(render.render_service(IMAGE,"part7-gpu")))
         self.assertFalse(errors,[(list(e.path),e.message) for e in errors])
+
+
+class ServingRuntimeGateTests(unittest.TestCase):
+    def test_signature_gate_rejects_removed_argument(self):
+        """A resolved package set must fail when the adapter passes a removed keyword."""
+        gate=import_module("infrastructure.7d_serve.runtime_check")
+        def constructor(vllm_config, *, log_stats=False):
+            """Synthetic signature only; never instantiate an engine."""
+            raise AssertionError("Must not execute constructor")
+        good="engine = AsyncLLM(vllm_config=config, log_stats=True)"
+        self.assertEqual(gate.validate_constructor_calls(good,constructor),1)
+        with self.assertRaises(TypeError):
+            gate.validate_constructor_calls("AsyncLLM(vllm_config=config, executor_class=executor)",constructor)
+
+    def test_signature_gate_fails_closed_on_unreviewed_source(self):
+        """Missing or dynamic constructor calls cannot accidentally pass the audit."""
+        gate=import_module("infrastructure.7d_serve.runtime_check")
+        for source in ("other_call()", "AsyncLLM(**kwargs)", "AsyncLLM(*args)"):
+            with self.assertRaises(ValueError):gate.validate_constructor_calls(source,object)
