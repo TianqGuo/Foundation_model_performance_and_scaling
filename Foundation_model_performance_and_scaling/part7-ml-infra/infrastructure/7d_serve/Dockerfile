@@ -5,12 +5,13 @@ FROM ${BASE_IMAGE}
 USER root
 WORKDIR /opt/part7
 COPY --chown=1000:1000 infrastructure/7d_serve/environment/ /opt/part7/infrastructure/7d_serve/environment/
-# Preserve base packages (including flash-attn/CUTLASS). Install the fully resolved
-# overlay without dependency re-resolution; pip check verifies the combined stack.
+# Sync the serving lock, removing unused training distributions such as datasets
+# and verl so their constraints cannot conflict with serving-only dependencies.
+# Matching GPU packages stay installed; pip check verifies the resulting environment.
 # Do not recursively chown inherited libraries: that duplicates large base layers.
 USER 1000:1000
 RUN --mount=type=cache,id=part7-7d-uv,target=/home/ray/.cache/uv,uid=1000,gid=1000,sharing=locked \
-    UV_LINK_MODE=copy uv pip install --python /opt/part7/.venv-7a/bin/python --no-deps \
+    UV_LINK_MODE=copy uv pip sync --python /opt/part7/.venv-7a/bin/python \
         -r infrastructure/7d_serve/environment/requirements.lock \
     && uv pip check --python /opt/part7/.venv-7a/bin/python
 COPY --chown=1000:1000 infrastructure/7d_serve/ /opt/part7/infrastructure/7d_serve/

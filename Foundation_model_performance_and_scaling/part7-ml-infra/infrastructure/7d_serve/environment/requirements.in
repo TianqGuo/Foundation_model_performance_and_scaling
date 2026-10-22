@@ -1,7 +1,7 @@
-# Candidate serving overlay; metadata resolved in requirements.lock.
-# Runtime compatibility remains a required separate gate, not implied by resolution.
-# Keep the verified training stack unchanged; resolve/validate in a separate image.
--c ../../7a_verl/environment/requirements.lock
-ray[serve,llm]==2.49.2
+# Separate serving candidate; native import/HTTP/GPU validation remains mandatory.
+-c gpu-constraints.txt
+ray[serve,llm]==2.53.0
 jsonref==1.1.0
 hf-transfer==0.1.9
+flash-attn
+nvidia-cutlass-dsl==4.2.1

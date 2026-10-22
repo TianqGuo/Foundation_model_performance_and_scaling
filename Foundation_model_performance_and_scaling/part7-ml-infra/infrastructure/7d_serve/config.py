@@ -7,7 +7,7 @@ import re
 DEFAULT_REPO = "sclion/part7-7a-smoke-execution-20261005T045405Z-dwaxLH"
 DEFAULT_REVISION = "40c33b6ad0a7a2879e7b5a8f5f6a52baaa94a584"
 # Candidate only: Serve LLM imports/dependency resolution must be checked separately.
-RAY_VERSION = "2.49.2"
+RAY_VERSION = "2.53.0"
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Usage: part7D.sh render --image SERVING_IMAGE_DIGEST --node-name NODE [options]
-# CPU-only rendering in this increment; cloud E2E runner is not ready yet.
+# Usage: part7D.sh {render|image|benchmark|e2e} [options]
+# Cloud execution requires --cloud; image publication additionally requires --publish.
 set -euo pipefail
 part7_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 case "${1:---help}" in
@@ -14,7 +14,7 @@ case "${1:---help}" in
     ;;
   image)
     shift
-    exec bash "$part7_root/infrastructure/7d_serve/build_image.sh" "$@"
+    exec python3 "$part7_root/infrastructure/7d_serve/image_publish.py" "$@"
     ;;
   render)
     shift
@@ -22,7 +22,7 @@ case "${1:---help}" in
     ;;
   --help)
     echo 'part7D.sh render --image REGISTRY/IMAGE@sha256:DIGEST --node-name NODE [--output PATH]'
-    echo 'part7D.sh image --cloud [LOCAL_TAG] (candidate build/import gate only; no push)'
+    echo 'part7D.sh image --check | --cloud [--publish] [--repository USER/REPO]'
     echo 'part7D.sh benchmark --cloud --prompts JSONL --output REPORT [options] (future E2E helper)'
     echo 'part7D.sh e2e --check --image IMAGE_DIGEST (cloud mode remains unverified)'
     echo 'Serving compatibility and full cloud E2E remain pending; do not provision yet.'

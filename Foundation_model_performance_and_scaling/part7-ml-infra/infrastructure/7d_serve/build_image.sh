@@ -14,10 +14,12 @@ tag="${1:-part7-serving:7d-candidate}"
 if [[ "$tag" == -* || "$tag" == *[[:space:]]* ]]; then
   echo 'Invalid local image tag.' >&2; exit 2
 fi
-output="$part7_root/results/7d/image_$(date -u +%Y%m%dT%H%M%SZ)_$$"
-mkdir -p "$output"
+output="${PART7_BUILD_OUTPUT:-$part7_root/results/7d/image_$(date -u +%Y%m%dT%H%M%SZ)_$$}"
+mkdir -p "$(dirname -- "$output")"
+mkdir "$output"
 docker_cmd=(docker)
 if ! docker info >/dev/null 2>&1; then docker_cmd=(sudo -n docker); fi
+if [[ -n "${PART7_DOCKER_CONFIG:-}" ]]; then docker_cmd+=(--config "$PART7_DOCKER_CONFIG"); fi
 "${docker_cmd[@]}" build --progress=plain \
   -f "$part7_root/infrastructure/7d_serve/Dockerfile" \
   --tag "$tag" "$part7_root" 2>&1 | tee "$output/build.log"

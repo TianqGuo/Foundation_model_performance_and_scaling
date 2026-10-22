@@ -37,7 +37,7 @@ spec:
             enforce_eager: true
             enable_prefix_caching: false
   rayClusterConfig:
-    rayVersion: 2.49.2
+    rayVersion: 2.53.0
     enableInTreeAutoscaling: false
     headGroupSpec:
       rayStartParams:

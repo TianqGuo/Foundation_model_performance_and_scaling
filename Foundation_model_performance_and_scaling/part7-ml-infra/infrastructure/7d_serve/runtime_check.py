@@ -63,9 +63,11 @@ def check_runtime():
         raise ValueError("Installed Ray differs from the rendered cluster version")
     from ray.serve.llm import LLMConfig, build_openai_app
     from ray.serve.schema import ServeDeploySchema
-    from ray.llm._internal.serve.deployments.llm import vllm as adapter_package
     from vllm.v1.engine.async_llm import AsyncLLM
-    adapter = importlib.import_module(adapter_package.__name__ + ".vllm_engine")
+    adapter = importlib.import_module("ray.llm._internal.serve.engines.vllm.vllm_engine")
+    from vllm.v1.executor.abstract import Executor
+    from vllm.entrypoints.openai.cli_args import FrontendArgs
+    from vllm.v1.metrics.ray_wrappers import RayPrometheusStatLogger
     config = settings.ServingConfig()
     LLMConfig.model_validate(config.llm_config())
     ServeDeploySchema.model_validate(dict(applications=[dict(

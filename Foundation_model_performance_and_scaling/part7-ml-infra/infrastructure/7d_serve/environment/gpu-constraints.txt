@@ -1,0 +1,10 @@
+# Preserve the accepted CUDA 13/PyTorch GPU ABI and tokenizer pins.
+# Extracted from 7A requirements.lock; serving Ray is intentionally separate.
+flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3%2Bcu13torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl#sha256=a4b43bd016f5d475dc34a87aa91b5a239bd0e8972c13f4fc32839b4032465d21
+numpy==1.26.4
+nvidia-cutlass-dsl==4.2.1
+pydantic==2.13.5
+torch @ https://download.pytorch.org/whl/cu130/torch-2.9.0%2Bcu130-cp312-cp312-manylinux_2_28_x86_64.whl
+torchaudio @ https://download.pytorch.org/whl/cu130/torchaudio-2.9.0%2Bcu130-cp312-cp312-manylinux_2_28_x86_64.whl
+torchvision @ https://download.pytorch.org/whl/cu130/torchvision-0.24.0%2Bcu130-cp312-cp312-manylinux_2_28_x86_64.whl
+transformers==4.57.6
