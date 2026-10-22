@@ -1,16 +1,96 @@
 # 7D runbook — serving workflow preparation
 
-**Do not rent a GPU VM for 7D yet.** The candidate serving image/native API
-compatibility is still under review. The E2E source workflow is now composed,
-but has not been run on cloud. The lifecycle/load/restart helpers now have CPU tests, but have
-not run against a real service.
-The renderer, candidate image diagnostic, benchmark helper and composed E2E runner
-are exposed by `part7D.sh`. Native image compatibility and cloud E2E remain unverified. See [7D plan](7D_PLAN.md).
+The source workflow and a separately resolved serving candidate are ready for a
+first bounded cloud validation. **No 7D native import, inference or cloud E2E pass
+has been recorded.** Agree VM hardware and total spending cap before rental.
+Use the staged verification below; stop at the first failure and retain evidence.
+See [7D plan](7D_PLAN.md) for acceptance limits.
+
+## Current serving stack and first cloud validation
+
+The serving image derives from the immutable accepted 7C image, but upgrades Ray
+only in the derived image. Its environment is synced to the serving lock, removing
+unused training distributions so they cannot conflict with serving dependencies.
+Matching GPU packages are reused. 7A–7C code, dependencies and published image stay intact.
+
+| Component | Serving candidate |
+| --- | --- |
+| Ray Serve LLM | 2.53.0 |
+| Torch / vLLM | 2.9.0+cu130 / 0.12.0+cu130 |
+| Transformers / NumPy | 4.57.6 / 1.26.4 |
+| Flash Attention / CUTLASS DSL | 2.8.3 / 4.2.1 |
+| Dependency resolution | 219 packages; Python 3.12/Linux x86_64; metadata only |
+
+Ray 2.53's official LLM extra targets vLLM >=0.12.0 and Transformers >=4.57.3.
+Its public API uses common Ray deprecation utilities rather than importing RLlib;
+its vLLM adapter handles different `init_app_state` signatures. These source checks
+motivate the candidate; they do not prove runtime compatibility. References:
+[dependency metadata](https://github.com/ray-project/ray/blob/ray-2.53.0/python/setup.py),
+[public API](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/serve/llm/__init__.py),
+[vLLM adapter](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/llm/_internal/serve/engines/vllm/vllm_engine.py).
+
+Local previews need no model, Docker or network:
+
+```bash
+bash infrastructure/7d_serve/part7D.sh image --check
+bash infrastructure/7d_serve/part7D.sh e2e --check \
+  --image registry.example/serve@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+```
+
+After agreeing hardware/budget, clone/pull the approved source on a full cloud VM
+and enter Part 7. The existing installer requires exactly two GPUs, at least 32
+CPUs, 120 GiB host RAM and 200 GiB free disk; serving itself uses one GPU. Use a
+full Ubuntu VM with systemd, passwordless sudo, Docker and NVIDIA container runtime,
+not a restricted container rental. The previously reviewed 2 x H100 80 GB VM is
+a reference hardware profile, not a current price/availability recommendation.
+
+Git push/clone/pull remains the preferred source delivery method, performed only
+with your approval. For uncommitted changes, first clone the full repository on
+the VM (so Part 5 sources exist), then transfer the 7D directory from local Part 7:
+
+```bash
+rsync -az --exclude=__pycache__ --exclude='.env*' --exclude='.cache' \
+  infrastructure/7d_serve/ \
+  ubuntu@CLOUD_HOST:~/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part7-ml-infra/infrastructure/7d_serve/
+```
+
+Replace the host/path to match the VM. This copies code/configuration only, without
+committing, pushing, or transferring model files. Source hashes are checked again
+when the resulting image is used.
+
+First build/check the derived image and publish only if native import checks pass:
+
+```bash
+bash infrastructure/7d_serve/part7D.sh image --cloud --publish
+```
+
+Default destination is the existing `sclion/part7-training` public repository,
+using a new `7d-<UTC timestamp>` tag. It does not overwrite a 7C tag or digest.
+Use `--repository USER/REPO` to change the destination. Authentication reads
+`DOCKERHUB_TOKEN` or prompts invisibly, using an isolated temporary Docker config
+removed afterwards (including sudo-created files). No model or Hub token enters
+the build context. Omit `--publish` for a build/import diagnostic without login.
+Fresh evidence goes under `results/7d/image_*`; publication records the registry
+digest and verifies it can be pulled. A passing import gate is not an inference pass.
+
+If build/import checks pass, use the printed **serving** digest in the full run:
+
+```bash
+bash infrastructure/7d_serve/part7D.sh e2e --cloud --fresh-setup \
+  --image sclion/part7-training@sha256:SERVING_DIGEST_FROM_PUBLICATION
+```
+
+The uppercase digest placeholder must be replaced; do not use a training digest.
+For an existing accepted cluster, omit `--fresh-setup`. Fresh setup prompts for a
+Hugging Face write token or reads `HF_TOKEN`, then mounts a Secret for model staging.
+No manual model download, laptop data copy or per-phase commands are needed.
+If native imports fail, stop before E2E and inspect `build/runtime_check.log`.
+Do not release the VM until lightweight evidence is retained and reviewed.
 
 ## End-to-end workflow and code map
 
 This is the main workflow reference for 7D. Like 7C, `e2e.py` connects existing
-components on the cloud VM. A compatible, published serving-image digest is a
+components on the cloud VM. A serving-image digest that has passed the native import gate is a
 prerequisite; E2E does not build or publish the image.
 
 ```text
@@ -52,8 +132,8 @@ and diagnostic evidence. Successful E2E runs verify owned-resource cleanup;
 PVCs, Secrets and the Kubernetes cluster remain.
 
 **Current status:** this workflow is implemented and CPU-tested as source, but
-native serving-image compatibility and actual cloud E2E execution remain unverified.
-Do not rent a VM yet. See [7D plan](7D_PLAN.md) for remaining gates and the
+native imports/inference and actual cloud E2E execution remain unverified.
+The next step is bounded cloud validation after hardware/budget agreement. See [7D plan](7D_PLAN.md) for remaining gates and the
 [7C workflow](7C_RUNBOOK.md#end-to-end-workflow-and-code-map) for the verified
 training/recovery counterpart.
 
@@ -115,7 +195,10 @@ lightweight jsonschema/PyYAML dependencies outside the project environment. Eigh
 Docker build, cluster mutation or GPU execution has occurred.
 
 
-## Serving dependency/import gate — 2026-10-20
+## Historical serving dependency/import gate — 2026-10-20
+
+The Ray 2.49.2 candidate described here was superseded by the Ray 2.53.0 stack
+at the top of this runbook. These notes record the earlier increment.
 
 Added a metadata-resolved candidate serving overlay (197 packages), a separate
 Dockerfile based on the accepted immutable 7C image, and `part7D.sh image --cloud`
@@ -205,8 +288,8 @@ bash infrastructure/7d_serve/part7D.sh e2e --check \
 
 Once a compatible serving image has been built/published and hardware/budget are
 agreed, the intended normal VM command is `part7D.sh e2e --cloud --fresh-setup
---image SERVING_IMAGE_DIGEST`. This is not a recommendation to rent/run yet: the
-current candidate dependency stack has not passed native imports or inference.
+--image SERVING_IMAGE_DIGEST`. This sequence requires prior hardware/budget agreement and a successful
+image build/import gate; actual native imports and inference remain unverified.
 The placeholder and the training image must not be substituted as verified serving
 images. `--fresh-setup` refuses reuse; omit it for an existing accepted cluster.
 

@@ -709,3 +709,32 @@ reuse path. The CPU preview passed. This is source preparation, not cloud E2E
 execution. The candidate Ray/vLLM Serve integration still needs a compatible native
 image/import review and build/publication workflow before recommending rental.
 The normal full-run source command now exists, but no 7D cloud success is claimed.
+
+
+## Serving candidate update and publication gate — 2026-10-22
+
+7D now selects Ray Serve LLM 2.53.0, whose official LLM dependency metadata targets
+vLLM >=0.12.0, and resolves a separate 219-package Python 3.12/Linux lock. Eight
+GPU/tokenizer/schema constraints are carried from 7A: Torch/torchaudio/torchvision
+CUDA 13 wheels, flash-attn, CUTLASS DSL, Transformers, NumPy and Pydantic. The
+training lock is not imposed wholesale, so the serving Ray version can differ.
+No packages were installed locally and no model was loaded. Accepted 7A–7C files
+and published image are unchanged; only the derived serving image will differ.
+
+Pinned source review found the newer public deprecation import and vLLM
+`init_app_state` signature handling. Updated native gate imports to the 2.53
+adapter layout and included executor/frontend/metrics imports. These are checks
+to execute on cloud, not evidence of native compatibility already passing.
+
+Added a thin serving-image publisher reusing 7C credential-directory/digest helpers.
+The shell image action supports --check/--cloud, optional --publish and repository
+override; only --publish authenticates/uploads. Build/import failure prevents push.
+The existing public repository uses new 7d timestamp tags; output records an immutable
+registry digest, verified pull and explicit inference/E2E-unverified fields. Tests
+simulate no-publish, failed native gate and successful registry receipt sequencing.
+
+Source wiring, separate candidate resolution and image publication support are
+prepared. Next is a bounded cloud build/import check, then the complete E2E run
+only if that gate passes. Agree hardware and total spending cap before rental.
+See the current stack and exact sequence in the [7D runbook](documents/7D_RUNBOOK.md).
+No provisioning, Docker build, image push, inference or Git commit/push occurred.

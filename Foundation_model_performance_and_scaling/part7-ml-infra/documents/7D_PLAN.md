@@ -71,9 +71,9 @@ commits, pushes or registry uploads without the applicable user authorization.
 
 ## References
 
-- [Pinned Ray LLM builder API](https://github.com/ray-project/ray/blob/ray-2.49.2/python/ray/serve/llm/__init__.py)
-- [Pinned Ray dependency metadata](https://github.com/ray-project/ray/blob/ray-2.49.2/python/setup.py)
-- [Pinned model-loading/engine config](https://github.com/ray-project/ray/blob/ray-2.49.2/python/ray/llm/_internal/serve/configs/server_models.py)
+- [Pinned Ray LLM builder API](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/serve/llm/__init__.py)
+- [Pinned Ray dependency metadata](https://github.com/ray-project/ray/blob/ray-2.53.0/python/setup.py)
+- [Pinned model-loading/engine config](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/llm/_internal/serve/core/configs/llm_config.py)
 - [KubeRay RayService example](https://github.com/ray-project/kuberay/blob/v1.4.2/ray-operator/config/samples/ray-service.sample.yaml)
 - [Pinned RayService schema](https://github.com/ray-project/kuberay/blob/v1.4.2/ray-operator/config/crd/bases/ray.io_rayservices.yaml)
 
@@ -185,3 +185,38 @@ Verification for E2E composition: 103 combined 7C/7D CPU tests ran; 101 passed
 and two optional external CRD-schema checks skipped. CPU E2E preview, shell syntax
 and diff-whitespace checks passed. No cloud, registry publication or model execution
 was performed; Parts 1–6 and accepted 7A–7C implementation were preserved.
+
+
+## Serving candidate update and publication gate — 2026-10-22
+
+7D now selects Ray Serve LLM 2.53.0, whose official LLM dependency metadata targets
+vLLM >=0.12.0, and resolves a separate 219-package Python 3.12/Linux lock. Eight
+GPU/tokenizer/schema constraints are carried from 7A: Torch/torchaudio/torchvision
+CUDA 13 wheels, flash-attn, CUTLASS DSL, Transformers, NumPy and Pydantic. The
+training lock is not imposed wholesale, so the serving Ray version can differ.
+No packages were installed locally and no model was loaded. Accepted 7A–7C files
+and published image are unchanged; only the derived serving image will differ.
+
+Pinned source review found the newer public deprecation import and vLLM
+`init_app_state` signature handling. Updated native gate imports to the 2.53
+adapter layout and included executor/frontend/metrics imports. These are checks
+to execute on cloud, not evidence of native compatibility already passing.
+
+Added a thin serving-image publisher reusing 7C credential-directory/digest helpers.
+The shell image action supports --check/--cloud, optional --publish and repository
+override; only --publish authenticates/uploads. Build/import failure prevents push.
+The existing public repository uses new 7d timestamp tags; output records an immutable
+registry digest, verified pull and explicit inference/E2E-unverified fields. Tests
+simulate no-publish, failed native gate and successful registry receipt sequencing.
+
+Source wiring, separate candidate resolution and image publication support are
+prepared. Next is a bounded cloud build/import check, then the complete E2E run
+only if that gate passes. Agree hardware and total spending cap before rental.
+See the current stack and exact sequence in the [7D runbook](7D_RUNBOOK.md).
+No provisioning, Docker build, image push, inference or Git commit/push occurred.
+
+Validation for this increment: 107 combined 7C/7D CPU tests ran, 105 passed and
+two optional CRD-schema checks skipped. Shell syntax and diff-whitespace checks
+passed. The derived image syncs to the serving-only lock to avoid inherited
+training-only dependency conflicts; actual image installation/import checks remain
+cloud-pending. No local environment installation or model execution occurred.
