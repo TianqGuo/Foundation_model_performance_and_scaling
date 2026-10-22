@@ -4,6 +4,50 @@
 [7C_PLAN.md](7C_PLAN.md) for measured results, pinned identities and limits.
 Historical implementation/failure notes remain in the root [PLAN.md](../PLAN.md).
 
+## End-to-end workflow and code map
+
+This is the main workflow reference for 7C. `e2e.py` runs on the cloud VM and
+connects existing helpers; it does not replace their implementation. The published
+training image is a prerequisite and is reused by this workflow.
+
+```text
+On the cloud VM (outside the training pods)
+part7C.sh e2e
+  -> e2e.py: verify sources; install/check Kubernetes, KubeRay and PVC
+  -> prepare the accepted Part 5 data bundle on the VM
+  -> experiment.py: coordinate the experiment
+       -> data_staging.py: copy bundle to PVC through a temporary pod
+       -> render.py: generate each RayJob manifest
+       -> job_control.py: submit to Kubernetes and monitor/retain evidence
+            -> KubeRay creates Ray head/worker pods from the training image
+            -> preflight RayJob: preflight.py checks two GPU allocations
+            -> baseline RayJob: run_7c.py launches native verl training
+            -> interrupt RayJob: save step-2 checkpoint and upload to Hub
+            -> resume RayJob: download pinned checkpoint and resume at step 3
+       -> compare restored training state and record recovery review
+  -> retain overall review and phase cleanup receipts
+```
+
+Each successful RayJob is cleaned up after its evidence is retained, before the
+next phase needs the GPUs. A failure stops progress and retains resources for
+inspection. The interruption is controlled at a complete checkpoint boundary;
+this does not simulate a VM crash.
+
+| Responsibility | Main code |
+| --- | --- |
+| Shell entry point and overall composition | [part7C.sh](../infrastructure/7c_kuberay/part7C.sh), [e2e.py](../infrastructure/7c_kuberay/e2e.py) |
+| Kubernetes installation and read-only cluster checks | [setup_cluster.py](../infrastructure/7c_kuberay/setup_cluster.py), [cluster_check.py](../infrastructure/7c_kuberay/cluster_check.py) |
+| Experiment sequence, state review and PVC staging | [experiment.py](../infrastructure/7c_kuberay/experiment.py), [data_staging.py](../infrastructure/7c_kuberay/data_staging.py) |
+| RayJob manifest, submission, logs and cleanup | [render.py](../infrastructure/7c_kuberay/render.py), [job_control.py](../infrastructure/7c_kuberay/job_control.py) |
+| Code executed inside RayJob pods | [preflight.py](../infrastructure/7c_kuberay/preflight.py), [run_7c.py](../infrastructure/7c_kuberay/run_7c.py), [checkpoint_transfer.py](../infrastructure/7c_kuberay/checkpoint_transfer.py) |
+
+Kubernetes schedules the pods; KubeRay manages the Ray cluster/job lifecycle;
+Ray schedules application actors/tasks, and verl runs the training workflow.
+The controller submits manifests to Kubernetes rather than directly to KubeRay.
+7C's bounded fresh-install/same-node recovery workflow has passed cloud review;
+see [results and limits](7C_PLAN.md). For the serving counterpart, see the
+[7D workflow](7D_RUNBOOK.md#end-to-end-workflow-and-code-map).
+
 ## One-command cloud execution
 
 Use a full Ubuntu x86_64 GPU VM with systemd, passwordless sudo, existing NVIDIA

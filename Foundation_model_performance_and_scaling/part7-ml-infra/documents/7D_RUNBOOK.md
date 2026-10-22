@@ -7,6 +7,56 @@ not run against a real service.
 The renderer, candidate image diagnostic, benchmark helper and composed E2E runner
 are exposed by `part7D.sh`. Native image compatibility and cloud E2E remain unverified. See [7D plan](7D_PLAN.md).
 
+## End-to-end workflow and code map
+
+This is the main workflow reference for 7D. Like 7C, `e2e.py` connects existing
+components on the cloud VM. A compatible, published serving-image digest is a
+prerequisite; E2E does not build or publish the image.
+
+```text
+On the cloud VM (outside the serving pods)
+part7D.sh e2e
+  -> e2e.py: check serving image imports and source hashes in a Docker container
+  -> install/check Kubernetes, KubeRay, PVC, Hub Secret and RayService API
+  -> prepare the fixed 32 raw MATH prompts from cloned Part 5 sources
+  -> render.py: generate the RayService manifest
+  -> service_control.py: create it through the Kubernetes API
+       -> KubeRay creates Ray head/worker pods from the serving image
+       -> init containers run prepare_model.py: pinned Hub export -> shared PVC
+       -> Ray Serve starts the native LLM application inside the Ray cluster
+  -> wait for native Serve readiness and HTTP model catalog
+  -> open VM-loopback port-forward; benchmark.py runs warmup + concurrent load
+  -> retain pre-restart logs, metrics and placement
+  -> delete the owned worker pod; KubeRay creates its replacement
+  -> require a new pod UID, same node and successful inference
+  -> benchmark again; retain recovery observations and post-restart evidence
+  -> save passing review; delete owned RayService and verify descendant cleanup
+  -> save overall e2e_review.json
+```
+
+| Responsibility | Main code |
+| --- | --- |
+| Shell entry point, image gate, prompts and overall composition | [part7D.sh](../infrastructure/7d_serve/part7D.sh), [e2e.py](../infrastructure/7d_serve/e2e.py) |
+| Separate serving-image recipe and import diagnostics | [Dockerfile](../infrastructure/7d_serve/Dockerfile), [build_image.sh](../infrastructure/7d_serve/build_image.sh), [runtime_check.py](../infrastructure/7d_serve/runtime_check.py) |
+| Configurable model identity/settings and RayService manifest | [config.py](../infrastructure/7d_serve/config.py), [render.py](../infrastructure/7d_serve/render.py) |
+| Model download/integrity checks inside init containers | [prepare_model.py](../infrastructure/7d_serve/prepare_model.py) |
+| VM-side readiness, transport, restart, evidence and cleanup | [service_control.py](../infrastructure/7d_serve/service_control.py) |
+| VM-side HTTP load and measurements | [benchmark.py](../infrastructure/7d_serve/benchmark.py) |
+
+Kubernetes/KubeRay/Serve status checks and actual HTTP generation checks serve
+different purposes; a Running pod or a model-catalog response alone is insufficient.
+The worker deletion is an intentional recovery test. KubeRay replaces the pod;
+the controller observes readiness and inference, recording failures rather than
+assuming there was an HTTP outage. Failures stop the workflow and retain resources
+and diagnostic evidence. Successful E2E runs verify owned-resource cleanup;
+PVCs, Secrets and the Kubernetes cluster remain.
+
+**Current status:** this workflow is implemented and CPU-tested as source, but
+native serving-image compatibility and actual cloud E2E execution remain unverified.
+Do not rent a VM yet. See [7D plan](7D_PLAN.md) for remaining gates and the
+[7C workflow](7C_RUNBOOK.md#end-to-end-workflow-and-code-map) for the verified
+training/recovery counterpart.
+
 ## CPU preview
 
 From Part 7, generate a reading manifest with a placeholder image digest:
@@ -36,8 +86,9 @@ weights are downloaded once, with later init pods checking hashes. A partial
 download is retained and reused only for the same repo/revision. Staging reads
 the mounted Hub Secret without CLI login or exported token values. Main serving
 containers read the PVC offline and expose port 8000 via the internal head proxy.
-No public ingress/LoadBalancer is configured. The controller/benchmark transport
-must be implemented before the normal cloud command is runnable.
+No public ingress/LoadBalancer is configured. The controller/benchmark transport is implemented in
+`service_control.py`; native runtime compatibility and cloud execution remain
+unverified.
 
 `prepare_model.py --cloud` is an init-container helper, not a local model command.
 It requires Kubernetes pod identity, mounted Secret and a `/workspace` destination.
@@ -77,18 +128,19 @@ acceptance. These checks never instantiate an engine or load/download a model.
 
 API review found version-sensitive Serve-to-vLLM calls requiring this extra gate;
 a serving-only Ray/version change may still be necessary. No serving image has
-been built or validated on cloud. Lifecycle, HTTP/load/restart checks and the
-single-command full E2E runner remain pending. Do not rent a VM for this partial
+been built or validated on cloud. Lifecycle, HTTP/load/restart helpers and the
+single-command E2E runner are now composed; their actual cloud validation remains
+pending. Do not rent a VM for this partial
 workflow yet. Local tests cover signature mismatch detection with synthetic
 functions; they are not native runtime or cloud E2E tests.
 
 
-## HTTP benchmark helper (for the pending E2E runner)
+## HTTP benchmark helper (called by the E2E runner)
 
 `part7D.sh benchmark --cloud --prompts PATH --output PATH` requires a running
 service through a VM-local port-forward. Each JSONL row must have a fully rendered
-raw `prompt` string. The future E2E runner will prepare these from the accepted
-bundle and record its provenance, so manually preparing this file is not part of
+raw `prompt` string. The E2E runner prepares these from the accepted
+Part 5 sources and records their provenance, so manually preparing this file is not part of
 the intended normal setup. Options include `--requests`, `--concurrency`,
 `--warmup`, `--max-tokens`, `--timeout`, `--model-id` and `--base-url`.
 
@@ -104,7 +156,7 @@ No throughput/latency results have been measured yet.
 
 ## Lifecycle helper (runs on the VM, outside serving pods)
 
-`service_control.py` will be called by the E2E runner, rather than requiring more
+`service_control.py` is called by the E2E runner, rather than requiring more
 manual cloud commands. Its application sequence is:
 
 ```text
