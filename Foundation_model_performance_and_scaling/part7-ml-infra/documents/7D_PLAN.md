@@ -155,3 +155,33 @@ and tunnel termination. No kubectl, HTTP, model or GPU execution occurred. The
 controller is an internal E2E helper, not a new manual stage users must run.
 Full cloud E2E wiring, prompt provenance preparation and native serving image/API
 compatibility remain pending; do not rent an instance yet.
+
+
+## 7D E2E composition increment — 2026-10-22
+
+Added `infrastructure/7d_serve/e2e.py` and `part7D.sh e2e --check/--cloud --image`
+as the composition layer. CPU preview verifies accepted source hashes and renders
+settings without model/network operations. Cloud mode requires an explicit serving
+image digest, checks native imports before Kubernetes changes and verifies the
+image's pod-used source hashes against the checkout. A failed import gate stops
+before installation and retains image diagnostics and an overall failure receipt.
+
+The workflow then installs/reuses accepted K3s/KubeRay, checks storage/operator,
+Secret existence and RayService API access, prepares the same seed-12345 fixed 32
+MATH raw prompts directly from cloned/hash-verified Part 5 files, and invokes the
+owned service/HTTP/restart/cleanup controller. Prompt JSONL and source/selection/
+adapter hashes are retained without solutions; no laptop data copy, Parquet or
+model import is needed for this preparation. Model/revision/ID and serving limits
+remain configurable. Fresh mode refuses existing installations; no automatic reset.
+
+Five additional CPU tests cover real frozen prompt provenance, stale image sources,
+fresh-mode refusal, image-gate failure before setup and the simulated complete
+reuse path. The CPU preview passed. This is source preparation, not cloud E2E
+execution. The candidate Ray/vLLM Serve integration still needs a compatible native
+image/import review and build/publication workflow before recommending rental.
+The normal full-run source command now exists, but no 7D cloud success is claimed.
+
+Verification for E2E composition: 103 combined 7C/7D CPU tests ran; 101 passed
+and two optional external CRD-schema checks skipped. CPU E2E preview, shell syntax
+and diff-whitespace checks passed. No cloud, registry publication or model execution
+was performed; Parts 1–6 and accepted 7A–7C implementation were preserved.

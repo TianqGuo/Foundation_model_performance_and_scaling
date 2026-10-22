@@ -1,6 +1,6 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-18
+Updated: 2026-10-22
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
@@ -84,7 +84,7 @@ expand 7D's acceptance criteria.
 | 7A — Framework workload | **Complete: bounded cloud smoke.** | Pinned verl/FSDP2/vLLM workload on two A100 40 GB GPUs; actual parameter/gradient/Adam sharding, generation, updates, fixed evaluation, merged export, private Hub retention and pinned weights reload reviewed. This is infrastructure evidence, not model-quality improvement or full training-state recovery. See [7A runbook](documents/7A_RUNBOOK.md). |
 | 7B — Ray operations and recovery | **Complete: same-host recovery.** | Two A100 80 GB ranks; step-2 checkpoint interruption, complete private Hub retention/pinned download, fresh Ray runtime and step-3 continuation. Model/Adam/scheduler/saved worker RNG, trainer step/data and next batch restoration reviewed. Driver/vLLM server state and replacement-host recovery excluded. See [7B plan](documents/7B_PLAN.md). |
 | 7C — Kubernetes training | **Complete: fresh-install, same-node E2E.** | One Lambda VM/two H100 80 GB GPUs; fresh K3s/KubeRay setup, automatic data preparation/PVC staging, GPU preflight, native two-rank training, checkpoint interruption/pinned Hub recovery in distinct RayJob pods/runtimes, retained evidence and verified cleanup. Accepted run `part7-e2e-20261018-031219`; no multi-node/replacement-node/bitwise claim. See [7C results](documents/7C_PLAN.md). |
-| 7D — Serving | **In progress: serving configuration, image diagnostic, benchmark and lifecycle CPU preparation; cloud unverified.** | Existing 7A BF16 model export/revision selected; configurable native Serve settings, RayService renderer and model-staging code pass CPU/schema checks. Candidate dependency lock/build diagnostic, HTTP measurement helper and owned-service lifecycle/restart controller are prepared with CPU tests. Still required: compatible cloud-validated serving image, E2E wiring, actual export serving through RayService, HTTP readiness, measured requests/s/generated tokens/s/streaming TTFT/output-token timing/p50–p95 latency/errors/replica status, owned-worker restart/readiness recovery, retained evidence and cleanup in one cloud E2E workflow. See [7D plan](documents/7D_PLAN.md) and [runbook](documents/7D_RUNBOOK.md). |
+| 7D — Serving | **In progress: serving configuration, image diagnostic, benchmark and lifecycle CPU preparation; cloud unverified.** | Existing 7A BF16 model export/revision selected; configurable native Serve settings, RayService renderer and model-staging code pass CPU/schema checks. Candidate dependency lock/build diagnostic, HTTP measurement helper and owned-service lifecycle/restart controller are prepared with CPU tests. Still required: compatible cloud-validated serving image, cloud execution of the composed E2E runner, actual export serving through RayService, HTTP readiness, measured requests/s/generated tokens/s/streaming TTFT/output-token timing/p50–p95 latency/errors/replica status, owned-worker restart/readiness recovery, retained evidence and cleanup in one cloud E2E workflow. See [7D plan](documents/7D_PLAN.md) and [runbook](documents/7D_RUNBOOK.md). |
 
 Record serving hardware, input/output lengths, concurrency, warmup, streaming and
 client/measurement scope. Distinguish engine metrics from client latency and GPU
@@ -684,3 +684,28 @@ and tunnel termination. No kubectl, HTTP, model or GPU execution occurred. The
 controller is an internal E2E helper, not a new manual stage users must run.
 Full cloud E2E wiring, prompt provenance preparation and native serving image/API
 compatibility remain pending; do not rent an instance yet.
+
+
+## 7D E2E composition increment — 2026-10-22
+
+Added `infrastructure/7d_serve/e2e.py` and `part7D.sh e2e --check/--cloud --image`
+as the composition layer. CPU preview verifies accepted source hashes and renders
+settings without model/network operations. Cloud mode requires an explicit serving
+image digest, checks native imports before Kubernetes changes and verifies the
+image's pod-used source hashes against the checkout. A failed import gate stops
+before installation and retains image diagnostics and an overall failure receipt.
+
+The workflow then installs/reuses accepted K3s/KubeRay, checks storage/operator,
+Secret existence and RayService API access, prepares the same seed-12345 fixed 32
+MATH raw prompts directly from cloned/hash-verified Part 5 files, and invokes the
+owned service/HTTP/restart/cleanup controller. Prompt JSONL and source/selection/
+adapter hashes are retained without solutions; no laptop data copy, Parquet or
+model import is needed for this preparation. Model/revision/ID and serving limits
+remain configurable. Fresh mode refuses existing installations; no automatic reset.
+
+Five additional CPU tests cover real frozen prompt provenance, stale image sources,
+fresh-mode refusal, image-gate failure before setup and the simulated complete
+reuse path. The CPU preview passed. This is source preparation, not cloud E2E
+execution. The candidate Ray/vLLM Serve integration still needs a compatible native
+image/import review and build/publication workflow before recommending rental.
+The normal full-run source command now exists, but no 7D cloud success is claimed.

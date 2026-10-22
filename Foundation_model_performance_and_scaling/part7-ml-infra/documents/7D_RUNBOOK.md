@@ -1,10 +1,11 @@
-# 7D runbook — first source increment
+# 7D runbook — serving workflow preparation
 
-**Do not rent a GPU VM for 7D yet.** The serving image/extras, native serving compatibility and the one-command cloud E2E workflow are still
-being prepared. The lifecycle/load/restart helpers now have CPU tests, but have
+**Do not rent a GPU VM for 7D yet.** The candidate serving image/native API
+compatibility is still under review. The E2E source workflow is now composed,
+but has not been run on cloud. The lifecycle/load/restart helpers now have CPU tests, but have
 not run against a real service.
-The renderer, candidate image diagnostic and bounded HTTP benchmark helper are
-exposed by `part7D.sh`; they are not yet a complete deployment workflow. See [7D plan](7D_PLAN.md).
+The renderer, candidate image diagnostic, benchmark helper and composed E2E runner
+are exposed by `part7D.sh`. Native image compatibility and cloud E2E remain unverified. See [7D plan](7D_PLAN.md).
 
 ## CPU preview
 
@@ -138,3 +139,37 @@ Status field mapping follows the pinned
 The UID deletion body uses the
 [kubectl 1.32 raw-delete path](https://github.com/kubernetes/kubectl/blob/v0.32.0/pkg/cmd/delete/delete.go).
 These source checks and synthetic tests do not establish cloud completion.
+
+
+## E2E composition preview
+
+The complete source workflow is now composed in `e2e.py`. Check it locally with a
+placeholder digest (this does not download the image or load a model):
+
+```bash
+bash infrastructure/7d_serve/part7D.sh e2e --check \
+  --image registry.example/serve@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+```
+
+Once a compatible serving image has been built/published and hardware/budget are
+agreed, the intended normal VM command is `part7D.sh e2e --cloud --fresh-setup
+--image SERVING_IMAGE_DIGEST`. This is not a recommendation to rent/run yet: the
+current candidate dependency stack has not passed native imports or inference.
+The placeholder and the training image must not be substituted as verified serving
+images. `--fresh-setup` refuses reuse; omit it for an existing accepted cluster.
+
+The source workflow checks the image before installing Kubernetes, then uses the
+accepted installer and hidden Hugging Face Secret setup. It prepares prompts from
+the Git-cloned Part 5 files on the VM, without laptop rsync. Model init containers
+stage the immutable private export onto PVC. The lifecycle controller measures
+HTTP serving and same-node worker replacement, retains evidence and verifies
+owned-resource cleanup. Source hashes prevent a stale image silently running a
+different pod-used configuration/staging implementation. VM/controller code need
+not be baked into the image to run, but model-staging code must match.
+
+Retain the complete lightweight run directory and review `e2e_review.json`,
+`service/review.json`, both benchmarks, recovery observations and cleanup receipt
+before releasing the VM. No model weights are copied back in this workflow.
+The 32 fixed prompts provide repeatable load inputs; the benchmark is not a
+32-example accuracy evaluation. Current load settings use 16 initial measured
+requests and four post-recovery requests, with request indices/prompt hashes saved.
