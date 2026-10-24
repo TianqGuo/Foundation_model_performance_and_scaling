@@ -308,3 +308,28 @@ before releasing the VM. No model weights are copied back in this workflow.
 The 32 fixed prompts provide repeatable load inputs; the benchmark is not a
 32-example accuracy evaluation. Current load settings use 16 initial measured
 requests and four post-recovery requests, with request indices/prompt hashes saved.
+
+
+## Build troubleshooting: uv sync command syntax
+
+If the dependency layer exits with `unexpected argument '-r' found`, use the
+fixed Dockerfile: `uv pip sync` takes the lockfile as a positional source argument,
+whereas `uv pip install` supports `-r`. This was a command-generation mistake,
+not a dependency resolution failure. The source now uses:
+
+```bash
+uv pip sync --python /opt/part7/.venv-7a/bin/python \
+  infrastructure/7d_serve/environment/requirements.lock
+```
+
+Update the VM checkout (approved Git delivery or the rsync alternative above),
+then rerun `part7D.sh image --cloud --publish` there. Do not clear Docker caches:
+previously downloaded/extracted base layers may be reused on the same builder.
+No serving image was uploaded by the failed command because upload follows a
+successful build/import check. Actual dependency installation and native imports
+remain unverified until the corrected cloud run succeeds.
+
+A prompt such as `ubuntu@TGlenovo7pro:/mnt/d/Repos/...` indicates the command may
+have run in local WSL rather than over SSH on the cloud VM. Both the Python host
+guard and direct build helper now reject known WSL kernels before Docker work.
+`--cloud` expresses execution intent; it cannot establish cloud provenance by itself.

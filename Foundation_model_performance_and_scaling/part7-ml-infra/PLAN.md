@@ -738,3 +738,14 @@ prepared. Next is a bounded cloud build/import check, then the complete E2E run
 only if that gate passes. Agree hardware and total spending cap before rental.
 See the current stack and exact sequence in the [7D runbook](documents/7D_RUNBOOK.md).
 No provisioning, Docker build, image push, inference or Git commit/push occurred.
+
+
+## 7D first build failure correction — 2026-10-22
+
+User log showed the serving Dockerfile passed install-style `-r` to `uv pip sync`.
+Removed the invalid flag and verified the extracted Docker invocation against
+real uv in an offline, empty temporary virtual environment (no dependencies/models
+installed). Added regression coverage and WSL rejection before host GPU/Docker
+operations, because the logged path/prompt appears local and the earlier systemd/
+GPU guard admitted WSL. The native cloud image build/import/E2E remains pending;
+the failed build did not reach image push or model execution. No Git operations.
