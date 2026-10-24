@@ -20,7 +20,7 @@ Matching GPU packages are reused. 7A–7C code, dependencies and published image
 | Transformers / NumPy | 4.57.6 / 1.26.4 |
 | Flash Attention / CUTLASS DSL | 2.8.3 / 4.2.1 |
 | PyArrow / pandas | 19.0.1 / 2.2.3 (NumPy 1.26-compatible candidate) |
-| Dependency resolution | 220 packages; Python 3.12/Linux x86_64; metadata only |
+| Dependency resolution | 222 distinct packages; Python 3.12/Linux x86_64; metadata only |
 
 Ray 2.53's official LLM extra targets vLLM >=0.12.0 and Transformers >=4.57.3.
 Its public API uses common Ray deprecation utilities rather than importing RLlib;
@@ -345,9 +345,9 @@ This is a serving dependency issue, unrelated to whether execution is on cloud.
 The failed invocation stopped before image publication; no inference was attempted.
 
 The serving input/lock now pin PyArrow 19.0.1 and pandas 2.2.3, reusing the native
-data-library pair from accepted 7C. The image runs a three-row NumPy/pandas/Arrow
-filesystem/Parquet interoperability check before exporting layers. The full native
-Ray/vLLM import gate still runs afterwards, before any push. A passing data check
+data-library pair from accepted 7C. The image includes a three-row NumPy/pandas/Arrow
+filesystem/Parquet interoperability check in the full native gate, which now runs
+before image export and again before any push. A passing data check
 alone does not establish serving compatibility or inference success.
 
 Update the source on the existing cloud VM and rerun:
@@ -359,3 +359,29 @@ bash infrastructure/7d_serve/part7D.sh image --cloud --publish
 Keep Docker/BuildKit caches. The same builder can reuse the base and unchanged
 packages; changed dependency layers still need rebuilding. Review the new result
 before starting E2E. No Kubernetes reinstall is needed for this image-import failure.
+
+
+## Native import failure: missing boto3
+
+The next cloud build passed the data-library check but failed importing Ray Serve:
+Ray 2.53's cloud filesystem registry eagerly imports its S3 adapter, which imports
+boto3/botocore even when our model source is Hugging Face and the serving path is
+local PVC. This import requirement was absent from the resolved serving extra.
+The serving input now explicitly includes boto3; its SDK dependencies are pinned
+in the regenerated lock. No AWS credentials, S3 bucket or storage migration is needed.
+Azure/GCS providers delegate to PyArrow in this pinned release; separate Azure/
+Google SDKs are not eagerly imported on this path. Reviewed pinned source:
+[registry](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/llm/_internal/common/utils/cloud_filesystem/__init__.py),
+[S3 adapter](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/llm/_internal/common/utils/cloud_filesystem/s3_filesystem.py).
+
+The Dockerfile now executes the **complete model-free native runtime check before
+image export**, including data/SDK/provider imports, Ray Serve configuration and
+vLLM imports/signatures. It does not start Ray, create cloud clients, load a model
+or run inference. The post-build/pre-push check remains in place. Further import
+failures should now stop at the build step without spending time exporting layers.
+The serving lock has 222 distinct package names (223 requirement entries).
+
+After syncing the corrected 7D source on the same VM, rerun the normal image
+command. Keep the builder cache; no Kubernetes reinstall is needed. This build
+also stopped before publication. Full native Ray/vLLM and inference verification
+remain pending until the corrected cloud gates pass.

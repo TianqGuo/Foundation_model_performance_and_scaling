@@ -63,6 +63,23 @@ def check_data_runtime():
     return dict(numpy=np.__version__,pandas=pd.__version__,pyarrow=pa.__version__,round_trip_rows=len(values))
 
 
+def check_cloud_filesystems():
+    """Import the pinned Ray cloud filesystem registry without creating clients.
+
+    No inputs; returns SDK versions and provider class names. Ray eagerly imports
+    its S3 provider, so boto3/botocore must exist even for a local staged model.
+    Does not authenticate, access S3/GCS/Azure, start Ray or import model libraries.
+    Missing registry/SDK imports raise directly, before model-framework imports.
+    """
+    import boto3
+    import botocore
+    from ray.llm._internal.common.utils.cloud_filesystem import (
+        AzureFileSystem, GCSFileSystem, S3FileSystem, PyArrowFileSystem)
+    return dict(boto3=boto3.__version__,botocore=botocore.__version__,
+                providers=[provider.__name__ for provider in
+                    (AzureFileSystem,GCSFileSystem,S3FileSystem,PyArrowFileSystem)])
+
+
 def check_runtime():
     """Import native Serve/vLLM APIs and validate configuration without loading weights.
 
@@ -81,6 +98,7 @@ def check_runtime():
     with tempfile.TemporaryFile(dir=os.environ["HOME"]):
         pass
     data_runtime = check_data_runtime()
+    cloud_filesystems = check_cloud_filesystems()
     import torch._inductor.codecache
     installed = {name: version(name) for name in ("ray", "vllm", "torch", "transformers")}
     if installed["ray"] != settings.RAY_VERSION:
@@ -100,7 +118,8 @@ def check_runtime():
     if not callable(build_openai_app):
         raise TypeError("Serve LLM builder is not callable")
     calls = validate_constructor_calls(inspect.getsource(adapter), AsyncLLM)
-    return dict(packages=installed, data_runtime=data_runtime, constructor_calls_checked=calls,
+    return dict(packages=installed, data_runtime=data_runtime, cloud_filesystems=cloud_filesystems,
+                constructor_calls_checked=calls,
                 model_loaded=False, gpu_execution_verified=False, http_verified=False)
 
 

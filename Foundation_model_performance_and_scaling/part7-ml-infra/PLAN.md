@@ -765,3 +765,22 @@ Correction verification: the regenerated serving lock has 220 packages. An isola
 Python 3.12 data-only native test passed; the combined suite ran 110 tests with
 108 passes/two optional schema skips. Full cloud image/native imports still need
 the corrected rerun. No model or GPU execution was performed locally.
+
+
+## Cloud filesystem import correction — 2026-10-24
+
+The corrected data pair passed cloud image creation, but native Ray Serve import
+then failed on missing boto3 from its eagerly imported S3 provider. Pinned source
+review confirms Azure/GCS delegate to PyArrow; no separate SDK imports are needed
+there. Added boto3 explicitly and regenerated the serving-only lock, including
+botocore/jmespath/s3transfer. No storage destination or credential changes.
+
+Added a no-client filesystem-registry import helper/test. Moved the complete
+model-free native check into the final Docker build RUN before expensive export;
+post-build checks still prevent publication. Thus future import/config failures
+stop earlier without exporting another image. Full cloud serving remains pending;
+this failed invocation did not push an image or load a model. No Git operations.
+
+Verification: real CPU registry imports passed with exact boto3/botocore 1.43.117
+without clients, network calls or Torch. Combined suite: 111 tests, 109 passes and
+two optional schema skips. Cloud native image/serving verification still pending.

@@ -238,3 +238,22 @@ skipped. This verifies this data-library pair, not the full cloud image/native
 Ray/vLLM stack. Rerun build/import/publication on the existing VM after source
 sync; preserve caches and stop/review any subsequent failure. Accepted 7A–7C code
 and environments remain unchanged. No Git staging/commit/push performed.
+
+
+## Cloud filesystem dependency correction — 2026-10-24
+
+The next cloud image built and passed the data-library check but Ray Serve import
+failed on missing boto3. Pinned filesystem source eagerly imports the S3 adapter;
+Azure/GCS delegate to PyArrow without separate eager provider SDK imports. Added
+boto3 and its resolved dependencies (boto3/botocore 1.43.117); the serving lock has
+222 distinct packages / 223 requirement entries. Hugging Face/PVC storage and
+credentials are unchanged; no AWS credentials or S3 bucket is required.
+
+Moved the entire model-free native gate into the final Dockerfile RUN before
+export, retaining the post-build/pre-push check. New helper imports the filesystem
+registry without creating clients. In an isolated CPU environment, real Ray 2.53
+filesystem imports passed with the exact boto3/botocore pins, mocked client/session
+constructors and socket connections blocked, and no Torch import. With both native
+CPU fixtures enabled, 111 tests ran: 109 passed, two optional schema checks skipped.
+Shell syntax and diff checks passed. The full cloud Ray/vLLM image still needs its
+corrected rerun; no native serving/inference success is claimed. No Git operations.
