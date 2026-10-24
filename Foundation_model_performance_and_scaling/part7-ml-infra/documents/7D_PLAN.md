@@ -278,3 +278,26 @@ pending; the failure occurred before image export/publication. No Git operations
 Verification: 112 combined CPU tests ran, 110 passed and two optional schema
 checks skipped, including real Ray/Pydantic constructor validation in the isolated
 CPU fixture. Diff checks passed; full cloud image/serving remains unverified.
+
+
+## Published image/import evidence — 2026-10-24
+
+User-pasted cloud output records successful image creation, complete model-free
+native import/config/constructor gate, Docker Hub push and digest pull verification:
+`sclion/part7-training@sha256:172c13e7065a7414ea65e58347c01b858b51c612ec6b2686ddc4d69bdcec614a`.
+Evidence directory: `results/7d/image_20261024T024858Z` (publication receipt, push log,
+build log, runtime log and local image ID). Folder transfer/review is still pending.
+The image is retained in the registry; no image/weights need laptop copying.
+
+Observed versions: Ray 2.53.0, vLLM **0.13.0**, Torch 2.9.0+cu130, Transformers
+4.57.6, NumPy 1.26.4, pandas 2.2.3, PyArrow 19.0.1, boto3/botocore 1.43.117.
+The log explicitly reports no model loaded, GPU execution unverified and HTTP
+unverified. This completes the observed build/import/publication step, not 7D.
+
+Version discrepancy: the current serving lock selects `vllm[audio]==0.13.0`;
+the GPU constraint file omitted a vLLM pin, contrary to earlier documentation's
+0.12.0+cu130 expectation. This is not evidence of a stale user checkout. Reconcile
+serving version/CUDA-wheel identity and documentation before GPU/E2E execution;
+do not silently claim this image uses the training vLLM version. Preserve lightweight
+evidence, then the build-only VM can be released; no further VM work is needed
+solely to review this discrepancy. No implementation changes made in this review.
