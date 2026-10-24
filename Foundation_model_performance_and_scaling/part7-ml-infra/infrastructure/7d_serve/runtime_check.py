@@ -40,6 +40,29 @@ def validate_constructor_calls(source, constructor, name="AsyncLLM"):
     return checked
 
 
+def check_data_runtime():
+    """Exercise native NumPy/pandas/Arrow filesystem and Parquet interoperability.
+
+    No inputs. Returns installed versions and a three-row round-trip count; raises
+    on import/ABI/conversion failure. Uses an in-memory buffer, not models, datasets,
+    credentials, Ray or GPU libraries. Suitable before expensive image export.
+    """
+    import numpy as np
+    import pandas as pd
+    import pyarrow as pa
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+    values=np.arange(3,dtype=np.int64)
+    table=pa.Table.from_pandas(pd.DataFrame({"value":values}),preserve_index=False)
+    sink=pa.BufferOutputStream()
+    pq.write_table(table,sink)
+    restored=pq.read_table(pa.BufferReader(sink.getvalue())).to_pandas()["value"].to_numpy()
+    if not np.array_equal(restored,values):
+        raise ValueError("Native data-library round trip changed values")
+    fs.LocalFileSystem()
+    return dict(numpy=np.__version__,pandas=pd.__version__,pyarrow=pa.__version__,round_trip_rows=len(values))
+
+
 def check_runtime():
     """Import native Serve/vLLM APIs and validate configuration without loading weights.
 
@@ -57,6 +80,7 @@ def check_runtime():
             raise ValueError("Missing container tool: " + tool)
     with tempfile.TemporaryFile(dir=os.environ["HOME"]):
         pass
+    data_runtime = check_data_runtime()
     import torch._inductor.codecache
     installed = {name: version(name) for name in ("ray", "vllm", "torch", "transformers")}
     if installed["ray"] != settings.RAY_VERSION:
@@ -76,7 +100,7 @@ def check_runtime():
     if not callable(build_openai_app):
         raise TypeError("Serve LLM builder is not callable")
     calls = validate_constructor_calls(inspect.getsource(adapter), AsyncLLM)
-    return dict(packages=installed, constructor_calls_checked=calls,
+    return dict(packages=installed, data_runtime=data_runtime, constructor_calls_checked=calls,
                 model_loaded=False, gpu_execution_verified=False, http_verified=False)
 
 

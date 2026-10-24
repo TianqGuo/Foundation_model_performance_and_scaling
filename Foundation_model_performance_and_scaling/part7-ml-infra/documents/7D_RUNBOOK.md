@@ -19,7 +19,8 @@ Matching GPU packages are reused. 7A–7C code, dependencies and published image
 | Torch / vLLM | 2.9.0+cu130 / 0.12.0+cu130 |
 | Transformers / NumPy | 4.57.6 / 1.26.4 |
 | Flash Attention / CUTLASS DSL | 2.8.3 / 4.2.1 |
-| Dependency resolution | 219 packages; Python 3.12/Linux x86_64; metadata only |
+| PyArrow / pandas | 19.0.1 / 2.2.3 (NumPy 1.26-compatible candidate) |
+| Dependency resolution | 220 packages; Python 3.12/Linux x86_64; metadata only |
 
 Ray 2.53's official LLM extra targets vLLM >=0.12.0 and Transformers >=4.57.3.
 Its public API uses common Ray deprecation utilities rather than importing RLlib;
@@ -333,3 +334,28 @@ A prompt such as `ubuntu@TGlenovo7pro:/mnt/d/Repos/...` indicates the command ma
 have run in local WSL rather than over SSH on the cloud VM. Both the Python host
 guard and direct build helper now reject known WSL kernels before Docker work.
 `--cloud` expresses execution intent; it cannot establish cloud provenance by itself.
+
+
+## Native import failure: PyArrow requires NumPy 2
+
+The first cloud build completed but failed its native import gate: PyArrow 26.0.0
+required NumPy >=2 at runtime, while the candidate retained NumPy 1.26.4. Package
+metadata resolution and `uv pip check` did not catch that binary/import requirement.
+This is a serving dependency issue, unrelated to whether execution is on cloud.
+The failed invocation stopped before image publication; no inference was attempted.
+
+The serving input/lock now pin PyArrow 19.0.1 and pandas 2.2.3, reusing the native
+data-library pair from accepted 7C. The image runs a three-row NumPy/pandas/Arrow
+filesystem/Parquet interoperability check before exporting layers. The full native
+Ray/vLLM import gate still runs afterwards, before any push. A passing data check
+alone does not establish serving compatibility or inference success.
+
+Update the source on the existing cloud VM and rerun:
+
+```bash
+bash infrastructure/7d_serve/part7D.sh image --cloud --publish
+```
+
+Keep Docker/BuildKit caches. The same builder can reuse the base and unchanged
+packages; changed dependency layers still need rebuilding. Review the new result
+before starting E2E. No Kubernetes reinstall is needed for this image-import failure.

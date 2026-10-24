@@ -1,6 +1,6 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-22
+Updated: 2026-10-24
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
@@ -749,3 +749,19 @@ installed). Added regression coverage and WSL rejection before host GPU/Docker
 operations, because the logged path/prompt appears local and the earlier systemd/
 GPU guard admitted WSL. The native cloud image build/import/E2E remains pending;
 the failed build did not reach image push or model execution. No Git operations.
+
+
+## Cloud native-data import correction — 2026-10-24
+
+User's cloud serving image built but failed native imports: resolved PyArrow 26
+required NumPy >=2 at runtime despite the retained NumPy 1.26.4 candidate. No push
+or model execution followed. Pin the accepted 7C pair PyArrow 19.0.1/pandas 2.2.3
+in the separate serving environment and re-resolve the lock. Add a real in-memory
+NumPy/pandas/Arrow filesystem/Parquet round-trip check before expensive image export,
+and include it in the native runtime receipt. Full cloud Ray/vLLM import, serving
+and E2E verification remain pending. No changes to accepted 7A–7C implementations.
+
+Correction verification: the regenerated serving lock has 220 packages. An isolated
+Python 3.12 data-only native test passed; the combined suite ran 110 tests with
+108 passes/two optional schema skips. Full cloud image/native imports still need
+the corrected rerun. No model or GPU execution was performed locally.

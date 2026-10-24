@@ -15,5 +15,7 @@ RUN --mount=type=cache,id=part7-7d-uv,target=/home/ray/.cache/uv,uid=1000,gid=10
         infrastructure/7d_serve/environment/requirements.lock \
     && uv pip check --python /opt/part7/.venv-7a/bin/python
 COPY --chown=1000:1000 infrastructure/7d_serve/ /opt/part7/infrastructure/7d_serve/
+# Fail native data ABI errors before exporting large image layers. No model/GPU work.
+RUN python -c "import importlib,json; print(json.dumps(importlib.import_module('infrastructure.7d_serve.runtime_check').check_data_runtime()))"
 ENTRYPOINT []
 CMD ["bash"]

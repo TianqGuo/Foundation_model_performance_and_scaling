@@ -5,3 +5,6 @@ jsonref==1.1.0
 hf-transfer==0.1.9
 flash-attn
 nvidia-cutlass-dsl==4.2.1
+# Reuse the native data-library pair verified with NumPy 1.26 in 7C.
+pyarrow==19.0.1
+pandas==2.2.3

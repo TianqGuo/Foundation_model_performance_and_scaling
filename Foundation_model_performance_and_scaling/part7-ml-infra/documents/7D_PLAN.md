@@ -220,3 +220,21 @@ two optional CRD-schema checks skipped. Shell syntax and diff-whitespace checks
 passed. The derived image syncs to the serving-only lock to avoid inherited
 training-only dependency conflicts; actual image installation/import checks remain
 cloud-pending. No local environment installation or model execution occurred.
+
+
+## Cloud data-library failure and correction — 2026-10-24
+
+The user-built cloud image completed but its pre-publication native import gate
+failed: PyArrow 26.0.0 required NumPy >=2 while the candidate pinned 1.26.4.
+No image push or inference followed. Added direct serving pins PyArrow 19.0.1 /
+pandas 2.2.3 (the accepted 7C pair), regenerated the 220-package serving lock and
+added a native in-memory NumPy/pandas/Arrow filesystem/Parquet check before image
+export and inside the runtime receipt.
+
+A separate temporary Python 3.12.3 CPU environment with these data packages passed
+the real round trip without importing Torch/Ray or loading models. With that
+fixture, 110 combined CPU tests ran: 108 passed and two optional CRD schema checks
+skipped. This verifies this data-library pair, not the full cloud image/native
+Ray/vLLM stack. Rerun build/import/publication on the existing VM after source
+sync; preserve caches and stop/review any subsequent failure. Accepted 7A–7C code
+and environments remain unchanged. No Git staging/commit/push performed.
