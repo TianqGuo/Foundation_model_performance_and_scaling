@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Usage: part7D.sh image --cloud [LOCAL_TAG]
+# Usage: bash infrastructure/7d_serve/build_image.sh --cloud [LOCAL_TAG]
 # Cloud-only candidate build + model-free import gate. Never pushes an image.
 set -euo pipefail
 if [[ "${1:-}" != --cloud ]]; then
   echo 'Explicit --cloud required; run on the cloud VM.' >&2; exit 2
 fi
 shift
+case "$(uname -r)" in
+  *[Mm]icrosoft*|*[Ww][Ss][Ll]*) echo 'Run on the cloud GPU VM, not WSL.' >&2; exit 2 ;;
+esac
 if [[ $# -gt 1 || -e /.dockerenv || "$(ps -p 1 -o comm= | xargs)" != systemd ]]; then
   echo 'Expected a full cloud VM and at most one local image tag.' >&2; exit 2
 fi

@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from importlib import import_module
 import json
 from pathlib import Path
+import platform
 import re
 import subprocess
 import sys
@@ -356,9 +357,12 @@ def http_ready(base_url, model_id):
 def require_cloud_host():
     """Reject restricted containers/non-systemd hosts and require visible cloud GPUs.
 
-    No model imports; checks PID 1 and NVIDIA utility with bounded subprocess waits.
+    No model imports; rejects WSL, then checks PID 1 and the NVIDIA utility.
+    Hardware checks alone cannot attest that an arbitrary host is a cloud VM.
     This is an execution guard, not paid-provisioning authorization or a capacity check.
     """
+    if any(marker in platform.release().lower() for marker in ("microsoft","wsl")):
+        raise ValueError("WSL/local execution is unsupported; run on the cloud GPU VM")
     if Path("/.dockerenv").exists() or subprocess.check_output(
             ["ps","-p","1","-o","comm="],text=True,timeout=5).strip()!="systemd":
         raise ValueError("Run lifecycle control on the cloud GPU VM")

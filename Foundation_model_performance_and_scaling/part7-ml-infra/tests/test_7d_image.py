@@ -68,3 +68,40 @@ class ServingImageTests(unittest.TestCase):
             receipt=module.execute("sclion/part7-training",Path(folder)/"new",False)
             self.assertFalse(receipt["published"])
         self.assertFalse(any("login" in call or "push" in call for call in calls))
+
+
+class BuildCommandRegressionTests(unittest.TestCase):
+    def test_actual_sync_cli_from_dockerfile(self):
+        """Parse the Docker sync invocation using real uv against an empty temporary venv.
+
+        Offline dry-run exercises CLI syntax without installing packages, loading
+        checkpoints or executing Docker. Catches install-only flags copied into sync.
+        """
+        import re
+        import shlex
+        import shutil
+        import sys
+        executable=shutil.which("uv")
+        if not executable:self.skipTest("uv unavailable for actual CLI check")
+        source=(module.ROOT/"infrastructure/7d_serve/Dockerfile").read_text().replace("\\\n", " ")
+        args=shlex.split(re.search(r"uv pip sync (.*?)&&",source,re.S).group(1))
+        with tempfile.TemporaryDirectory() as folder:
+            env=Path(folder)/"venv"
+            requirements=Path(folder)/"empty.txt"
+            requirements.write_text("")
+            subprocess.run([executable,"venv","--cache-dir",str(Path(folder)/"cache"),"--offline","--python",sys.executable,str(env)],
+                           check=True,capture_output=True,text=True,timeout=30)
+            args=[str(env/"bin/python") if arg=="/opt/part7/.venv-7a/bin/python" else
+                  str(requirements) if arg=="infrastructure/7d_serve/environment/requirements.lock" else arg for arg in args]
+            result=subprocess.run([executable,"pip","sync","--cache-dir",str(Path(folder)/"cache"),"--offline","--dry-run",*args],
+                                  capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_wsl_rejected_before_gpu_or_docker_commands(self):
+        """A systemd-enabled WSL workstation must not pass as the cloud GPU VM."""
+        with patch.object(module.control.platform,"release",return_value="6.6.87.2-microsoft-standard-WSL2"),patch.object(
+                module.control.subprocess,"run") as run,patch.object(module.control.subprocess,"check_output") as check:
+            with self.assertRaisesRegex(ValueError,"WSL"):
+                module.control.require_cloud_host()
+            run.assert_not_called()
+            check.assert_not_called()

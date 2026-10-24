@@ -12,7 +12,7 @@ COPY --chown=1000:1000 infrastructure/7d_serve/environment/ /opt/part7/infrastru
 USER 1000:1000
 RUN --mount=type=cache,id=part7-7d-uv,target=/home/ray/.cache/uv,uid=1000,gid=1000,sharing=locked \
     UV_LINK_MODE=copy uv pip sync --python /opt/part7/.venv-7a/bin/python \
-        -r infrastructure/7d_serve/environment/requirements.lock \
+        infrastructure/7d_serve/environment/requirements.lock \
     && uv pip check --python /opt/part7/.venv-7a/bin/python
 COPY --chown=1000:1000 infrastructure/7d_serve/ /opt/part7/infrastructure/7d_serve/
 ENTRYPOINT []
