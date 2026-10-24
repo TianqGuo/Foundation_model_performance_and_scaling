@@ -385,3 +385,20 @@ After syncing the corrected 7D source on the same VM, rerun the normal image
 command. Keep the builder cache; no Kubernetes reinstall is needed. This build
 also stopped before publication. Full native Ray/vLLM and inference verification
 remain pending until the corrected cloud gates pass.
+
+
+## Native check failure: ServeDeploySchema has no model_validate
+
+This is a checker API error, not a missing package: Ray 2.53's Serve deployment
+schema uses its Pydantic-v1 compatibility layer. The fixed helper validates using
+`ServeDeploySchema(**configuration)`, with the native schema constructor handling
+validation. There is no Pydantic downgrade or dependency-lock change. Real native
+CPU coverage now accepts the generated Serve payload and rejects invalid apps.
+
+The preceding Triton/no-CUDA notices occur inside Docker build, where this build
+command does not expose GPUs. They are not the fatal exception in this log. GPU
+execution remains a separate cloud serving/E2E check.
+
+Sync the corrected source to the same VM and rerun the normal image command.
+Keep the build cache; the unchanged dependency layer can be reused. The checker
+still runs before export, and publication requires it to pass.

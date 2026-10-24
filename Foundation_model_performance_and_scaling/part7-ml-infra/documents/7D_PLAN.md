@@ -257,3 +257,24 @@ constructors and socket connections blocked, and no Torch import. With both nati
 CPU fixtures enabled, 111 tests ran: 109 passed, two optional schema checks skipped.
 Shell syntax and diff checks passed. The full cloud Ray/vLLM image still needs its
 corrected rerun; no native serving/inference success is claimed. No Git operations.
+
+
+## Native schema validation correction — 2026-10-24
+
+The cloud build advanced through native imports and LLM configuration validation,
+then the checker incorrectly called `ServeDeploySchema.model_validate`. Ray 2.53's
+ServeDeploySchema inherits its Pydantic-v1 compatibility BaseModel, so that v2-only
+method is unavailable despite Pydantic 2 being installed. Replaced it with native
+constructor validation in a small helper. Dependency pins and the renderer are
+unchanged. The upstream schema uses
+[Ray's Pydantic compatibility base](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/serve/schema.py).
+
+A real CPU test with Ray 2.53 / Pydantic 2.13.5 validates the renderer's complete
+Serve configuration, requires the native v1 schema instance, rejects an invalid
+application and confirms no Torch/vLLM import. The test does not start Ray/Serve,
+load a model or contact Kubernetes. Full cloud build/import/inference remain
+pending; the failure occurred before image export/publication. No Git operations.
+
+Verification: 112 combined CPU tests ran, 110 passed and two optional schema
+checks skipped, including real Ray/Pydantic constructor validation in the isolated
+CPU fixture. Diff checks passed; full cloud image/serving remains unverified.

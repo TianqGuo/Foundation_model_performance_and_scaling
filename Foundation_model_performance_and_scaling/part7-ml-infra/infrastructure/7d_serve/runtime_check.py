@@ -80,6 +80,18 @@ def check_cloud_filesystems():
                     (AzureFileSystem,GCSFileSystem,S3FileSystem,PyArrowFileSystem)])
 
 
+def validate_serve_config(document):
+    """Validate a native Serve deployment dictionary and return its schema instance.
+
+    Uses the public model constructor, shared by Pydantic v1/v2. Ray 2.53's
+    ServeDeploySchema uses the v1 compatibility API even with Pydantic v2 installed,
+    so calling its v2-only model_validate method would fail. No app/model is built;
+    invalid configuration raises the native validation exception.
+    """
+    from ray.serve.schema import ServeDeploySchema
+    return ServeDeploySchema(**document)
+
+
 def check_runtime():
     """Import native Serve/vLLM APIs and validate configuration without loading weights.
 
@@ -104,7 +116,6 @@ def check_runtime():
     if installed["ray"] != settings.RAY_VERSION:
         raise ValueError("Installed Ray differs from the rendered cluster version")
     from ray.serve.llm import LLMConfig, build_openai_app
-    from ray.serve.schema import ServeDeploySchema
     from vllm.v1.engine.async_llm import AsyncLLM
     adapter = importlib.import_module("ray.llm._internal.serve.engines.vllm.vllm_engine")
     from vllm.v1.executor.abstract import Executor
@@ -112,7 +123,7 @@ def check_runtime():
     from vllm.v1.metrics.ray_wrappers import RayPrometheusStatLogger
     config = settings.ServingConfig()
     LLMConfig.model_validate(config.llm_config())
-    ServeDeploySchema.model_validate(dict(applications=[dict(
+    validate_serve_config(dict(applications=[dict(
         name="part7-llm", route_prefix="/", import_path="ray.serve.llm:build_openai_app",
         args=dict(llm_configs=[config.llm_config()]))]))
     if not callable(build_openai_app):
