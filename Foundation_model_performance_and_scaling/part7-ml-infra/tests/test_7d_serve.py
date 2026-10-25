@@ -50,6 +50,11 @@ class ServingPreparationTests(unittest.TestCase):
             self.assertFalse(any("token" in arg.lower() for arg in init["args"]))
             mount=next(m for m in pod["containers"][0]["volumeMounts"] if m["name"]=="workspace")
             self.assertTrue(mount["readOnly"])
+        probe=worker["containers"][0]["readinessProbe"]
+        command=probe["exec"]["command"][-1]
+        self.assertIn("local_raylet_healthz",command)
+        self.assertNotIn("8000",command)
+        self.assertGreater(probe["timeoutSeconds"],2)
         native=json.loads(doc["spec"]["serveConfigV2"])
         self.assertEqual(native["proxy_location"],"HeadOnly")
         self.assertEqual(native["applications"][0]["import_path"],"ray.serve.llm:build_openai_app")

@@ -33,6 +33,13 @@ def render_service(image, node_name, *, config=None, namespace="part7", name="pa
         pod = template["spec"]
         container = pod["containers"][0]
         if group is worker:
+            # HeadOnly has no worker HTTP proxy. Override KubeRay's default
+            # RayService probe; native Serve status and HTTP tests gate serving.
+            container["readinessProbe"] = dict(
+                exec={"command":["bash","-c",
+                    "wget --tries 1 -T 2 -q -O- http://localhost:52365/api/local_raylet_healthz | grep success"]},
+                initialDelaySeconds=10,timeoutSeconds=3,periodSeconds=5,
+                successThreshold=1,failureThreshold=1)
             container["resources"] = dict(requests={"cpu":"16","memory":"64Gi","nvidia.com/gpu":1},
                                           limits={"cpu":"16","memory":"64Gi","nvidia.com/gpu":1})
         else:

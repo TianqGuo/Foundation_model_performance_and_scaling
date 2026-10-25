@@ -37,6 +37,20 @@ class ServiceControlTests(unittest.TestCase):
         result.cluster_uid="cluster-uid"
         return result
 
+    def test_cluster_binding_waits_only_for_not_found(self):
+        """Allow delayed cluster creation while preserving API and ownership failures."""
+        with tempfile.TemporaryDirectory() as folder:
+            call=MagicMock(return_value="")
+            session=self.session(Path(folder),call)
+            session.cluster=session.cluster_uid=None
+            self.assertFalse(session.bind_cluster("cluster"))
+            self.assertIn("--ignore-not-found=true",call.call_args.args[0])
+            call.return_value=json.dumps(dict(metadata=dict(uid="cluster-uid",
+                ownerReferences=[dict(uid="service-uid",controller=True)])))
+            self.assertTrue(session.bind_cluster("cluster"))
+            call.side_effect=RuntimeError("API unavailable")
+            with self.assertRaises(RuntimeError):session.bind_cluster("cluster")
+
     def test_exact_manifest_gate(self):
         """Reject resource/command modifications before any cluster operations."""
         doc=module.renderer.render_service(IMAGE,"node")

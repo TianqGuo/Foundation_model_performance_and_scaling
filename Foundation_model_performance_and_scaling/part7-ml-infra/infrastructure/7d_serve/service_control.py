@@ -154,14 +154,22 @@ class Session:
         return document
 
     def bind_cluster(self, cluster):
-        """Record and verify the service-controlled cluster UID, refusing later replacements."""
+        """Bind an owned cluster UID; return False while creation is pending, True on success.
+
+        Ignore only API NotFound via kubectl; authorization/transport failures and
+        owner or identity changes still raise rather than being treated as pending.
+        """
         renderer.training.dns_label(cluster)
-        resource = require_owner(json.loads(self.call(["get","raycluster",cluster,"-o","json"])),self.uid)
+        raw = self.call(["get","raycluster",cluster,"--ignore-not-found=true","-o","json"])
+        if not raw.strip():
+            return False
+        resource = require_owner(json.loads(raw),self.uid)
         uid = resource["metadata"]["uid"]
         if self.cluster and (self.cluster != cluster or self.cluster_uid != uid):
             raise ValueError("Unexpected RayCluster replacement outside restart scope")
         self.cluster,self.cluster_uid = cluster,uid
         save_json(self.output/"cluster_identity.json",dict(name=cluster,uid=uid))
+        return True
 
     def wait_ready(self, timeout=1200):
         """Poll bounded operator readiness; record statuses, cluster UID and timeout evidence."""
@@ -181,8 +189,7 @@ class Session:
                       "; cluster="+(self.cluster or "pending"),flush=True)
                 previous = status
                 next_report = time.monotonic()+30
-            if cluster:
-                self.bind_cluster(cluster)
+            if cluster and self.bind_cluster(cluster):
                 return cluster
             time.sleep(3)
         raise TimeoutError("RayService readiness timed out; inspect retained status/logs")

@@ -1,0 +1,11 @@
+# Metadata-only latest-compatible review. Explicit core pins prevent silent downgrade.
+# Ray 2.59 requires vLLM 0.27, not the standalone latest vLLM 0.32.
+# Use --prerelease if-necessary-or-explicit for unavoidable OTel beta-only dependencies.
+ray[serve,llm]==2.59.0
+vllm[audio]==0.27.0
+torch==2.13.0
+transformers==5.20.2
+numpy
+pandas
+pyarrow
+boto3
