@@ -324,3 +324,20 @@ Final recovery-proof refinement: require the old worker pod to be absent before
 accepting a new ready UID plus successful inference; a terminating worker may
 still serve requests. A regression case covers that overlap. Final combined
 verification: 119 tests passed, no skips. No GPU/model execution or Git operations.
+
+
+## Latest image retained; E2E handoff — 2026-10-25
+
+The new serving image passed cloud build, complete model-free imports/config/
+protocol checks, publication and registry pull verification. All five lightweight
+files were independently checked at
+`/home/ubuntu/results/7d/image_20261025T014429Z`; the dependency-lock hash matches
+this checkout. Observed Ray 2.59.0/vLLM 0.27.0/Torch 2.13.0+cu130/Transformers
+5.20.2 and CUDA runtime 13.0 match the intended core stack. Published image:
+`sclion/part7-training@sha256:8ef0e9142d29a464c6a9b3eba17b1bfcba7311c52d08590a66200cb9019072dc`.
+
+The user destroyed the build VM after retention. No further implementation change
+is required before the first full E2E attempt. Next: user-run fresh E2E on an agreed
+full x86_64 two-GPU cloud VM using that digest. Kubernetes setup/model staging/HTTP
+inference/load/restart/cleanup are not yet cloud-verified for 7D. Do not rebuild or
+republish merely to run E2E. No agent provisioning, Git staging/commit/push.

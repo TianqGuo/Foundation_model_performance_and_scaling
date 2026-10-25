@@ -19,8 +19,9 @@ training/interruption/private-Hub restore, native state audits and four verified
 job cleanups. Local synced evidence was independently re-reviewed. 7D serving
 has passed cloud image build/model-free imports/publication, with lightweight
 evidence retained locally. GPU inference/HTTP/E2E remain unverified. The published
-image uses vLLM 0.13.0; the latest-compatible candidate has now been reviewed/prepared; its cloud build
-and native/GPU serving validation remain pending.
+latest image uses Ray 2.59/vLLM 0.27/Torch 2.13 and passed model-free cloud
+build/import/publication checks. All five logs/receipts were checked locally;
+full GPU serving/E2E remains pending and the build VM has been released.
 See [current 7C results](documents/7C_PLAN.md) and [runbook](documents/7C_RUNBOOK.md).
 Historical increment notes below describe the status at their original time;
 this summary, checklist and milestone documents state the current status.
@@ -866,3 +867,20 @@ Final recovery-proof refinement: require the old worker pod to be absent before
 accepting a new ready UID plus successful inference; a terminating worker may
 still serve requests. A regression case covers that overlap. Final combined
 verification: 119 tests passed, no skips. No GPU/model execution or Git operations.
+
+
+## Latest image retained; E2E handoff — 2026-10-25
+
+The new serving image passed cloud build, complete model-free imports/config/
+protocol checks, publication and registry pull verification. All five lightweight
+files were independently checked at
+`/home/ubuntu/results/7d/image_20261025T014429Z`; the dependency-lock hash matches
+this checkout. Observed Ray 2.59.0/vLLM 0.27.0/Torch 2.13.0+cu130/Transformers
+5.20.2 and CUDA runtime 13.0 match the intended core stack. Published image:
+`sclion/part7-training@sha256:8ef0e9142d29a464c6a9b3eba17b1bfcba7311c52d08590a66200cb9019072dc`.
+
+The user destroyed the build VM after retention. No further implementation change
+is required before the first full E2E attempt. Next: user-run fresh E2E on an agreed
+full x86_64 two-GPU cloud VM using that digest. Kubernetes setup/model staging/HTTP
+inference/load/restart/cleanup are not yet cloud-verified for 7D. Do not rebuild or
+republish merely to run E2E. No agent provisioning, Git staging/commit/push.

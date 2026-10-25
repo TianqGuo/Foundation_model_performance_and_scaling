@@ -1,10 +1,30 @@
 # 7D runbook — serving workflow preparation
 
-The latest-compatible serving candidate is prepared and CPU-tested. The earlier
-vLLM 0.13 image passed cloud build/import/publication and is retained as a fallback;
-**the new candidate has not been built, imported with GPU libraries or served on
-cloud yet**. No user-run local dependency review is needed. The agent completed it;
-see [dependency review](7D_DEPENDENCY_REVIEW.md) for versions, sources and limits.
+The new serving image passed cloud build, complete model-free compatibility checks,
+publication and digest pull. All five evidence files were verified locally at
+`/home/ubuntu/results/7d/image_20261025T014429Z`. The build instance was released.
+**GPU inference/HTTP/full E2E are still unverified.** No further code changes are
+required before the first E2E attempt; no image rebuild is needed.
+
+## Next command: full cloud E2E
+
+Agree hardware and spending cap, then use a fresh full x86_64 Ubuntu GPU VM with
+systemd, passwordless sudo, Docker/NVIDIA runtime, driver R580+, exactly two GPUs,
+at least 32 CPUs, 120 GiB RAM and 200 GiB free disk. Serving uses one GPU; the
+reused Kubernetes bootstrap requires two. Clone/pull the current approved source,
+enter Part 7, and run:
+
+```bash
+bash infrastructure/7d_serve/part7D.sh e2e --cloud --fresh-setup \
+  --image sclion/part7-training@sha256:8ef0e9142d29a464c6a9b3eba17b1bfcba7311c52d08590a66200cb9019072dc
+```
+
+This reuses the published image. No Docker Hub token, image build, local GPU run,
+manual Kubernetes installation or manual model download is required. Setup prompts
+invisibly for the Hub token if HF_TOKEN is absent. The runner prepares/checks the
+platform and data, stages the pinned model, verifies serving/HTTP, benchmarks,
+restarts the owned worker, checks recovery and retains evidence/cleanup receipts.
+Keep the VM until evidence is copied and reviewed; stop on any failure.
 
 ## Current candidate and cloud sequence
 
@@ -33,7 +53,7 @@ serving uses one GPU. A two-GPU VM can run both phases sequentially. No host CUD
 toolkit download or manual model download is part of the normal workflow.
 
 After source publication/clone/pull under your control, enter Part 7 on the VM.
-For the new candidate, first run:
+For a future image rebuild only (not needed for the E2E command above), run:
 
 ```bash
 bash infrastructure/7d_serve/part7D.sh image --cloud --publish
