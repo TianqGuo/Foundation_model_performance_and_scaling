@@ -247,7 +247,7 @@ class Session:
 
         Inputs: restart intent, owned-head URL and rendered probe prompt. Returns
         recovery receipt with new UID and measured probe failures/timing. Requires
-        an observed old-pod disappearance/not-Ready interval; HTTP outage may be
+        old-pod disappearance as well as a new ready pod; HTTP outage may be
         absent and is reported honestly. Same cluster/node only, no VM failover claim.
         """
         started=time.monotonic()
@@ -256,15 +256,19 @@ class Session:
         while time.monotonic()-started < timeout:
             cluster=service_ready(self.current())
             workers=[pod for pod in self.pods() if pod["metadata"].get("labels",{}).get("ray.io/node-type")=="worker"]
+            old_present=any(pod["metadata"]["uid"]==old["uid"] for pod in workers)
             old_ready=any(pod["metadata"]["uid"]==old["uid"] and pod_ready(pod) for pod in workers)
             pod_loss = pod_loss or not old_ready
             replacements=[pod for pod in workers if pod["metadata"]["uid"]!=old["uid"] and pod_ready(pod)]
             # Real completion probes distinguish a live proxy/catalog from working inference.
             result=benchmark.request_completion(base_url,self.config.model_id,prompt,8,10)
             observations.append(dict(seconds=time.monotonic()-started,pod_ready=bool(replacements),
+                                     old_worker_present=old_present,
                                      request_success=result["success"],error_type=result.get("error_type")))
             save_json(self.output/"recovery_observations.json",observations)
-            if pod_loss and len(replacements)==1 and cluster==self.cluster and result["success"]:
+            # A terminating old worker can still answer HTTP requests. Require its
+            # disappearance before accepting inference as replacement recovery.
+            if pod_loss and not old_present and len(replacements)==1 and cluster==self.cluster and result["success"]:
                 replacement=replacements[0]
                 if replacement["spec"].get("nodeName") != old["node"]:
                     raise ValueError("Replacement moved nodes outside accepted recovery scope")
@@ -272,6 +276,7 @@ class Session:
                     new_worker=dict(name=replacement["metadata"]["name"],uid=replacement["metadata"]["uid"],
                                     node=replacement["spec"].get("nodeName")),
                     recovery_seconds=time.monotonic()-started,pod_readiness_loss_observed=pod_loss,
+                    old_worker_absent=True,
                     http_probe_failures=sum(not row["request_success"] for row in observations),
                     scope="same-node owned worker pod replacement; not VM/bitwise recovery")
                 save_json(self.output/"recovery.json",receipt)
@@ -354,6 +359,21 @@ def http_ready(base_url, model_id):
         return False
 
 
+def validate_driver_versions(output):
+    """Validate nvidia-smi driver-version rows against the CUDA 13 baseline (R580).
+
+    Input: CSV/no-header driver strings. Returns the parsed rows or raises before
+    image/cluster mutations. This is a minimum baseline, not proof that all PTX/JIT
+    features work; actual GPU serving remains the acceptance test.
+    """
+    rows=[line.strip() for line in output.splitlines() if line.strip()]
+    if not rows or any(not re.fullmatch(r"\d+(?:\.\d+)+",row) for row in rows):
+        raise ValueError("Could not identify GPU driver versions")
+    if any(int(row.split(".")[0])<580 for row in rows):
+        raise ValueError("CUDA 13 serving candidate requires NVIDIA driver R580 or newer")
+    return rows
+
+
 def require_cloud_host():
     """Reject restricted containers/non-systemd hosts and require visible cloud GPUs.
 
@@ -363,12 +383,17 @@ def require_cloud_host():
     """
     if any(marker in platform.release().lower() for marker in ("microsoft","wsl")):
         raise ValueError("WSL/local execution is unsupported; run on the cloud GPU VM")
+    if platform.machine().lower() not in ("x86_64","amd64"):
+        raise ValueError("Serving image profile requires an x86_64 cloud VM")
     if Path("/.dockerenv").exists() or subprocess.check_output(
             ["ps","-p","1","-o","comm="],text=True,timeout=5).strip()!="systemd":
         raise ValueError("Run lifecycle control on the cloud GPU VM")
     result=subprocess.run(["nvidia-smi","-L"],capture_output=True,text=True,check=True,timeout=15)
     if not any(line.startswith("GPU ") for line in result.stdout.splitlines()):
         raise ValueError("No visible GPUs on the cloud host")
+    drivers=subprocess.run(["nvidia-smi","--query-gpu=driver_version","--format=csv,noheader"],
+        capture_output=True,text=True,check=True,timeout=15)
+    validate_driver_versions(drivers.stdout)
 
 
 def execute(document, context, output, prompts, *, cleanup_on_success=False):

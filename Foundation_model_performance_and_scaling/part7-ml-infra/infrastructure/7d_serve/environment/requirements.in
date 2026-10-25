@@ -1,12 +1,11 @@
-# Separate serving candidate; native import/HTTP/GPU validation remains mandatory.
--c gpu-constraints.txt
-ray[serve,llm]==2.53.0
-jsonref==1.1.0
-hf-transfer==0.1.9
-flash-attn
-nvidia-cutlass-dsl==4.2.1
-# Reuse the native data-library pair verified with NumPy 1.26 in 7C.
-pyarrow==19.0.1
-pandas==2.2.3
-# Ray 2.53 eagerly imports its S3 provider even for local/Hugging Face models.
+# Ray's latest stable LLM integration explicitly supports this vLLM version.
+# Resolve with --prerelease if-necessary-or-explicit: Ray requires beta-only OTel components.
+# Independent serving environment; do not constrain it with the training GPU ABI.
+ray[serve,llm]==2.59.0
+vllm[audio]==0.27.0
+torch==2.13.0
+transformers==5.20.2
+numpy
+pandas
+pyarrow
 boto3

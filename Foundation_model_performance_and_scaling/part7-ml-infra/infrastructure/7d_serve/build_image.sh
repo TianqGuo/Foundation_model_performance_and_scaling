@@ -23,7 +23,7 @@ mkdir "$output"
 docker_cmd=(docker)
 if ! docker info >/dev/null 2>&1; then docker_cmd=(sudo -n docker); fi
 if [[ -n "${PART7_DOCKER_CONFIG:-}" ]]; then docker_cmd+=(--config "$PART7_DOCKER_CONFIG"); fi
-"${docker_cmd[@]}" build --progress=plain \
+"${docker_cmd[@]}" build --platform linux/amd64 --progress=plain \
   -f "$part7_root/infrastructure/7d_serve/Dockerfile" \
   --tag "$tag" "$part7_root" 2>&1 | tee "$output/build.log"
 # No model download or engine construction; failure prevents a passing receipt.

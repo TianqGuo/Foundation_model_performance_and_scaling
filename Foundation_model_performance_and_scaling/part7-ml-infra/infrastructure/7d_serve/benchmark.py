@@ -90,6 +90,18 @@ def read_stream(lines, started, *, clock=time.perf_counter, timeout=120):
                     if first is not None and tokens > 1 else None)
 
 
+def completion_payload(model_id, prompt, max_tokens):
+    """Return the shared raw-completion request used by native schema and HTTP checks.
+
+    Inputs: served model ID, already rendered prompt and generation cap. No model,
+    tokenizer or network work; caller validates bounds. Keeps stop/stream semantics
+    in one place so native protocol checks cannot silently diverge from load tests.
+    """
+    return dict(model=model_id,prompt=prompt,max_tokens=max_tokens,
+                temperature=0,seed=12345,stop=["</answer>"],include_stop_str_in_output=True,
+                n=1,stream=True,stream_options=dict(include_usage=True))
+
+
 def request_completion(base_url, model_id, prompt, max_tokens, timeout):
     """Send one raw streaming completion and return metrics or a sanitized failure.
 
@@ -98,9 +110,7 @@ def request_completion(base_url, model_id, prompt, max_tokens, timeout):
     become failed rows without response bodies, prompt text or credentials.
     """
     started = time.perf_counter()
-    payload = dict(model=model_id, prompt=prompt, max_tokens=max_tokens,
-                   temperature=0, seed=12345, stop=["</answer>"], include_stop_str_in_output=True,
-                   n=1, stream=True, stream_options=dict(include_usage=True))
+    payload = completion_payload(model_id,prompt,max_tokens)
     request = Request(base_url.rstrip("/")+"/v1/completions",
                       data=json.dumps(payload).encode(), headers={"Content-Type":"application/json"})
     try:

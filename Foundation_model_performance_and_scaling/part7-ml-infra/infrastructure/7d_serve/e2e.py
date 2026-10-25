@@ -14,7 +14,8 @@ sys.path.insert(0,str(ROOT))
 platform=import_module("infrastructure.7c_kuberay.e2e")
 control=import_module("infrastructure.7d_serve.service_control")
 workload=import_module("workloads.math_workload")
-SOURCE_FILES=("config.py","render.py","prepare_model.py","runtime_check.py")
+SOURCE_FILES=("config.py","render.py","prepare_model.py","runtime_check.py","benchmark.py",
+              "environment/requirements.lock","Dockerfile")
 
 
 def prepare_prompts(part5, output):

@@ -1,3 +1,4 @@
+# Historical fallback constraints only; the modern serving candidate does not include this file.
 # Preserve the accepted CUDA 13/PyTorch GPU ABI and tokenizer pins.
 # Extracted from 7A requirements.lock; serving Ray is intentionally separate.
 flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3%2Bcu13torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl#sha256=a4b43bd016f5d475dc34a87aa91b5a239bd0e8972c13f4fc32839b4032465d21

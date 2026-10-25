@@ -11,17 +11,21 @@ module=import_module("infrastructure.7d_serve.image_publish")
 
 
 class ServingImageTests(unittest.TestCase):
-    def test_gpu_constraints_preserve_training_abi(self):
-        """Serving Ray can change while CUDA/PyTorch/tokenizer constraints stay pinned."""
+    def test_explicit_core_pins_and_independent_base(self):
+        """Prevent silent version downgrades or reuse of the old training GPU ABI."""
+        import re
         folder=module.ROOT/"infrastructure/7d_serve/environment"
-        training=(module.ROOT/"infrastructure/7a_verl/environment/requirements.lock").read_text().splitlines()
-        pins=[line for line in (folder/"gpu-constraints.txt").read_text().splitlines() if line and not line.startswith("#")]
-        self.assertEqual(len(pins),8)
-        for pin in pins:self.assertIn(pin,training)
         lock=(folder/"requirements.lock").read_text()
-        self.assertIn("=="+module.control.settings.RAY_VERSION,lock)
-        self.assertNotIn("ray==2.49.2",lock)
-        self.assertNotIn("7a_verl/environment/requirements.lock",(folder/"requirements.in").read_text())
+        for name,expected in module.control.settings.CORE_VERSIONS.items():
+            match=re.search(r"^"+name+r"(?:\[.*\])?==([^\n]+)",lock,re.M)
+            self.assertIsNotNone(match,name)
+            self.assertEqual(match.group(1),expected)
+        source=(folder/"requirements.in").read_text()
+        self.assertNotIn("gpu-constraints.txt",source)
+        self.assertIn("vllm[audio]=="+module.control.settings.VLLM_VERSION,source)
+        dockerfile=(module.ROOT/"infrastructure/7d_serve/Dockerfile").read_text()
+        self.assertIn(module.control.settings.BASE_IMAGE,dockerfile)
+        self.assertNotIn("sclion/part7-training@",dockerfile)
 
     def test_failed_import_build_never_pushes(self):
         """The build/import subprocess must finish successfully before publication."""
@@ -78,6 +82,7 @@ class BuildCommandRegressionTests(unittest.TestCase):
         checkpoints or executing Docker. Catches install-only flags copied into sync.
         """
         import re
+        import os
         import shlex
         import shutil
         import sys
@@ -91,10 +96,10 @@ class BuildCommandRegressionTests(unittest.TestCase):
             requirements.write_text("")
             subprocess.run([executable,"venv","--cache-dir",str(Path(folder)/"cache"),"--offline","--python",sys.executable,str(env)],
                            check=True,capture_output=True,text=True,timeout=30)
-            args=[str(env/"bin/python") if arg=="/opt/part7/.venv-7a/bin/python" else
+            args=[str(env/"bin/python") if arg in ("/opt/part7/.venv-7a/bin/python","/usr/bin/python3.12") else
                   str(requirements) if arg=="infrastructure/7d_serve/environment/requirements.lock" else arg for arg in args]
             result=subprocess.run([executable,"pip","sync","--cache-dir",str(Path(folder)/"cache"),"--offline","--dry-run",*args],
-                                  capture_output=True,text=True,timeout=30)
+                                  env=dict(os.environ,UV_OVERRIDE=""),capture_output=True,text=True,timeout=30)
             self.assertEqual(result.returncode,0,result.stderr)
 
     def test_wsl_rejected_before_gpu_or_docker_commands(self):

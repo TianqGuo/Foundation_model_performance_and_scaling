@@ -2,6 +2,7 @@
 import argparse
 from datetime import datetime, timezone
 import getpass
+import hashlib
 from importlib import import_module
 import json
 import os
@@ -41,7 +42,10 @@ def execute(repository, output, publish):
             if result.returncode:raise RuntimeError("Docker Hub login failed")
         env=dict(os.environ,PART7_DOCKER_CONFIG=config,PART7_BUILD_OUTPUT=str((output/"build").resolve()))
         subprocess.run(["bash",str(Path(__file__).with_name("build_image.sh")),"--cloud",tag],env=env,check=True)
-        receipt=dict(tag=tag,repository=repository,published=False,native_import_gate_passed=True,
+        receipt=dict(tag=tag,repository=repository,base_image=control.settings.BASE_IMAGE,
+                     expected_core_versions=dict(control.settings.CORE_VERSIONS),
+                     dependency_lock_sha256=hashlib.sha256((Path(__file__).parent/"environment/requirements.lock").read_bytes()).hexdigest(),
+                     published=False,native_import_gate_passed=True,
                      inference_verified=False,e2e_verified=False)
         if publish:
             result=subprocess.run([*command,"push",tag],text=True,capture_output=True,timeout=3600)
@@ -67,7 +71,8 @@ def main():
     args=parser.parse_args()
     shared.validate_repository(args.repository)
     if args.check:
-        print(json.dumps(dict(repository=args.repository,publish=args.publish,ray=control.settings.RAY_VERSION,
+        print(json.dumps(dict(repository=args.repository,publish=args.publish,core_versions=control.settings.CORE_VERSIONS,
+                              base_image=control.settings.BASE_IMAGE,
                               cloud_verified=False),indent=2))
     else:
         execute(args.repository,args.output,args.publish)

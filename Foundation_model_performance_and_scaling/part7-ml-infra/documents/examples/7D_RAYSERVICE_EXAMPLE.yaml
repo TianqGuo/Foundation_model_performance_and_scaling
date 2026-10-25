@@ -37,7 +37,7 @@ spec:
             enforce_eager: true
             enable_prefix_caching: false
   rayClusterConfig:
-    rayVersion: 2.53.0
+    rayVersion: 2.59.0
     enableInTreeAutoscaling: false
     headGroupSpec:
       rayStartParams:
@@ -141,7 +141,7 @@ spec:
           - name: stage-model
             image: registry.example/part7-serving@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
             command:
-            - /opt/part7/.venv-7a/bin/python
+            - python
             args:
             - /opt/part7/infrastructure/7d_serve/prepare_model.py
             - --cloud
@@ -266,7 +266,7 @@ spec:
           - name: stage-model
             image: registry.example/part7-serving@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
             command:
-            - /opt/part7/.venv-7a/bin/python
+            - python
             args:
             - /opt/part7/infrastructure/7d_serve/prepare_model.py
             - --cloud

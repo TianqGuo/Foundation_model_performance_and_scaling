@@ -1,6 +1,6 @@
 # Part 7 — ML Infrastructure
 
-Updated: 2026-10-24
+Updated: 2026-10-25
 
 Status: 7A bounded infrastructure smoke and artifact review are complete.
 Reviewed local evidence confirms two A100-SXM4-40GB training ranks, actual FSDP2
@@ -17,7 +17,10 @@ recovery are outside this claim; broader numerical/tokenizer parity remains unve
 `part7-e2e-20261018-031219` on two H100 80 GB GPUs passed GPU preflight,
 training/interruption/private-Hub restore, native state audits and four verified
 job cleanups. Local synced evidence was independently re-reviewed. 7D serving
-has started at CPU source-preparation scope; no 7D cloud execution has occurred.
+has passed cloud image build/model-free imports/publication, with lightweight
+evidence retained locally. GPU inference/HTTP/E2E remain unverified. The published
+image uses vLLM 0.13.0; the latest-compatible candidate has now been reviewed/prepared; its cloud build
+and native/GPU serving validation remain pending.
 See [current 7C results](documents/7C_PLAN.md) and [runbook](documents/7C_RUNBOOK.md).
 Historical increment notes below describe the status at their original time;
 this summary, checklist and milestone documents state the current status.
@@ -805,3 +808,61 @@ pending; the failure occurred before image export/publication. No Git operations
 Verification: 112 combined CPU tests ran, 110 passed and two optional schema
 checks skipped, including real Ray/Pydantic constructor validation in the isolated
 CPU fixture. Diff checks passed; full cloud image/serving remains unverified.
+
+
+## Latest-stable serving review input — 2026-10-25
+
+User prefers the latest stable compatible serving dependencies. Added a separate
+metadata-only `environment/latest-review.in` and a runnable local uv compile
+command in the 7D runbook. It excludes pre-releases and writes to a separate
+results/dependency_review candidate lock, leaving the production lock, published
+fallback and training environments unchanged. The candidate has not been resolved
+or accepted in this increment; review native APIs, CUDA wheels/drivers, base image
+and adapter compatibility before another cloud build. No new VM needed yet.
+
+
+## Latest-compatible serving implementation — 2026-10-25
+
+Agent completed the local review; no user-run local dependency command is needed.
+PyPI metadata selects stable Ray 2.59.0 with its exact vLLM 0.27.0 dependency,
+Torch 2.13.0 and Transformers 5.20.2. Standalone latest vLLM 0.32/Torch 2.14.1
+are not valid substitutes for those integration pins. The 236-package serving lock
+is independent of the old training ABI; four OTel beta-only transitive releases
+are explicit exceptions. A strict prerelease ban caused an unintended downgrade,
+so reviewed core pins plus if-necessary-or-explicit are used instead.
+
+New Docker recipe uses the official vLLM v0.27 amd64 digest with prebuilt core
+version guards, root-only image dependency sync, real nonroot Ray identity and
+no large recursive ownership changes. Model init uses system Python. New checks
+cover explicit versions, CUDA 13 Torch, R580 host-driver baseline, shared completion
+payload preservation, Ray's engine_cls alias, newer Hub API signatures and source
+hashes including the shared benchmark. Actual full native/model/GPU checks remain
+in cloud; none were run locally.
+
+Real isolated CPU Ray 2.59 tests passed Serve schema validation/invalid rejection,
+NumPy 2.3.5+pandas 3.1+Arrow 26 round-trip, filesystem registry imports with clients/
+network blocked and Hub 2.3 staging API shape. An AST argument-shape audit against
+pinned upstream Ray/vLLM source passed without importing/constructing an engine.
+See documents/7D_DEPENDENCY_REVIEW.md and current runbook for identities and limits.
+No changes to Parts 1–6 or accepted 7A–7C code/images/environments; the published
+0.13 image/evidence remain retained. No cloud provisioning/build/push or Git ops.
+
+
+## Verification completed for the new candidate
+
+119 combined 7C/7D CPU checks passed, with no skips. This includes real pinned
+KubeRay 1.4.2 RayJob/RayService CRD validation, actual Ray 2.59/Pydantic schema
+checks, the selected NumPy/pandas/Arrow native round trip, filesystem imports with
+clients/network blocked, Hub staging APIs and model-free orchestration tests.
+The separate upstream AST audit checked one constructor call's argument shape.
+Shell syntax, local preview commands, relative documentation links and whitespace
+checks passed. These are not cloud image/native-GPU/inference measurements.
+
+No user-run local review command is needed. New image build/import/publication is
+the next cloud test, followed by E2E only if it passes; hardware/spending agreement
+is still required before rental. No commits, pushes or new cloud resources.
+
+Final recovery-proof refinement: require the old worker pod to be absent before
+accepting a new ready UID plus successful inference; a terminating worker may
+still serve requests. A regression case covers that overlap. Final combined
+verification: 119 tests passed, no skips. No GPU/model execution or Git operations.

@@ -1,36 +1,66 @@
 # 7D runbook — serving workflow preparation
 
-The source workflow and a separately resolved serving candidate are ready for a
-first bounded cloud validation. **No 7D native import, inference or cloud E2E pass
-has been recorded.** Agree VM hardware and total spending cap before rental.
-Use the staged verification below; stop at the first failure and retain evidence.
-See [7D plan](7D_PLAN.md) for acceptance limits.
+The latest-compatible serving candidate is prepared and CPU-tested. The earlier
+vLLM 0.13 image passed cloud build/import/publication and is retained as a fallback;
+**the new candidate has not been built, imported with GPU libraries or served on
+cloud yet**. No user-run local dependency review is needed. The agent completed it;
+see [dependency review](7D_DEPENDENCY_REVIEW.md) for versions, sources and limits.
 
-## Current serving stack and first cloud validation
+## Current candidate and cloud sequence
 
-The serving image derives from the immutable accepted 7C image, but upgrades Ray
-only in the derived image. Its environment is synced to the serving lock, removing
-unused training distributions so they cannot conflict with serving dependencies.
-Matching GPU packages are reused. 7A–7C code, dependencies and published image stay intact.
-
-| Component | Serving candidate |
+| Component | Candidate |
 | --- | --- |
-| Ray Serve LLM | 2.53.0 |
-| Torch / vLLM | 2.9.0+cu130 / 0.12.0+cu130 |
-| Transformers / NumPy | 4.57.6 / 1.26.4 |
-| Flash Attention / CUTLASS DSL | 2.8.3 / 4.2.1 |
-| PyArrow / pandas | 19.0.1 / 2.2.3 (NumPy 1.26-compatible candidate) |
-| Dependency resolution | 222 distinct packages; Python 3.12/Linux x86_64; metadata only |
+| Ray Serve LLM | 2.59.0 (latest stable Ray at review time) |
+| vLLM | 0.27.0 (Ray's exact supported dependency; standalone latest is 0.32.0) |
+| Torch / Transformers | 2.13.0 / 5.20.2 |
+| NumPy / pandas / PyArrow | 2.3.5 / 3.1.0 / 26.0.0 |
+| Pydantic / Hub client | 2.14.1 / 2.3.0 |
+| Base | Official vLLM v0.27.0 amd64 image, pinned by digest in Dockerfile/config.py |
 
-Ray 2.53's official LLM extra targets vLLM >=0.12.0 and Transformers >=4.57.3.
-Its public API uses common Ray deprecation utilities rather than importing RLlib;
-its vLLM adapter handles different `init_app_state` signatures. These source checks
-motivate the candidate; they do not prove runtime compatibility. References:
-[dependency metadata](https://github.com/ray-project/ray/blob/ray-2.53.0/python/setup.py),
-[public API](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/serve/llm/__init__.py),
-[vLLM adapter](https://github.com/ray-project/ray/blob/ray-2.53.0/python/ray/llm/_internal/serve/engines/vllm/vllm_engine.py).
+This serving image is independent of the training image/GPU ABI. The official
+base's Python 3.12 and prebuilt Torch/vLLM must match before dependency sync.
+Only the derived image is changed. New core-version/CUDA checks, schema/protocol
+checks and source hashes prevent silent drift. Parts 1–6 and accepted 7A–7C remain
+preserved. The 7A BF16 export/revision is unchanged.
 
-Local previews need no model, Docker or network:
+Agree hardware and total spending cap before renting. The VM must be full Linux
+x86_64 with systemd, passwordless sudo, Docker/NVIDIA container runtime, visible
+GPUs and NVIDIA driver R580 or newer (CUDA 13 baseline). Actual PTX/JIT/GPU support
+still needs testing; the driver baseline alone is not a compatibility pass.
+One GPU is enough for image build/import checks. The current reused Kubernetes
+installer requires exactly two GPUs, 32 CPUs, 120 GiB RAM and 200 GiB free disk;
+serving uses one GPU. A two-GPU VM can run both phases sequentially. No host CUDA
+toolkit download or manual model download is part of the normal workflow.
+
+After source publication/clone/pull under your control, enter Part 7 on the VM.
+For the new candidate, first run:
+
+```bash
+bash infrastructure/7d_serve/part7D.sh image --cloud --publish
+```
+
+This builds, runs complete model-free native checks before export and again before
+push, then publishes only on success. Default repository: `sclion/part7-training`,
+new `7d-<UTC timestamp>` tag. A Docker Hub write token is read from DOCKERHUB_TOKEN
+or prompted invisibly; temporary authentication is removed afterwards. No model
+or Hub token enters the image/context. Omit --publish for a build/import diagnostic
+without login. Record the printed digest and results/7d/image_* evidence.
+
+Only if those checks pass, run the full E2E workflow using that **new** digest:
+
+```bash
+bash infrastructure/7d_serve/part7D.sh e2e --cloud --fresh-setup \
+  --image sclion/part7-training@sha256:NEW_SERVING_DIGEST
+```
+
+Replace the uppercase digest placeholder. Do not substitute the retained 0.13 or
+7C training digest; the version/source gate will reject it. Omit --fresh-setup on
+an already accepted cluster; fresh mode refuses reuse and never resets a cluster.
+The E2E runner handles setup/reuse, hidden Hub authentication, prompt preparation,
+model staging, serving/HTTP load, restart/recovery, evidence and owned cleanup.
+Stop at the first failure and retain its logs. Keep build caches.
+
+Local previews are optional maintenance checks, not required user setup:
 
 ```bash
 bash infrastructure/7d_serve/part7D.sh image --check
@@ -38,55 +68,18 @@ bash infrastructure/7d_serve/part7D.sh e2e --check \
   --image registry.example/serve@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ```
 
-After agreeing hardware/budget, clone/pull the approved source on a full cloud VM
-and enter Part 7. The existing installer requires exactly two GPUs, at least 32
-CPUs, 120 GiB host RAM and 200 GiB free disk; serving itself uses one GPU. Use a
-full Ubuntu VM with systemd, passwordless sudo, Docker and NVIDIA container runtime,
-not a restricted container rental. The previously reviewed 2 x H100 80 GB VM is
-a reference hardware profile, not a current price/availability recommendation.
-
-Git push/clone/pull remains the preferred source delivery method, performed only
-with your approval. For uncommitted changes, first clone the full repository on
-the VM (so Part 5 sources exist), then transfer the 7D directory from local Part 7:
+For uncommitted source, clone the full repository on the VM first so Part 5 data
+exists, then transfer Part 7 source from local (replace host/path as needed):
 
 ```bash
 rsync -az --exclude=__pycache__ --exclude='.env*' --exclude='.cache' \
-  infrastructure/7d_serve/ \
-  ubuntu@CLOUD_HOST:~/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part7-ml-infra/infrastructure/7d_serve/
+  infrastructure workloads \
+  ubuntu@CLOUD_HOST:~/Foundation_model_performance_and_scaling/Foundation_model_performance_and_scaling/part7-ml-infra/
 ```
 
-Replace the host/path to match the VM. This copies code/configuration only, without
-committing, pushing, or transferring model files. Source hashes are checked again
-when the resulting image is used.
-
-First build/check the derived image and publish only if native import checks pass:
-
-```bash
-bash infrastructure/7d_serve/part7D.sh image --cloud --publish
-```
-
-Default destination is the existing `sclion/part7-training` public repository,
-using a new `7d-<UTC timestamp>` tag. It does not overwrite a 7C tag or digest.
-Use `--repository USER/REPO` to change the destination. Authentication reads
-`DOCKERHUB_TOKEN` or prompts invisibly, using an isolated temporary Docker config
-removed afterwards (including sudo-created files). No model or Hub token enters
-the build context. Omit `--publish` for a build/import diagnostic without login.
-Fresh evidence goes under `results/7d/image_*`; publication records the registry
-digest and verifies it can be pulled. A passing import gate is not an inference pass.
-
-If build/import checks pass, use the printed **serving** digest in the full run:
-
-```bash
-bash infrastructure/7d_serve/part7D.sh e2e --cloud --fresh-setup \
-  --image sclion/part7-training@sha256:SERVING_DIGEST_FROM_PUBLICATION
-```
-
-The uppercase digest placeholder must be replaced; do not use a training digest.
-For an existing accepted cluster, omit `--fresh-setup`. Fresh setup prompts for a
-Hugging Face write token or reads `HF_TOKEN`, then mounts a Secret for model staging.
-No manual model download, laptop data copy or per-phase commands are needed.
-If native imports fail, stop before E2E and inspect `build/runtime_check.log`.
-Do not release the VM until lightweight evidence is retained and reviewed.
+This merges both source trees into the existing checkout without copying model
+files. Git push/clone/pull remains the preferred delivery route, performed only
+with your approval. Do not transfer credentials, models, environments or results.
 
 ## End-to-end workflow and code map
 
@@ -109,7 +102,7 @@ part7D.sh e2e
   -> open VM-loopback port-forward; benchmark.py runs warmup + concurrent load
   -> retain pre-restart logs, metrics and placement
   -> delete the owned worker pod; KubeRay creates its replacement
-  -> require a new pod UID, same node and successful inference
+  -> require old pod absence, a new pod UID, same node and successful inference
   -> benchmark again; retain recovery observations and post-restart evidence
   -> save passing review; delete owned RayService and verify descendant cleanup
   -> save overall e2e_review.json
@@ -252,7 +245,7 @@ VM-side E2E controller
   -> benchmark concurrent HTTP requests
   -> retain pre-restart logs/status/placement
   -> delete the owned worker pod using its UID
-  -> observe replacement UID, same node and working inference
+  -> require old pod absence, replacement UID, same node and working inference
   -> benchmark again + retain post-restart evidence
   -> save successful review
   -> optionally delete owned service and verify descendant cleanup
@@ -402,3 +395,22 @@ execution remains a separate cloud serving/E2E check.
 Sync the corrected source to the same VM and rerun the normal image command.
 Keep the build cache; the unchanged dependency layer can be reused. The checker
 still runs before export, and publication requires it to pass.
+
+
+## Dependency metadata reproduction (maintainer reference)
+
+The agent completed the review; no user-run local resolution is required.
+Top-level framework versions are stable and pinned. Ray requires beta-only
+OpenTelemetry components, so use the documented exception instead of a blanket
+prerelease ban that silently selects older frameworks:
+
+```bash
+uv pip compile --prerelease if-necessary-or-explicit \
+  --python-version 3.12 --python-platform x86_64-manylinux_2_31 \
+  infrastructure/7d_serve/environment/requirements.in \
+  --output-file /tmp/part7-serving-review.lock
+```
+
+This is metadata only; it does not install packages or prove native/GPU support.
+See [dependency review](7D_DEPENDENCY_REVIEW.md). Keep historical failure notes
+below as history; the candidate table at the top states current versions.

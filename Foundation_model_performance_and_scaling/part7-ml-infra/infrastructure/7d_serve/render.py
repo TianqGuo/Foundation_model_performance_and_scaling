@@ -40,7 +40,7 @@ def render_service(image, node_name, *, config=None, namespace="part7", name="pa
         init_env = [entry for entry in container["env"] if entry["name"] != "NVIDIA_VISIBLE_DEVICES"]
         init_env.append(dict(name="NVIDIA_VISIBLE_DEVICES", value="void"))
         pod["initContainers"] = [dict(name="stage-model", image=image,
-            command=["/opt/part7/.venv-7a/bin/python"], args=[
+            command=["python"], args=[
                 "/opt/part7/infrastructure/7d_serve/prepare_model.py", "--cloud",
                 "--repo", config.model_repo, "--revision", config.model_revision,
                 "--output", config.snapshot_path()],

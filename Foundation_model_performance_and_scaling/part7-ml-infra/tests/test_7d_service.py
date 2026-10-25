@@ -112,6 +112,22 @@ class ServiceControlTests(unittest.TestCase):
             self.assertEqual(receipt["http_probe_failures"],1)
             self.assertTrue(receipt["pod_readiness_loss_observed"])
 
+    def test_terminating_old_worker_cannot_prove_recovery(self):
+        """A successful response during overlap may come from the old worker."""
+        old=owned_pod()
+        old["metadata"]["deletionTimestamp"]="2026-10-25T00:00:00Z"
+        replacement=owned_pod(uid="new-uid")
+        with tempfile.TemporaryDirectory() as folder:
+            session=self.session(Path(folder),lambda args:json.dumps(ready_service()))
+            with patch.object(session,"pods",side_effect=[[old,replacement],[replacement]]),patch.object(
+                    module.time,"sleep"),patch.object(module.benchmark,"request_completion",return_value=dict(success=True)) as requests:
+                receipt=session.recover_worker(dict(name="worker",uid="worker-uid",node="node"),"http://localhost","raw")
+            self.assertEqual(requests.call_count,2)
+            self.assertTrue(receipt["old_worker_absent"])
+            observations=json.loads((Path(folder)/"recovery_observations.json").read_text())
+            self.assertTrue(observations[0]["old_worker_present"])
+            self.assertFalse(observations[1]["old_worker_present"])
+
     def test_cleanup_requires_review_and_verifies_absence(self):
         """Passing review gates UID-protected cleanup; storage is never deleted."""
         calls=[]
@@ -214,3 +230,18 @@ class LifecycleWorkflowTests(unittest.TestCase):
                         raise RuntimeError("body failed")
             process.terminate.assert_called_once()
             process.wait.assert_called_once()
+
+
+class ServingDriverTests(unittest.TestCase):
+    def test_cuda13_driver_baseline(self):
+        """Reject unsupported/unknown driver rows before any expensive cloud operation."""
+        self.assertEqual(module.validate_driver_versions("580.105.08\n595.71.05\n"),["580.105.08","595.71.05"])
+        for rows in ("", "unknown", "570.86.15", "595.71.05\n550.1.0"):
+            with self.assertRaises(ValueError):module.validate_driver_versions(rows)
+
+    def test_non_amd64_host_is_rejected_before_gpu_checks(self):
+        """The digest-pinned base is amd64 and must not be mistaken for an ARM profile."""
+        with patch.object(module.platform,"release",return_value="6.8.0-generic"),patch.object(
+                module.platform,"machine",return_value="aarch64"),patch.object(module.subprocess,"run") as run:
+            with self.assertRaisesRegex(ValueError,"x86_64"):module.require_cloud_host()
+            run.assert_not_called()

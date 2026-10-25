@@ -7,7 +7,13 @@ import re
 DEFAULT_REPO = "sclion/part7-7a-smoke-execution-20261005T045405Z-dwaxLH"
 DEFAULT_REVISION = "40c33b6ad0a7a2879e7b5a8f5f6a52baaa94a584"
 # Candidate only: Serve LLM imports/dependency resolution must be checked separately.
-RAY_VERSION = "2.53.0"
+RAY_VERSION = "2.59.0"
+VLLM_VERSION = "0.27.0"
+TORCH_VERSION = "2.13.0"
+CORE_VERSIONS = {"ray": RAY_VERSION, "vllm": VLLM_VERSION, "torch": TORCH_VERSION,
+                 "transformers": "5.20.2"}
+# Official vLLM v0.27.0 Linux/amd64 manifest; inspected without pulling layers.
+BASE_IMAGE = "vllm/vllm-openai@sha256:5b03c7de2951cda2d5fd087457902625eabbe9188478e439561ef34f325b0fd5"
 
 
 @dataclass(frozen=True)

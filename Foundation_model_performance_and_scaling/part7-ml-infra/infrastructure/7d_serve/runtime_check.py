@@ -2,12 +2,13 @@
 import argparse
 import ast
 import importlib
-from importlib.metadata import version
+from importlib.metadata import version, distributions
 import inspect
 import json
 import os
 import pwd
 import getpass
+import hashlib
 import shutil
 import tempfile
 from pathlib import Path
@@ -22,14 +23,22 @@ def validate_constructor_calls(source, constructor, name="AsyncLLM"):
     """Bind explicit constructor calls in source against the installed signature.
 
     Inputs: adapter Python source, installed constructor and its source alias.
-    Returns checked call count. No calls execute; dynamic **kwargs are rejected
+    Recognizes direct calls and explicit single-step aliases. Returns checked
+    call count. No calls execute; dynamic **kwargs are rejected
     rather than treated as proof of compatibility. Missing calls or incompatible
     arguments raise ValueError/TypeError. This checks signatures, not semantics.
     """
     signature = inspect.signature(constructor)
+    tree = ast.parse(source)
+    aliases = {name}
+    # Ray 2.59 invokes engine_cls after engine_cls = AsyncLLM. A dynamic name
+    # without that explicit assignment is not accepted as evidence.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Name) and node.value.id == name:
+            aliases.update(target.id for target in node.targets if isinstance(target, ast.Name))
     checked = 0
-    for node in ast.walk(ast.parse(source)):
-        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name) or node.func.id != name:
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name) or node.func.id not in aliases:
             continue
         if any(isinstance(arg, ast.Starred) for arg in node.args) or any(key.arg is None for key in node.keywords):
             raise ValueError("Dynamic constructor arguments require manual review")
@@ -83,13 +92,73 @@ def check_cloud_filesystems():
 def validate_serve_config(document):
     """Validate a native Serve deployment dictionary and return its schema instance.
 
-    Uses the public model constructor, shared by Pydantic v1/v2. Ray 2.53's
-    ServeDeploySchema uses the v1 compatibility API even with Pydantic v2 installed,
-    so calling its v2-only model_validate method would fail. No app/model is built;
+    Uses the public model constructor, shared by Pydantic v1/v2. Earlier Ray
+    schemas used v1 compatibility and lacked the v2-only model_validate method;
+    constructor validation also works with the reviewed newer schema. No app/model is built;
     invalid configuration raises the native validation exception.
     """
     from ray.serve.schema import ServeDeploySchema
     return ServeDeploySchema(**document)
+
+
+def validate_core_versions(installed):
+    """Require reviewed core versions, allowing an explicit CUDA local-version suffix.
+
+    Input: installed package-version mapping. Returns None or raises on drift,
+    including missing vLLM pins. No package imports or installation occurs.
+    Full wheel/CUDA identities remain in the caller's evidence receipt.
+    """
+    for name,expected in settings.CORE_VERSIONS.items():
+        if installed.get(name, "").split("+")[0] != expected:
+            raise ValueError("Installed "+name+" differs from reviewed serving pin")
+
+
+def check_hub_api():
+    """Check model-staging Hub API signatures without sending requests or loading assets.
+
+    No inputs; returns Hub version. Binds the exact snapshot/model-info arguments
+    and checks the token property used by our staging adapter. Fails on API drift;
+    the synthetic token is never transmitted or stored.
+    """
+    from huggingface_hub import HfApi,ModelInfo,snapshot_download
+    api=HfApi(token="part7-signature-only")
+    if ModelInfo(id="owner/model",sha="a"*40).sha != "a"*40:
+        raise ValueError("Hub model revision field changed")
+    inspect.signature(api.model_info).bind("owner/model",revision="a"*40)
+    inspect.signature(snapshot_download).bind(repo_id="owner/model",revision="a"*40,
+        token=api.token,local_dir="/unused",allow_patterns=["*.json"])
+    return dict(huggingface_hub=version("huggingface-hub"))
+
+
+def require_payload_fields(expected, actual, path=""):
+    """Require request fields to survive schema validation while allowing added defaults.
+
+    Inputs: expected/actual JSON values and diagnostic field path. Recurses through
+    dictionaries; raises on missing/changed values. Additional framework defaults
+    (e.g. continuous_usage_stats=False) are valid and must not cause false failures.
+    """
+    if isinstance(expected,dict):
+        if not isinstance(actual,dict):
+            raise ValueError("Completion protocol changed request field: "+path)
+        for name,value in expected.items():
+            require_payload_fields(value,actual.get(name),path+"."+name if path else name)
+    elif actual != expected:
+        raise ValueError("Completion protocol changed request field: "+path)
+
+
+def check_completion_protocol():
+    """Validate actual benchmark request fields against the pinned Ray completion schema.
+
+    Returns True after constructor validation and round-trip field checks. No HTTP,
+    generation or tokenizer load; prevents flags being silently ignored after upgrades.
+    """
+    from ray.llm._internal.serve.core.configs.openai_api_models import CompletionRequest
+    requests=importlib.import_module("infrastructure.7d_serve.benchmark")
+    payload=requests.completion_payload("part7-math-grpo","raw prompt",8)
+    request=CompletionRequest(**payload)
+    restored=request.model_dump() if hasattr(request,"model_dump") else request.dict()
+    require_payload_fields(payload,restored)
+    return True
 
 
 def check_runtime():
@@ -111,10 +180,12 @@ def check_runtime():
         pass
     data_runtime = check_data_runtime()
     cloud_filesystems = check_cloud_filesystems()
+    hub_api = check_hub_api()
     import torch._inductor.codecache
     installed = {name: version(name) for name in ("ray", "vllm", "torch", "transformers")}
-    if installed["ray"] != settings.RAY_VERSION:
-        raise ValueError("Installed Ray differs from the rendered cluster version")
+    validate_core_versions(installed)
+    if str(torch.version.cuda).split(".")[0] != "13":
+        raise ValueError("Serving candidate requires CUDA 13 Torch wheels")
     from ray.serve.llm import LLMConfig, build_openai_app
     from vllm.v1.engine.async_llm import AsyncLLM
     adapter = importlib.import_module("ray.llm._internal.serve.engines.vllm.vllm_engine")
@@ -129,8 +200,13 @@ def check_runtime():
     if not callable(build_openai_app):
         raise TypeError("Serve LLM builder is not callable")
     calls = validate_constructor_calls(inspect.getsource(adapter), AsyncLLM)
-    return dict(packages=installed, data_runtime=data_runtime, cloud_filesystems=cloud_filesystems,
-                constructor_calls_checked=calls,
+    completion_protocol = check_completion_protocol()
+    lock_hash=hashlib.sha256((Path(__file__).parent/"environment/requirements.lock").read_bytes()).hexdigest()
+    package_versions={dist.metadata["Name"]:dist.version for dist in distributions() if dist.metadata.get("Name")}
+    return dict(packages=installed, installed_packages=dict(sorted(package_versions.items())),
+                dependency_lock_sha256=lock_hash,data_runtime=data_runtime, cloud_filesystems=cloud_filesystems,
+                constructor_calls_checked=calls, hub_api=hub_api, completion_protocol=completion_protocol,
+                cuda_runtime=torch.version.cuda, python=sys.version.split()[0],
                 model_loaded=False, gpu_execution_verified=False, http_verified=False)
 
 

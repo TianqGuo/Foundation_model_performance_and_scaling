@@ -119,3 +119,35 @@ class ServingRuntimeGateTests(unittest.TestCase):
         gate=import_module("infrastructure.7d_serve.runtime_check")
         for source in ("other_call()", "AsyncLLM(**kwargs)", "AsyncLLM(*args)"):
             with self.assertRaises(ValueError):gate.validate_constructor_calls(source,object)
+
+
+class ModernServingInterfaceTests(unittest.TestCase):
+    def test_reviewed_engine_alias_without_constructing_engine(self):
+        """Support the exact Ray 2.59 alias while rejecting unknown/dynamic calls."""
+        gate=import_module("infrastructure.7d_serve.runtime_check")
+        def constructor(vllm_config,executor_class,log_stats,log_requests,stat_loggers=None):
+            """Signature fixture only; execution would invalidate this test."""
+            raise AssertionError("Do not create inference engines locally")
+        source="engine_cls = AsyncLLM\nengine = engine_cls(vllm_config=config,executor_class=executor,log_stats=True,log_requests=False)"
+        self.assertEqual(gate.validate_constructor_calls(source,constructor),1)
+        for source in ("engine_cls = OtherEngine\nengine_cls()", "engine_cls = AsyncLLM\nengine_cls(**kwargs)"):
+            with self.assertRaises(ValueError):gate.validate_constructor_calls(source,constructor)
+
+    def test_runtime_rejects_accidental_vllm_version_drift(self):
+        """CUDA local suffixes are allowed; unreviewed core package versions are not."""
+        gate=import_module("infrastructure.7d_serve.runtime_check")
+        installed=dict(config.CORE_VERSIONS)
+        installed["torch"] += "+cu130"
+        gate.validate_core_versions(installed)
+        installed["vllm"]="0.13.0"
+        with self.assertRaisesRegex(ValueError,"vllm"):gate.validate_core_versions(installed)
+
+    def test_protocol_round_trip_allows_added_defaults(self):
+        """Additional nested protocol defaults are valid; dropped request semantics are not."""
+        gate=import_module("infrastructure.7d_serve.runtime_check")
+        expected=dict(prompt="raw",stream_options=dict(include_usage=True))
+        actual=dict(prompt="raw",stream_options=dict(include_usage=True,continuous_usage_stats=False))
+        gate.require_payload_fields(expected,actual)
+        actual["stream_options"]["include_usage"]=False
+        with self.assertRaisesRegex(ValueError,"stream_options.include_usage"):
+            gate.require_payload_fields(expected,actual)

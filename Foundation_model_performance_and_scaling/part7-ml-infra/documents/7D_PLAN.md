@@ -1,15 +1,19 @@
 # 7D — RayService model serving
 
-Updated: 2026-10-17. Implementation authorized; no instance remains provisioned.
+Updated: 2026-10-25. Implementation authorized; no instance remains provisioned.
 
 ## Current status
 
-First source increment is CPU-prepared: immutable model configuration, native Ray
-Serve LLM configuration, RayService renderer and locked/verified PVC snapshot
-staging. Eight new CPU tests pass, including the real KubeRay 1.4.2 RayService CRD.
-No model checkpoint was downloaded/loaded locally. No serving image, Kubernetes
-service or GPU inference has been executed for 7D. **7D is not cloud-ready yet.**
-7A–7C and their environments/artifacts remain preserved.
+The old vLLM 0.13 serving image passed cloud build, model-free imports and Docker
+Hub publication; all five evidence files were verified locally before VM release.
+No model inference/HTTP/E2E pass has been recorded. That image remains a fallback.
+
+The new latest-compatible candidate uses Ray 2.59 / vLLM 0.27 / Torch 2.13 and an
+independent official vLLM base. Metadata/source review and real CPU schema/data/
+filesystem/Hub checks passed. New GPU libraries and the derived image have not been
+executed; first cloud build/import, then E2E remains required after hardware/budget
+agreement. See [dependency review](7D_DEPENDENCY_REVIEW.md) and
+[current commands](7D_RUNBOOK.md). 7D is not complete. 7A–7C remain preserved.
 
 ## Serving target and platform
 
@@ -24,12 +28,11 @@ service or GPU inference has been executed for 7D. **7D is not cloud-ready yet.*
   7C. Start on one selected node with a CPU head and one 16-CPU/64-GiB one-GPU
   worker. The existing 7C bootstrap requires a two-GPU VM; one GPU is used by the
   initial service. No concurrent training or autoscaling is required.
-- Candidate Ray 2.49.2 retains the verified cluster pin. Its declared LLM extra
-  accepts vLLM >=0.10, but that lower bound does not prove API compatibility with
-  our vLLM 0.12.0+cu130. Serving extras must be resolved and import-tested in a
-  separate serving image before deployment. `environment/requirements.in` is only
-  candidate input, not a lock. Choose a separately pinned Ray version if needed;
-  never upgrade the accepted 7A–7C images/environments in place.
+- Pin Ray 2.59.0 and its exact vLLM 0.27.0 dependency, with Torch 2.13.0.
+  A separate complete serving lock and official vLLM GPU base replace inheritance
+  of the training ABI. The standalone newest vLLM 0.32 does not satisfy Ray's pin.
+  Four OpenTelemetry beta transitive packages are documented exceptions. Never
+  upgrade accepted 7A–7C environments/images in place.
 - Both pod init containers stage the same exact Hub revision to PVC using a lock,
   resumable partial download and atomic rename. Record file hashes, tokenizer
   assets and complete safetensors inventory. Existing snapshots must pass identity
@@ -301,3 +304,23 @@ serving version/CUDA-wheel identity and documentation before GPU/E2E execution;
 do not silently claim this image uses the training vLLM version. Preserve lightweight
 evidence, then the build-only VM can be released; no further VM work is needed
 solely to review this discrepancy. No implementation changes made in this review.
+
+
+## Verification completed for the new candidate
+
+119 combined 7C/7D CPU checks passed, with no skips. This includes real pinned
+KubeRay 1.4.2 RayJob/RayService CRD validation, actual Ray 2.59/Pydantic schema
+checks, the selected NumPy/pandas/Arrow native round trip, filesystem imports with
+clients/network blocked, Hub staging APIs and model-free orchestration tests.
+The separate upstream AST audit checked one constructor call's argument shape.
+Shell syntax, local preview commands, relative documentation links and whitespace
+checks passed. These are not cloud image/native-GPU/inference measurements.
+
+No user-run local review command is needed. New image build/import/publication is
+the next cloud test, followed by E2E only if it passes; hardware/spending agreement
+is still required before rental. No commits, pushes or new cloud resources.
+
+Final recovery-proof refinement: require the old worker pod to be absent before
+accepting a new ready UID plus successful inference; a terminating worker may
+still serve requests. A regression case covers that overlap. Final combined
+verification: 119 tests passed, no skips. No GPU/model execution or Git operations.
