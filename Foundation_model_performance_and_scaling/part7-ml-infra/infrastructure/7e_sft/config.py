@@ -61,6 +61,6 @@ class SFTConfig:
         """Return validated serializable settings and explicit unverified runtime state."""
         self.validate()
         return dict(settings=asdict(self), global_batch_size=self.global_batch_size(),
-                    status="CPU preparation only; trainer/image/recovery pending",
+                    status="Native worker/launcher source prepared; image/recovery/cloud checks pending",
                     model_revision_resolved=self.model_revision is not None,
                     model_loaded=False, gpu_execution_verified=False)

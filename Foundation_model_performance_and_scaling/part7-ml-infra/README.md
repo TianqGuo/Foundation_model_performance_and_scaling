@@ -5,7 +5,7 @@ forward Qwen2.5-Math-1.5B and MATH from Part 5.
 
 **Status:** core 7A–7D is complete at the measured scope: two-rank sharded
 post-training, same-host checkpoint recovery, Kubernetes training and single-GPU
-serving with same-node worker recovery. Optional 7E SFT is now in CPU preparation; broader scaling/shared-pool work
+serving with same-node worker recovery. Optional 7E SFT is now in source/CPU preparation; broader scaling/shared-pool work
 remains optional. See [PLAN.md](PLAN.md) for implementation details.
 
 ## Roadmap
@@ -16,7 +16,7 @@ remains optional. See [PLAN.md](PLAN.md) for implementation details.
 | 7B | Ray placement, observability and recovery | Recorded worker/GPU topology, durable artifacts and tested checkpoint resumption with explicit state-restoration limits. |
 | 7C | Kubernetes training through KubeRay RayJob | Reproducible GPU deployment, retained operational evidence and validated recovery. |
 | 7D | Ray Serve LLM + vLLM through RayService | Serve an exported 7A checkpoint; measure throughput, TTFT, latency and errors, and demonstrate service recovery. |
-| 7E — selected optional work | Ray Train + FSDP2 supervised training | CPU data/configuration preparation implemented; actual sharding and recovery remain pending. |
+| 7E — selected optional work | Ray Train + FSDP2 supervised training | Native worker/launcher and CPU preparation implemented; actual GPU sharding and recovery remain pending. |
 
 The shared platform is **Kubernetes → KubeRay → Ray**. Training runs as batch
 RayJobs; serving runs as a long-lived RayService. verl manages the RL workload;

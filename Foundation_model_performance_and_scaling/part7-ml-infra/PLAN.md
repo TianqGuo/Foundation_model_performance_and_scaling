@@ -3,8 +3,8 @@
 Updated: 2026-11-08
 
 **Core 7A–7D is complete at the bounded cloud scopes below.** The cloud instances
-have been released after local evidence review. The user selected optional 7E on 2026-11-08; its first CPU preparation increment
-is implemented. No 7E cloud execution is ready or verified. Other optional work
+have been released after local evidence review. The user selected optional 7E on 2026-11-08; its workload and native trainer/launcher source preparation
+is implemented. The isolated dependency lock is metadata-resolved. No 7E cloud execution is ready or verified. Other optional work
 requires a separate decision.
 
 This file records the current roadmap, acceptance and open decisions. Detailed
@@ -78,8 +78,9 @@ implementation or paid resources. Reassess after the core stages before choosing
 additional experiments.
 
 - **7E — Optional SFT:** Ray Train/FSDP2, with two-rank sharding and recovery, as
-  selected by the user on 2026-11-08. First configuration/data-preparation
-  increment implemented; trainer/image/checkpoint/E2E remain pending. See the
+  selected by the user on 2026-11-08. Configuration/data preparation, native trainer/launcher source and isolated
+  lock are prepared; GPU/native import verification, image/checkpoint/E2E remain
+  pending. See the
   [7E plan](documents/7E_PLAN.md) and [runbook](documents/7E_RUNBOOK.md).
 - **Larger-model practice:** reuse configurable workload/model/resource settings;
   select model, hardware and budget and validate compatibility/memory first.
