@@ -3,15 +3,14 @@
 Distributed post-training and model serving on a shared Ray platform, carrying
 forward Qwen2.5-Math-1.5B and MATH from Part 5.
 
-**Status:** 7A cloud smoke verified on two A100 40 GB GPUs: FSDP2 sharding,
-training/evaluation, checkpoint export, private Hugging Face uploads and loading
-a pinned uploaded model revision. 7B same-host training-state recovery and 7C
-fresh Kubernetes deployment with checkpoint recovery are also verified. 7D serving
-is next. See [PLAN.md](PLAN.md) for implementation details.
+**Status:** core 7A–7D is complete at the measured scope: two-rank sharded
+post-training, same-host checkpoint recovery, Kubernetes training and single-GPU
+serving with same-node worker recovery. 7E and broader scaling/shared-pool work
+are optional. See [PLAN.md](PLAN.md) for implementation details.
 
 ## Roadmap
 
-| Milestone | Planned capability | Completion evidence |
+| Milestone | Capability | Completion evidence |
 | --- | --- | --- |
 | 7A | verl + FSDP2 + vLLM post-training | Cloud generation, updates, evaluation and checkpointing with verified sharding across at least two training ranks. |
 | 7B | Ray placement, observability and recovery | Recorded worker/GPU topology, durable artifacts and tested checkpoint resumption with explicit state-restoration limits. |
@@ -54,6 +53,23 @@ Step-2 state restored and resumed at step 3; optimizer calls per rank were 6/4/2
 for baseline/interruption/resume. All four job cleanup checks passed, and small
 local evidence was retained. Same-node recovery only; no driver/vLLM RNG,
 replacement-node or bitwise-equivalence claim. See [7C results](documents/7C_PLAN.md).
+
+## Measured 7D serving and recovery
+
+Qwen2.5-Math-1.5B, pinned 7A BF16 export; one GPU, one replica, TP=1,
+context limit 4096, maximum 16 sequences and GPU memory fraction 0.5.
+Ray 2.59.0 / vLLM 0.27.0 / Torch 2.13.0+cu130 served raw MATH prompts.
+The initial streaming test used 16 requests, concurrency 4, two warmup requests
+and at most 128 output tokens: 16/16 succeeded, 354.8 generated tokens/s,
+60.3 ms median client TTFT and 1.34/1.36 s p50/p95 request latency.
+After intentional worker deletion, a new worker on the same node restored
+inference in 225.6 s; all four post-recovery requests succeeded. Owned cleanup
+passed and lightweight evidence was retained before VM release.
+
+These are small client measurements through a VM-local port-forward; they do not
+establish model quality, engine inter-token latency or multi-node performance.
+The successful final run reused Kubernetes; a single fresh-install-to-finish run
+with the final image remains unverified. See [7D results](documents/7D_PLAN.md).
 
 ## Reference and validation
 

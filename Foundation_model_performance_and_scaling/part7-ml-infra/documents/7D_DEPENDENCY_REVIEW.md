@@ -1,18 +1,23 @@
 # 7D serving dependency review — 2026-10-25
 
+Reviewed closeout (2026-11-08): the selected stack passed cloud build/import,
+publication and bounded serving/HTTP/same-node recovery E2E on 2026-10-25.
+See [accepted results](7D_PLAN.md). Version freshness statements below refer to
+the original October 25 review, not a new dependency review on November 8.
+
 ## Decision and scope
 
 Use a separate latest-compatible stable serving candidate. Keep Parts 1–6 and the
 accepted 7A–7C code, environments, images and artifacts unchanged. Keep the existing
-published 7D vLLM 0.13 image as a retained fallback; the new candidate is not yet
-built or GPU-verified. The same immutable 7A BF16 model export remains selected.
+published 7D vLLM 0.13 image as historical build evidence; the selected stack
+subsequently passed the bounded cloud run recorded below. The same immutable 7A BF16 model export remains selected.
 
 | Component | Reviewed candidate | Reason |
 | --- | --- | --- |
 | Ray Serve LLM | 2.59.0 | Latest stable Ray metadata at review time. |
 | vLLM | 0.27.0 | Exact dependency of Ray 2.59's LLM extra. Standalone latest is 0.32.0, which does not satisfy that pin. |
 | PyTorch | 2.13.0 | Required by vLLM 0.27. Standalone latest 2.14.1 is not selected. |
-| Transformers | 5.20.2 | Resolved stable candidate satisfying vLLM's requirements; model execution remains unverified. |
+| Transformers | 5.20.2 | Resolved stable candidate satisfying vLLM's requirements; model execution passed the bounded cloud run. |
 | NumPy / pandas / PyArrow | 2.3.5 / 3.1.0 / 26.0.0 | Resolved together; real CPU filesystem/Parquet round trip passed. |
 | Pydantic / Hub client | 2.14.1 / 2.3.0 | Real CPU Serve schema and model-staging API checks passed. |
 | boto3 / botocore | 1.43.118 / 1.43.118 | Explicit filesystem-import support; no AWS clients/credentials required. |
@@ -89,17 +94,15 @@ Small metadata/source-hash audit evidence is retained at
 loaded locally. Latest production lock was generated from requirements.in;
 latest-review.in is a maintainer reproduction input, not a user setup step.
 
-## Remaining cloud evidence
+## Cloud evidence reviewed
 
-After hardware/spending agreement and source delivery, run the normal image build/
-import/publication command. Only if it passes, run the complete RayService E2E
-workflow using the newly published digest. Native imports, dense-Qwen inference,
-HTTP/load metrics, same-node worker recovery and cleanup must be reviewed before
-accepting this candidate. Model quality, multi-node and larger-model claims remain
-outside this test. See [7D runbook](7D_RUNBOOK.md).
+The corrected image `sclion/part7-training@sha256:7ccbadd1212957b1342cf3b8054dd134cb66d5103e71dfcfb7c646d7475ab737`
+passed imports, pinned-model serving, HTTP/load, same-node worker recovery and
+owned cleanup. Evidence is retained at `results/7d/part7-7d-20261025-044105`.
+The final run reused Kubernetes; combined fresh setup with the final image remains
+unverified. Model quality, multi-node and larger-model claims remain outside scope.
 
-
-## Verification completed for the new candidate
+## CPU verification before cloud execution
 
 119 combined 7C/7D CPU checks passed, with no skips. This includes real pinned
 KubeRay 1.4.2 RayJob/RayService CRD validation, actual Ray 2.59/Pydantic schema
@@ -109,11 +112,18 @@ The separate upstream AST audit checked one constructor call's argument shape.
 Shell syntax, local preview commands, relative documentation links and whitespace
 checks passed. These are not cloud image/native-GPU/inference measurements.
 
-No user-run local review command is needed. New image build/import/publication is
-the next cloud test, followed by E2E only if it passes; hardware/spending agreement
-is still required before rental. No commits, pushes or new cloud resources.
+The recovery proof requires old-worker absence before accepting a replacement UID
+and working inference; a terminating worker may still serve requests. Synthetic
+regressions cover this overlap, while the cloud evidence records actual recovery.
 
-Final recovery-proof refinement: require the old worker pod to be absent before
-accepting a new ready UID plus successful inference; a terminating worker may
-still serve requests. A regression case covers that overlap. Final combined
-verification: 119 tests passed, no skips. No GPU/model execution or Git operations.
+## Reproduce dependency metadata (maintainer reference)
+
+```bash
+uv pip compile --prerelease if-necessary-or-explicit \
+  --python-version 3.12 --python-platform x86_64-manylinux_2_31 \
+  infrastructure/7d_serve/environment/requirements.in \
+  --output-file /tmp/part7-serving-review.lock
+```
+
+Run from Part 7. This resolves metadata only; it installs no packages and proves
+no native/GPU compatibility. Keep changes separate until reviewed and cloud-tested.

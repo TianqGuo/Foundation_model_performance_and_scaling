@@ -16,7 +16,11 @@
 - Bounded 7B and 7C recovery are complete with reviewed retained evidence.
   7C accepted run: `results/7c/part7-e2e-20261018-031219`; see
   `documents/7C_PLAN.md`. Fresh setup and same-node two-rank recovery passed;
-  replacement-node/bitwise recovery remains unverified. 7D is next.
+  replacement-node/bitwise recovery remains unverified. Bounded 7D serving and
+  same-node worker recovery are complete: reviewed run
+  `results/7d/part7-7d-20261025-044105`; see `documents/7D_PLAN.md`.
+  Final 7D E2E reused Kubernetes; combined fresh setup with the final image
+  remains unverified. Core 7A–7D is complete; further milestones are optional.
 - Do not stage, commit or push without explicit user approval.
 
 ## Execution and code
@@ -63,3 +67,15 @@
   caveats. Put setup, commands and troubleshooting in a runbook; track progress
   and validation limits in `PLAN.md`. Do not claim unmeasured scalability or speedups.
 - Current user instructions take precedence over historical guidance.
+
+## Documentation maintenance
+
+- Use the document ownership map in `PLAN.md`. Keep current facts in their owning
+  document and link from summaries instead of copying long instructions/results.
+- Update existing milestone plans/runbooks; avoid appending routine progress logs
+  or creating a new document for each fix. Consolidate resolved failures into the
+  runbook and preserve useful decisions, evidence identities and limitations.
+- Keep enough milestone history to explain what changed, why it changed, what
+  passed/failed and what remains optional or unverified; brevity must not remove
+  the rationale needed to review or reproduce the work.
+- Keep conceptual Q&A diagrams; merge related questions and link operational detail.

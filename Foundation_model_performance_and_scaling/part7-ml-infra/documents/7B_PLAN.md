@@ -100,7 +100,7 @@ The initial runner requires 100 GiB free disk and retains its intermediate copie
 4. **Review/reassess:** verify each restoration claim and placement from evidence,
    document unsupported state, update README/PLAN and reassess before 7C.
 
-7B remains incomplete until cloud recovery audits pass. A resume flag, load message
+Acceptance requires cloud recovery audits. A resume flag, load message
 or file listing alone is insufficient. Capture image/model/data/artifact identity,
 exceptions and limitations. No resources are provisioned and no commits/pushes
 are authorized by this document.
@@ -112,7 +112,26 @@ planned step-2 interruption and fresh-runtime step-3 continuation. Two rank-loca
 model/Adam/scheduler/saved worker RNG audits and trainer step/data fingerprints
 match exactly. The next source batch matches the baseline. Actual sharding,
 resumed optimizer calls, final evaluation/checkpoint and private Hub receipts are
-retained; see [PLAN.md](../PLAN.md#reviewed-7b-cloud-recovery) for identities/timing.
+retained; identities and timing follow below.
 Local evidence excludes full tensor payloads, which remain on the Hub. This
 completes the bounded same-host experiment; driver/vLLM RNG and replacement-node
 recovery remain outside its supported claims.
+
+### Retained identities and timing
+
+Private dataset: `sclion/part7-7b-recovery-execution-20261011T022932Z-Ponp8Z`.
+Checkpoint commit: `f270b988649abdd9d461baad8e654ecd2eb44dfd`.
+Evidence commit: `e1df90574ae7acf70cfef67ee0b282b1a92878e9`.
+The 1,290 lightweight local files (~5.8 MiB) exclude checkpoint tensors.
+Each rank recorded 338 sharded parameter tensors and 6/4/2 optimizer calls
+for baseline/interruption/resume. Restored step 3 consumed source indices
+`[78, 536, 279, 461]`, matching baseline, from `restored/global_step_2`.
+The interrupted step-2 rollout dump is intentionally absent after the complete
+checkpoint; final resumed rollout/evaluation/checkpoint succeeded.
+
+Upload: 82.0 s; download plus integrity: 35.4 s. Native load: 7.55–7.59 s/rank;
+audit overhead: 20.58–20.60 s; audit to first optimizer update: 22.87–22.88 s.
+These reflect the tested host/cache/network, not production or cold-start timing.
+Distinct Ray node IDs/worker PIDs prove fresh runtimes on the same physical host.
+The foreground-authentication fix was not exercised by this run, which used a
+saved-login workaround; later workflow authentication is documented in runbooks.

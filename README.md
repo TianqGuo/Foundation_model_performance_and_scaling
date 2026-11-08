@@ -1,6 +1,6 @@
 # Foundation Models — From Architecture to Alignment
 
-End-to-end implementation of a language model training stack: BPE tokenizer, Transformer architecture, GPU kernel optimization, multi-GPU distributed training, empirical scaling law experiments, web-scale data filtering pipeline, and post-training alignment via SFT, Expert Iteration, GRPO, and DPO.
+End-to-end implementation of a language model training stack: BPE tokenizer, Transformer architecture, GPU kernel optimization, multi-GPU distributed training, empirical scaling law experiments, web-scale data filtering pipeline, post-training alignment via SFT, Expert Iteration, GRPO, and DPO, and cloud ML infrastructure for sharded training, checkpoint recovery and model serving.
 
 ---
 
@@ -14,6 +14,7 @@ End-to-end implementation of a language model training stack: BPE tokenizer, Tra
 | [Part 4](#part-4-data-pipeline--training) | Data Pipeline & Training | Filtered 1.29M docs from 16.4M CC records; trained 85M-param model to 4.3 eval loss on Paloma | [README](Foundation_model_performance_and_scaling/part4-data/README.md) |
 | [Part 5](#part-5-alignment--reasoning-rl) | Alignment & Reasoning RL | Zero-shot 2.5% → SFT 65.0% → Expert Iteration 52.5% → GRPO 71.1% (natural question format; off-policy with PPO clipping) | [README](Foundation_model_performance_and_scaling/part5-alignment/README.md) |
 | [Part 6](#part-6-instruction-tuning--rlhf) | Instruction Tuning & RLHF | SFT raises AlpacaEval win rate 37.8%→62.9% and GSM8K 16.3%→30.6%; DPO improves MMLU to 58.9% and safety to 72%; loss formulation ablation identifies dominant safety regression factor | [README](Foundation_model_performance_and_scaling/part6-instruction-tuning-rlhf/README.md) |
+| [Part 7](#part-7-ml-infrastructure) | ML Infrastructure | Verified two-rank FSDP2 training/recovery and Kubernetes deployment; single-GPU serving passed 16/16 initial and 4/4 post-recovery requests | [README](Foundation_model_performance_and_scaling/part7-ml-infra/README.md) |
 
 ---
 ## Hardware
@@ -461,6 +462,28 @@ Fine-tuned the SFT checkpoint on Anthropic HH preference pairs — no reward mod
 
 ---
 
+## Part 7: ML Infrastructure
+
+Core milestones 7A–7D are complete at their bounded cloud scope. Qwen2.5-Math-1.5B
+and MATH run through verl/FSDP2/vLLM, with verified two-rank sharding, private
+Hugging Face checkpoint retention and native training-state recovery. KubeRay
+RayJobs provide Kubernetes training; RayService runs Ray Serve LLM/vLLM inference.
+
+The serving test passed 16/16 requests at concurrency 4 and 4/4 after same-node
+worker replacement. Initial client measurements were 354.8 generated tokens/s,
+60.3 ms median TTFT and 1.34/1.36 s p50/p95 latency, with at most 128 output tokens
+and two warmups. Inference recovered in 225.6 s and owned cleanup passed.
+These small port-forward measurements do not establish model quality or multi-node
+performance. Final serving E2E reused Kubernetes; a combined fresh-install run
+with the final image remains unverified. SFT platform reuse (7E), shared-pool
+admission, larger models and broader scaling/recovery are optional follow-ups.
+
+See the [Part 7 README](Foundation_model_performance_and_scaling/part7-ml-infra/README.md)
+for measured scope and the [plan](Foundation_model_performance_and_scaling/part7-ml-infra/PLAN.md)
+for implementation and validation limits.
+
+---
+
 ## Repository Structure
 
 ```
@@ -478,8 +501,12 @@ Foundation_model_performance_and_scaling/
 │   └── results/screenshots/
 ├── part5-alignment/       # Reasoning RL (SFT, Expert Iteration, GRPO)
 │   └── cs336_alignment/
-└── part6-instruction-tuning-rlhf/  # Instruction tuning (SFT on UltraChat), DPO on HH preference pairs
-    └── cs336_alignment/
+├── part6-instruction-tuning-rlhf/  # Instruction tuning (SFT on UltraChat), DPO on HH preference pairs
+│   └── cs336_alignment/
+└── part7-ml-infra/         # verl/FSDP2, Hub recovery, KubeRay training and serving
+    ├── infrastructure/
+    ├── workloads/
+    └── documents/
 ```
 
 ## Setup
