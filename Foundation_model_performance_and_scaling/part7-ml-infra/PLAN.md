@@ -3,8 +3,9 @@
 Updated: 2026-11-08
 
 **Core 7A–7D is complete at the bounded cloud scopes below.** The cloud instances
-have been released after local evidence review. Optional work requires a separate
-decision; no cloud run is required for documentation closeout.
+have been released after local evidence review. The user selected optional 7E on 2026-11-08; its first CPU preparation increment
+is implemented. No 7E cloud execution is ready or verified. Other optional work
+requires a separate decision.
 
 This file records the current roadmap, acceptance and open decisions. Detailed
 milestone results and operating procedures live in the linked documents, rather
@@ -24,7 +25,7 @@ at the project root for ongoing planning and working conventions.
 Group infrastructure code by milestone. `infrastructure/7a_verl/` contains the
 7A shell/Python runners, diagnostics, configuration and environment files.
 `workloads/` holds reusable MATH and generation adapters. Implemented milestone
-directories also include `7b_ray/`, `7c_kuberay/` and `7d_serve/`. Add an optional 7E directory only if selected; tests and results remain
+directories also include `7b_ray/`, `7c_kuberay/` and `7d_serve/`, plus the selected optional `7e_sft/`. Tests and results remain
 at the project root.
 
 Start with Qwen2.5-Math-1.5B and MATH. The corrected Part 5 GRPO-Clip reference is
@@ -77,7 +78,9 @@ implementation or paid resources. Reassess after the core stages before choosing
 additional experiments.
 
 - **7E — Optional SFT:** Ray Train/FSDP2, with two-rank sharding and recovery, as
-  already accepted in the roadmap. Continuing requires a separate decision.
+  selected by the user on 2026-11-08. First configuration/data-preparation
+  increment implemented; trainer/image/checkpoint/E2E remain pending. See the
+  [7E plan](documents/7E_PLAN.md) and [runbook](documents/7E_RUNBOOK.md).
 - **Larger-model practice:** reuse configurable workload/model/resource settings;
   select model, hardware and budget and validate compatibility/memory first.
 - **Training TP/PP:** explore a compatible verl training backend, such as Megatron,
@@ -117,6 +120,7 @@ additional experiments.
 | [7B plan](documents/7B_PLAN.md), [runbook](documents/7B_RUNBOOK.md) | Native checkpoint/recovery evidence and procedure. |
 | [7C plan](documents/7C_PLAN.md), [runbook](documents/7C_RUNBOOK.md) | Kubernetes training evidence and workflow. |
 | [7D plan](documents/7D_PLAN.md), [runbook](documents/7D_RUNBOOK.md) | Serving acceptance/results and execution/troubleshooting. |
+| [7E plan](documents/7E_PLAN.md), [runbook](documents/7E_RUNBOOK.md) | Selected optional SFT scope, acceptance and execution. |
 | [7D dependency review](documents/7D_DEPENDENCY_REVIEW.md) | Dated dependency decisions and compatibility rationale. |
 | [QA.md](documents/QA.md), [manifest guide](documents/MANIFEST_GUIDE.md) | Concepts, explanations and diagrams; link to commands/results. |
 | [Part 5 plan copy](documents/PART5_MODERNIZATION_PLAN.md) | Historical reference; not current Part 7 status. |

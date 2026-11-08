@@ -20,7 +20,10 @@
   same-node worker recovery are complete: reviewed run
   `results/7d/part7-7d-20261025-044105`; see `documents/7D_PLAN.md`.
   Final 7D E2E reused Kubernetes; combined fresh setup with the final image
-  remains unverified. Core 7A–7D is complete; further milestones are optional.
+  remains unverified. Core 7A–7D is complete. User selected optional 7E on 2026-11-08;
+  see `documents/7E_PLAN.md` and `documents/7E_RUNBOOK.md`. CPU preparation
+  is implemented; cloud training/recovery remains pending. Other extensions
+  still require a separate decision.
 - Do not stage, commit or push without explicit user approval.
 
 ## Execution and code
